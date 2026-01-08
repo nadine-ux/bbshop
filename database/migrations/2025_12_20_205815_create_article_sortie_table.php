@@ -9,22 +9,27 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
+    public function up(): void
+    {
+        Schema::create('article_sortie', function (Blueprint $table) {
+            $table->id();
 
-public function up(): void
-{
-    Schema::create('article_sortie', function (Blueprint $table) {
-        $table->id();
-        $table->foreignId('sortie_id')->constrained()->onDelete('cascade');
-        $table->foreignId('article_id')->constrained()->onDelete('cascade');
-        $table->integer('quantite_cartons')->default(0);
-        $table->integer('quantite_pieces')->default(0);
-        $table->integer('quantite_total')->default(0); // toujours en pièces
-        $table->timestamps();
-    });
-}
+            // clé étrangère vers sorties.id
+            $table->foreignId('sortie_id')
+                  ->constrained('sorties')
+                  ->onDelete('cascade');
 
-    
+            // clé étrangère vers articles.id
+            $table->foreignId('article_id')
+                  ->constrained('articles')
+                  ->onDelete('cascade');
 
+            $table->integer('quantite_cartons')->default(0);
+            $table->integer('quantite_pieces')->default(0);
+            $table->integer('quantite_total')->default(0); // toujours en pièces
+            $table->timestamps();
+        });
+    }
 
     /**
      * Reverse the migrations.
