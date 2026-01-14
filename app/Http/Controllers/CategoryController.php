@@ -66,5 +66,48 @@ public function show(Category $category)
 
     return view('articles.cards', compact('category', 'articles'));
 }
+ // 🔹 Editer une catégorie
+    public function edit(Category $category)
+    {
+        // Charger toutes les catégories pour le select parent
+        $categories = Category::where('id', '!=', $category->id)->get();
+
+        return view('categories.edit', compact('category', 'categories'));
+    }
+
+    // 🔹 Mettre à jour la catégorie
+    public function update(Request $request, Category $category)
+    {
+        $request->validate([
+            'nom' => 'required|string|max:255',
+            'parent_id' => 'nullable|exists:categories,id',
+            'photo' => 'nullable|image|max:2048' // si tu veux permettre la photo
+        ]);
+
+        $data = $request->only('nom','parent_id');
+
+        // 🔹 Gestion photo si upload
+        if ($request->hasFile('photo')) {
+            $path = $request->file('photo')->store('categories','public');
+            $data['photo'] = $path;
+        }
+
+        $category->update($data);
+
+        return redirect()->route('categories.index')->with('success','Catégorie modifiée avec succès');
+    }
+
+    // 🔹 Supprimer une catégorie
+    public function destroy(Category $category)
+    {
+        // Optionnel : vérifier qu’il n’y a pas d’articles ou de sous-catégories
+        if ($category->children()->count() > 0 || $category->articles()->count() > 0) {
+            return redirect()->back()->with('error', 'Impossible de supprimer : la catégorie contient des sous-catégories ou des articles.');
+        }
+
+        $category->delete();
+
+        return redirect()->route('categories.index')->with('success','Catégorie supprimée avec succès');
+    }
 
 }
