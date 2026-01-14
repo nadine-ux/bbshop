@@ -12,9 +12,9 @@ return new class extends Migration
     public function up()
 {
     Schema::table('categories', function (Blueprint $table) {
-        $table->string('photo')->nullable()->after('name'); 
-        // nullable = pas obligatoire
-    });
+    $table->string('photo')->nullable();
+});
+
 }
 
 public function down()

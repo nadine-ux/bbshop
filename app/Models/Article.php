@@ -53,4 +53,9 @@ class Article extends Model
     {
         return $this->hasMany(Demande::class);
     }
+    public function getStockCritiqueAttribute()
+{
+    return $this->stock <= $this->quantite_minimale;
+}
+
 }

@@ -16,7 +16,7 @@
                 <div class="card-body d-flex align-items-center">
                     <i class="fas fa-tags fa-2x me-3"></i>
                     <div>
-                        <h5 class="card-title">Catégories</h5>
+                        <h5 class="card-title">Stock</h5>
                         <p class="card-text">Gérer les catégories</p>
                     </div>
                 </div>
