@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Fournisseur;
+use App\Models\Entree;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class FournisseurController extends Controller
 {
@@ -18,7 +20,7 @@ class FournisseurController extends Controller
      */
     public function index()
     {
-        $fournisseurs = Fournisseur::paginate(10);
+        $fournisseurs = Fournisseur::paginate(12);
         return view('fournisseurs.index', compact('fournisseurs'));
     }
 
@@ -39,24 +41,46 @@ class FournisseurController extends Controller
             'nom' => 'required|string|max:255',
             'marque' => 'nullable|string|max:255',
             'telephone' => 'nullable|string|max:20',
-            'email' => 'nullable|email',
-            'adresse' => 'nullable|string',
+            'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
         ]);
 
-        Fournisseur::create($request->all());
-        return redirect()->route('suppliers.index')->with('success','Fournisseur ajouté avec succès');
+        $data = $request->only(['nom', 'marque', 'telephone']);
+
+        // Gérer l'upload de la photo
+        if ($request->hasFile('photo')) {
+            $path = $request->file('photo')->store('fournisseurs', 'public');
+            $data['photo'] = $path;
+        }
+
+        Fournisseur::create($data);
+        
+        return redirect()->route('suppliers.index')
+                         ->with('success', 'Fournisseur ajouté avec succès');
     }
 
     /**
-     * Afficher un fournisseur
+     * Afficher un fournisseur avec son historique
      */
     public function show(Fournisseur $supplier)
     {
-        return view('fournisseurs.show', compact('supplier'));
+        // Charger les entrées avec leurs articles
+        $entrees = Entree::where('fournisseur_id', $supplier->id)
+                        ->with(['articles'])
+                        ->orderBy('date_reception', 'desc')
+                        ->paginate(10);
+        
+        // Calculer le total des achats
+        $totalAchats = Entree::where('fournisseur_id', $supplier->id)
+                            ->sum('prix_total');
+        
+        // Nombre total de bons d'achat
+        $nombreBons = Entree::where('fournisseur_id', $supplier->id)->count();
+        
+        return view('fournisseurs.show', compact('supplier', 'entrees', 'totalAchats', 'nombreBons'));
     }
 
     /**
-     * Formulaire d’édition
+     * Formulaire d'édition
      */
     public function edit(Fournisseur $supplier)
     {
@@ -70,11 +94,35 @@ class FournisseurController extends Controller
     {
         $request->validate([
             'nom' => 'required|string|max:255',
-            'email' => 'nullable|email',
+            'marque' => 'nullable|string|max:255',
+            'telephone' => 'nullable|string|max:20',
+            'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'remove_photo' => 'nullable|boolean'
         ]);
 
-        $supplier->update($request->all());
-        return redirect()->route('suppliers.index')->with('success','Fournisseur mis à jour');
+        $data = $request->only(['nom', 'marque', 'telephone']);
+
+        // Supprimer la photo
+        if ($request->has('remove_photo') && $request->remove_photo == 1) {
+            if ($supplier->photo) {
+                Storage::delete('public/' . $supplier->photo);
+                $data['photo'] = null;
+            }
+        }
+
+        // Upload nouvelle photo
+        if ($request->hasFile('photo')) {
+            if ($supplier->photo) {
+                Storage::delete('public/' . $supplier->photo);
+            }
+            $path = $request->file('photo')->store('fournisseurs', 'public');
+            $data['photo'] = $path;
+        }
+
+        $supplier->update($data);
+
+        return redirect()->route('suppliers.index')
+                         ->with('success', 'Fournisseur mis à jour avec succès');
     }
 
     /**
@@ -82,7 +130,14 @@ class FournisseurController extends Controller
      */
     public function destroy(Fournisseur $supplier)
     {
+        // Supprimer la photo si elle existe
+        if ($supplier->photo) {
+            Storage::delete('public/' . $supplier->photo);
+        }
+        
         $supplier->delete();
-        return redirect()->route('suppliers.index')->with('success','Fournisseur supprimé');
+        
+        return redirect()->route('suppliers.index')
+                         ->with('success', 'Fournisseur supprimé avec succès');
     }
 }
