@@ -124,7 +124,92 @@ class ArticleController extends Controller
 
     return redirect()->route('articles.index')->with('success','Article créé avec succès');
 }
-
+public function getDetails($id)
+{
+    try {
+        // Charger l'article avec les relations
+        $article = Article::with(['category'])->findOrFail($id);
+        
+        // Récupérer l'historique des mouvements
+        $mouvements = collect();
+        
+        // Vérifier si les relations existent avant de les utiliser
+        if (method_exists($article, 'entrees')) {
+            $entrees = \DB::table('article_entree')
+                ->join('entrees', 'article_entree.entree_id', '=', 'entrees.id')
+                ->leftJoin('fournisseurs', 'entrees.fournisseur_id', '=', 'fournisseurs.id')
+                ->where('article_entree.article_id', $article->id)
+                ->select(
+                    'entrees.date_reception as date',
+                    'article_entree.quantite_total as quantite',
+                    'fournisseurs.nom as fournisseur_nom'
+                )
+                ->get();
+            
+            foreach($entrees as $entree) {
+                $quantite = $entree->quantite ?? 0;
+                $cartons = $article->contenance_carton > 0 
+                    ? intdiv($quantite, $article->contenance_carton) 
+                    : 0;
+                $reste = $article->contenance_carton > 0 
+                    ? $quantite % $article->contenance_carton 
+                    : $quantite;
+                
+                $mouvements->push([
+                    'date' => $entree->date,
+                    'type' => 'Entrée',
+                    'partenaire' => $entree->fournisseur_nom ?? 'N/A',
+                    'quantite' => $quantite,
+                    'detail' => "$cartons cartons, $reste pièces",
+                ]);
+            }
+        }
+        
+        // Récupérer les sorties
+        if (method_exists($article, 'sorties')) {
+            $sorties = \DB::table('article_sortie')
+                ->join('sorties', 'article_sortie.sortie_id', '=', 'sorties.id')
+                ->where('article_sortie.article_id', $article->id)
+                ->select(
+                    'sorties.created_at as date',
+                    'article_sortie.quantite_total as quantite',
+                    'sorties.destination as destination'
+                )
+                ->get();
+            
+            foreach($sorties as $sortie) {
+                $quantite = $sortie->quantite ?? 0;
+                $cartons = $article->contenance_carton > 0 
+                    ? intdiv($quantite, $article->contenance_carton) 
+                    : 0;
+                $reste = $article->contenance_carton > 0 
+                    ? $quantite % $article->contenance_carton 
+                    : $quantite;
+                
+                $mouvements->push([
+                    'date' => $sortie->date,
+                    'type' => 'Sortie',
+                    'partenaire' => $sortie->destination ?? 'N/A',
+                    'quantite' => $quantite,
+                    'detail' => "$cartons cartons, $reste pièces",
+                ]);
+            }
+        }
+        
+        // Trier par date décroissante
+        $mouvements = $mouvements->sortByDesc('date')->take(10)->values();
+        
+        return view('articles.details-modal', compact('article', 'mouvements'));
+        
+    } catch (\Exception $e) {
+        \Log::error('Erreur lors du chargement des détails de l\'article: ' . $e->getMessage());
+        
+        return response()->json([
+            'error' => 'Erreur lors du chargement des détails',
+            'message' => $e->getMessage()
+        ], 500);
+    }
+}
 
     /**
      * Afficher un article

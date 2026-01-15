@@ -76,6 +76,7 @@ Route::middleware(['auth'])->group(function () {
             Route::get('mouvements', [MouvementController::class,'index'])->name('mouvements.index');
             Route::resource('categories', CategoryController::class);
             Route::resource('subcategories', SubcategoryController::class);
+            Route::get('articles/{article}/details', [ArticleController::class, 'getDetails'])->name('articles.details');
         });
     });
 });
