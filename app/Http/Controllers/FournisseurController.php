@@ -61,23 +61,32 @@ class FournisseurController extends Controller
     /**
      * Afficher un fournisseur avec son historique
      */
-    public function show(Fournisseur $supplier)
-    {
-        // Charger les entrées avec leurs articles
-        $entrees = Entree::where('fournisseur_id', $supplier->id)
-                        ->with(['articles'])
-                        ->orderBy('date_reception', 'desc')
-                        ->paginate(10);
-        
-        // Calculer le total des achats
-        $totalAchats = Entree::where('fournisseur_id', $supplier->id)
-                            ->sum('prix_total');
-        
-        // Nombre total de bons d'achat
-        $nombreBons = Entree::where('fournisseur_id', $supplier->id)->count();
-        
-        return view('fournisseurs.show', compact('supplier', 'entrees', 'totalAchats', 'nombreBons'));
-    }
+  /**
+ * Afficher un fournisseur avec son historique
+ */
+/**
+ * Afficher un fournisseur avec son historique
+ */
+public function show(Fournisseur $supplier)
+{
+    // Charger les entrées avec leurs articles
+    $entrees = Entree::where('fournisseur_id', $supplier->id)
+                    ->with(['articles'])
+                    ->orderBy('date_reception', 'desc')
+                    ->paginate(10);
+    
+    // Calculer le total des achats depuis la table pivot article_entree
+    $totalAchats = \DB::table('article_entree')
+                    ->join('entrees', 'article_entree.entree_id', '=', 'entrees.id')
+                    ->where('entrees.fournisseur_id', $supplier->id)
+                    ->selectRaw('SUM(article_entree.quantite_total * article_entree.prix_unitaire) as total')
+                    ->value('total') ?? 0;
+    
+    // Nombre total de bons d'achat
+    $nombreBons = Entree::where('fournisseur_id', $supplier->id)->count();
+    
+    return view('fournisseurs.show', compact('supplier', 'entrees', 'totalAchats', 'nombreBons'));
+}
 
     /**
      * Formulaire d'édition

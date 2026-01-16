@@ -121,6 +121,13 @@
                     </thead>
                     <tbody>
                         @foreach($entrees as $entree)
+                            @php
+                                // Calculer le total de cette entrée
+                                $totalEntree = 0;
+                                foreach($entree->articles as $article) {
+                                    $totalEntree += ($article->pivot->quantite_total * ($article->pivot->prix_unitaire ?? 0));
+                                }
+                            @endphp
                             <tr>
                                 <td><code>#{{ $entree->id }}</code></td>
                                 <td>{{ \Carbon\Carbon::parse($entree->date_reception)->format('d/m/Y') }}</td>
@@ -131,7 +138,7 @@
                                 </td>
                                 <td>
                                     <span class="montant-hidden">
-                                        <strong>{{ number_format($entree->prix_total ?? 0, 2) }} DA</strong>
+                                        <strong>{{ number_format($totalEntree, 2) }} DA</strong>
                                     </span>
                                 </td>
                                 <td>
