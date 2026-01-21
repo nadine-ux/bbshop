@@ -397,7 +397,7 @@
    ============================================ */
 @media (max-width: 768px) {
     .categories-grid {
-        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            grid-template-columns: repeat(2, 1fr) !important; 
         gap: 1rem;
     }
     
