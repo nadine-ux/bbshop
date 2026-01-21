@@ -1,0 +1,258 @@
+/* ============================================
+   SIDEBAR MODERNE - BB Shopping
+   ============================================ */
+
+/* Sidebar principale */
+.main-sidebar {
+    background: linear-gradient(180deg, #2c3e50 0%, #34495e 100%) !important;
+    box-shadow: 2px 0 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Logo/Brand */
+.brand-link {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    border-bottom: none !important;
+    padding: 1rem 1.25rem !important;
+    transition: all 0.3s ease;
+}
+
+.brand-link:hover {
+    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%) !important;
+}
+
+.brand-text {
+    color: white !important;
+    font-weight: 700 !important;
+    font-size: 1.2rem !important;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.brand-image {
+    opacity: 1 !important;
+    filter: brightness(1.2);
+}
+
+/* Sidebar menu */
+.sidebar {
+    padding-top: 0.5rem;
+}
+
+/* Headers de section */
+.nav-header {
+    color: #95a5a6 !important;
+    font-size: 0.75rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 1px !important;
+    padding: 1rem 1rem 0.5rem 1rem !important;
+    margin-top: 0.5rem !important;
+    text-transform: uppercase;
+}
+
+/* Items du menu */
+.nav-sidebar .nav-item {
+    margin-bottom: 0.25rem;
+}
+
+.nav-sidebar .nav-link {
+    color: rgba(255, 255, 255, 0.85) !important;
+    border-radius: 8px;
+    margin: 0 0.5rem;
+    padding: 0.75rem 1rem !important;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Effet de fond au survol */
+.nav-sidebar .nav-link::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 3px;
+    background: linear-gradient(180deg, #667eea, #764ba2);
+    transform: scaleY(0);
+    transition: transform 0.3s ease;
+}
+
+.nav-sidebar .nav-link:hover::before {
+    transform: scaleY(1);
+}
+
+.nav-sidebar .nav-link:hover {
+    background: rgba(255, 255, 255, 0.1) !important;
+    color: white !important;
+    transform: translateX(4px);
+}
+
+/* Item actif */
+.nav-sidebar .nav-link.active {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    color: white !important;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.nav-sidebar .nav-link.active::before {
+    transform: scaleY(1);
+}
+
+/* Icônes du menu */
+.nav-sidebar .nav-icon {
+    margin-right: 0.75rem !important;
+    font-size: 1.1rem !important;
+    width: 1.5rem;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.nav-sidebar .nav-link:hover .nav-icon {
+    transform: scale(1.1);
+}
+
+.nav-sidebar .nav-link.active .nav-icon {
+    color: white !important;
+}
+
+/* Badge sur les items */
+.nav-sidebar .badge {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    border-radius: 10px;
+}
+
+/* Sous-menu (treeview) */
+.nav-treeview {
+    padding-left: 0 !important;
+}
+
+.nav-treeview .nav-link {
+    padding-left: 3rem !important;
+    font-size: 0.9rem;
+}
+
+.nav-treeview .nav-link::before {
+    width: 2px;
+    left: 2rem;
+}
+
+/* Flèche pour sous-menus */
+.nav-sidebar .right {
+    transition: transform 0.3s ease;
+}
+
+.nav-item.menu-open > .nav-link .right {
+    transform: rotate(90deg);
+}
+
+/* User panel (si présent) */
+.user-panel {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+    padding: 1rem !important;
+    margin-bottom: 1rem;
+}
+
+.user-panel .image img {
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    transition: all 0.3s ease;
+}
+
+.user-panel:hover .image img {
+    border-color: #667eea;
+    transform: scale(1.05);
+}
+
+.user-panel .info a {
+    color: white !important;
+    font-weight: 600;
+}
+
+/* Scrollbar personnalisée pour la sidebar */
+.sidebar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+    background: rgba(102, 126, 234, 0.5);
+    border-radius: 10px;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover {
+    background: rgba(102, 126, 234, 0.8);
+}
+
+/* Mode sidebar réduite */
+.sidebar-mini.sidebar-collapse .main-sidebar:hover {
+    box-shadow: 4px 0 16px rgba(0, 0, 0, 0.15);
+}
+
+/* Animation d'entrée des items */
+@keyframes slideInLeft {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.nav-sidebar .nav-item {
+    animation: slideInLeft 0.3s ease forwards;
+}
+
+.nav-sidebar .nav-item:nth-child(1) { animation-delay: 0.05s; }
+.nav-sidebar .nav-item:nth-child(2) { animation-delay: 0.1s; }
+.nav-sidebar .nav-item:nth-child(3) { animation-delay: 0.15s; }
+.nav-sidebar .nav-item:nth-child(4) { animation-delay: 0.2s; }
+.nav-sidebar .nav-item:nth-child(5) { animation-delay: 0.25s; }
+
+/* Responsive */
+@media (max-width: 991px) {
+    .main-sidebar {
+        box-shadow: none;
+    }
+    
+    .nav-sidebar .nav-link {
+        margin: 0 0.25rem;
+    }
+}
+
+/* Dark mode compatibility (si nécessaire) */
+body.dark-mode .main-sidebar {
+    background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%) !important;
+}
+
+/* Amélioration du contraste pour l'accessibilité */
+.nav-sidebar .nav-link:focus {
+    outline: 2px solid #667eea;
+    outline-offset: 2px;
+}
+
+/* Séparateur visuel entre sections */
+.nav-header + .nav-item {
+    margin-top: 0.5rem;
+}
+
+/* Style pour les compteurs/badges */
+.badge-warning {
+    background: linear-gradient(135deg, #f39c12, #e67e22) !important;
+}
+
+.badge-danger {
+    background: linear-gradient(135deg, #e74c3c, #c0392b) !important;
+}
+
+.badge-info {
+    background: linear-gradient(135deg, #3498db, #2980b9) !important;
+}
+
+.badge-success {
+    background: linear-gradient(135deg, #27ae60, #229954) !important;
+}
