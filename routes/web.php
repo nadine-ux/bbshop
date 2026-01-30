@@ -12,6 +12,8 @@ use App\Http\Controllers\SubcategoryController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\DemandeController;
 use App\Http\Controllers\CommandeController;
+use App\Http\Controllers\InventaireController;
+
 
 Route::get('/', fn() => view('welcome'));
 
@@ -38,6 +40,21 @@ Route::middleware(['auth','role:Employé'])->group(function () {
 // Gestionnaire & Directeur : accès complet aux commandes
 Route::middleware(['auth','role:Gestionnaire|Directeur'])->group(function () {
     Route::resource('commandes', CommandeController::class);
+});
+
+// Routes d'inventaire
+Route::prefix('inventaire')->name('inventaire.')->middleware(['auth'])->group(function () {
+    Route::get('/', [InventaireController::class, 'index'])->name('index');
+    Route::get('/article/{article}', [InventaireController::class, 'show'])->name('show');
+    Route::get('/mouvements', [InventaireController::class, 'mouvements'])->name('mouvements');
+    Route::get('/stock-critique', [InventaireController::class, 'stockCritique'])->name('stock-critique');
+    Route::get('/valorisation', [InventaireController::class, 'valorisation'])->name('valorisation');
+    Route::get('/export', [InventaireController::class, 'export'])->name('export');
+       // Routes d'impression
+    Route::get('/print', [InventaireController::class, 'print'])->name('print');
+    Route::get('/print/article/{article}', [InventaireController::class, 'printArticle'])->name('print.article');
+    Route::get('/print/stock-critique', [InventaireController::class, 'printStockCritique'])->name('print.stock-critique');
+    Route::get('/print/mouvements', [InventaireController::class, 'printMouvements'])->name('print.mouvements');
 });
 
 // Gestionnaire : accès complet aux demandes

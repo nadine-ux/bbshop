@@ -40,6 +40,7 @@ class NouvelleDemandeNotification extends Notification
             'article'    => $this->demande->article->nom, 
             'employe'    => $this->demande->employe->name, 
             'quantite'   => $this->demande->quantite_total, 
+            'type'       => 'demande',
         ];
     }
 

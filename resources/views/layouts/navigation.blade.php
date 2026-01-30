@@ -17,33 +17,22 @@
                     </x-nav-link>
                 </div>
             </div>
-<!-- Notifications -->
-<div class="hidden sm:flex sm:items-center sm:ms-6">
-    <div class="relative">
-        <button class="relative inline-flex items-center px-3 py-2 text-gray-500 hover:text-gray-700 focus:outline-none"
-                id="notifDropdown" data-toggle="dropdown">
-            <i class="far fa-bell"></i>
-            @if(Auth::user()->unreadNotifications->count() > 0)
-                <span class="absolute top-0 right-0 inline-flex items-center justify-center 
-                             px-2 py-1 text-xs font-bold leading-none text-red-100 bg-red-600 
-                             rounded-full">
-                    {{ Auth::user()->unreadNotifications->count() }}
-                </span>
-            @endif
-        </button>
+<div class="dropdown-menu dropdown-menu-right mt-2" aria-labelledby="notifDropdown">
+    @forelse(Auth::user()->unreadNotifications as $notification)
 
-        <div class="dropdown-menu dropdown-menu-right mt-2" aria-labelledby="notifDropdown">
-            @forelse(Auth::user()->unreadNotifications as $notification)
-                <a href="{{ route('demandes.show', $notification->data['demande_id']) }}" class="dropdown-item">
-                    Demande de {{ $notification->data['employe'] }} 
-                    pour {{ $notification->data['article'] }} ({{ $notification->data['quantite'] }} pièces)
-                </a>
-            @empty
-                <span class="dropdown-item">Aucune notification</span>
-            @endforelse
-        </div>
-    </div>
+        @if(isset($notification->data['demande_id']))
+            <a href="{{ route('demandes.show', $notification->data['demande_id']) }}" class="dropdown-item">
+                Demande de {{ $notification->data['employe'] ?? '—' }}
+                pour {{ $notification->data['article'] ?? '—' }}
+                ({{ $notification->data['quantite'] ?? 0 }} pièces)
+            </a>
+        @endif
+
+    @empty
+        <span class="dropdown-item">Aucune notification</span>
+    @endforelse
 </div>
+
 
             <!-- Settings Dropdown -->
             <div class="hidden sm:flex sm:items-center sm:ms-6">

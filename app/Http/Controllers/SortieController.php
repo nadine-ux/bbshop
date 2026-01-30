@@ -4,140 +4,128 @@ namespace App\Http\Controllers;
 
 use App\Models\Sortie;
 use App\Models\Article;
+use App\Services\InventaireService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class SortieController extends Controller
 {
-    public function __construct()
-    {
-        // Seuls Directeur et Gestionnaire peuvent gérer les sorties
-        $this->middleware('permission:manage stock');
-    }
-
-    /**
-     * Liste des sorties
-     */
     public function index()
     {
-        $sorties = Sortie::with('articles')->paginate(10);
+        $sorties = Sortie::with('articles')
+            ->orderBy('date_sortie', 'desc')
+            ->paginate(15);
+
         return view('sorties.index', compact('sorties'));
     }
 
-    /**
-     * Formulaire de création
-     */
     public function create()
     {
-        $articles = Article::all();
+        $articles = Article::with('category')->where('stock', '>', 0)->get();
         return view('sorties.create', compact('articles'));
     }
 
-    /**
-     * Enregistrer une sortie
-     */
-public function store(Request $request)
-{
-    $request->validate([
-        'destination' => 'nullable|string|max:255',
-        'motif'       => 'nullable|string|max:255',
-        'commentaire' => 'nullable|string',
-        'articles'    => 'required|array',
-        'articles.*.id' => 'exists:articles,id',
-        'articles.*.cartons' => 'nullable|integer|min:0',
-        'articles.*.pieces'  => 'nullable|integer|min:0',
-    ]);
-
-    $sortie = Sortie::create([
-        'destination' => $request->destination,
-        'motif'       => $request->motif,
-        'commentaire' => $request->commentaire,
-    ]);
-
-    foreach ($request->articles as $articleData) {
-        $article = Article::findOrFail($articleData['id']);
-
-        $cartons = $articleData['cartons'] ?? 0;
-        $pieces  = $articleData['pieces'] ?? 0;
-
-        // ✅ Choisir cartons OU pièces
-        if ($cartons > 0) {
-            $quantiteTotal = $cartons * $article->contenance_carton;
-        } else {
-            $quantiteTotal = $pieces;
-        }
-
-        // Mise à jour du stock (diminution)
-        $article->stock -= $quantiteTotal;
-        if ($article->stock < 0) {
-            $article->stock = 0;
-        }
-        $article->save();
-
-        // ✅ Vérification du seuil minimal
-        if ($article->stock <= $article->quantite_minimale) {
-            $users = \App\Models\User::role(['Gestionnaire', 'Directeur'])->get();
-            \Illuminate\Support\Facades\Notification::send(
-                $users,
-                new \App\Notifications\StockMinimalNotification($article)
-            );
-        }
-
-        // Insertion dans la pivot
-        $sortie->articles()->attach($article->id, [
-            'quantite_cartons' => $cartons,
-            'quantite_pieces'  => $pieces,
-            'quantite_total'   => $quantiteTotal,
+    public function store(Request $request)
+    {
+        $request->validate([
+            'destination' => 'required|string|max:255',
+            'motif' => 'required|string|max:255',
+            'date_sortie' => 'required|date',
+            'commentaire' => 'nullable|string',
+            'articles' => 'required|array|min:1',
+            'articles.*.article_id' => 'required|exists:articles,id',
+            'articles.*.quantite_cartons' => 'required|integer|min:0',
+            'articles.*.quantite_pieces' => 'required|integer|min:0',
         ]);
+
+        DB::beginTransaction();
+        try {
+            // 1️⃣ Créer la sortie
+            $sortie = Sortie::create([
+                'destination' => $request->destination,
+                'motif' => $request->motif,
+                'date_sortie' => $request->date_sortie,
+                'commentaire' => $request->commentaire,
+            ]);
+
+            // 2️⃣ Traiter les articles
+            foreach ($request->articles as $articleData) {
+                $article = Article::findOrFail($articleData['article_id']);
+
+                // Calculer quantité totale
+                $quantiteCartons = (int) $articleData['quantite_cartons'];
+                $quantitePieces = (int) $articleData['quantite_pieces'];
+                $quantiteTotal = ($quantiteCartons * $article->contenance_carton) + $quantitePieces;
+
+                // Vérifier stock disponible
+                if ($article->stock < $quantiteTotal) {
+                    throw new \Exception("Stock insuffisant pour {$article->nom}. Disponible: {$article->stock}, Demandé: {$quantiteTotal}");
+                }
+
+                // Attacher à la sortie
+                $sortie->articles()->attach($article->id, [
+                    'quantite_cartons' => $quantiteCartons,
+                    'quantite_pieces' => $quantitePieces,
+                    'quantite_total' => $quantiteTotal,
+                ]);
+
+                // 3️⃣ 🆕 Enregistrer dans l'inventaire
+                InventaireService::enregistrerMouvement(
+                    article: $article,
+                    type: 'sortie',
+                    quantite: $quantiteTotal,
+                    sortieId: $sortie->id,
+                    motif: $request->motif,
+                    commentaire: "Destination: {$request->destination}"
+                );
+            }
+
+            DB::commit();
+
+            return redirect()->route('sorties.index')
+                ->with('success', 'Sortie enregistrée avec succès');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()
+                ->withInput()
+                ->with('error', $e->getMessage());
+        }
     }
 
-    return redirect()->route('sorties.index')->with('success','Sortie enregistrée');
-}
-
-    /**
-     * Afficher une sortie
-     */
     public function show(Sortie $sortie)
-    {$sortie->load('articles');
-
+    {
+        $sortie->load('articles');
         return view('sorties.show', compact('sortie'));
     }
 
-    /**
-     * Formulaire d’édition
-     */
-    public function edit(Sortie $sortie)
-    {
-        $articles = Article::all();
-        return view('sorties.edit', compact('sortie','articles'));
-    }
-
-    /**
-     * Mettre à jour une sortie
-     */
-    public function update(Request $request, Sortie $sortie)
-    {
-        $request->validate([
-            'date_sortie' => 'required|date',
-        ]);
-
-        $sortie->update($request->only('date_sortie','destination'));
-
-        $sortie->articles()->detach();
-        foreach ($request->articles as $article) {
-            $sortie->articles()->attach($article['id'], [
-                'quantite' => $article['quantite'],
-            ]);
-        }
-
-        return redirect()->route('sorties.index')->with('success','Sortie mise à jour');
-    }
-
-    /**
-     * Supprimer une sortie
-     */
     public function destroy(Sortie $sortie)
     {
-        $sortie->delete();
-        return redirect()->route('sorties.index')->with('success','Sortie supprimée');
+        DB::beginTransaction();
+        try {
+            // Annuler les mouvements
+            foreach ($sortie->articles as $article) {
+                $quantiteTotal = $article->pivot->quantite_total;
+
+                InventaireService::enregistrerMouvement(
+                    article: $article,
+                    type: 'entree',
+                    quantite: $quantiteTotal,
+                    motif: "Annulation sortie #{$sortie->id}",
+                    commentaire: "Suppression de la sortie"
+                );
+            }
+
+            $sortie->delete();
+            DB::commit();
+
+            return redirect()->route('sorties.index')
+                ->with('success', 'Sortie supprimée avec succès');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()
+                ->with('error', 'Erreur : ' . $e->getMessage());
+        }
     }
 }

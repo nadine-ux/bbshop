@@ -57,5 +57,10 @@ class Article extends Model
 {
     return $this->stock <= $this->quantite_minimale;
 }
+// Dans la classe Article, ajoutez :
 
+public function inventaires()
+{
+    return $this->hasMany(Inventaire::class)->orderBy('date_mouvement', 'desc');
+}
 }
