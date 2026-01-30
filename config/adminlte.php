@@ -128,6 +128,36 @@ return [
         'icon' => 'fas fa-history',
         'can'  => 'view audit',
     ],
+    // 🆕 INVENTAIRE
+    ['header' => 'INVENTAIRE'],
+    [
+        'text' => 'Vue d\'ensemble',
+        'url'  => 'inventaire',
+        'icon' => 'fas fa-warehouse',
+        'can'  => 'manage stock',
+    ],
+    [
+        'text' => 'Stock critique',
+        'url'  => 'inventaire/stock-critique',
+        'icon' => 'fas fa-exclamation-triangle',
+        'icon_color' => 'warning',
+        'can'  => 'manage stock',
+    ],
+    [
+        'text' => 'Journal des mouvements',
+        'url'  => 'inventaire/mouvements',
+        'icon' => 'fas fa-history',
+        'can'  => 'manage stock',
+    ],
+    [
+        'text' => 'Valorisation',
+        'url'  => 'inventaire/valorisation',
+        'icon' => 'fas fa-coins',
+        'icon_color' => 'success',
+        'can'  => 'manage stock',
+    ],
+
+    
 ],
 
 ];
