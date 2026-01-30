@@ -20,6 +20,10 @@
             <i class="fas fa-plus"></i>
             <span>Ajouter un article</span>
         </a>
+        <a href="{{ route('categories.create') }}" class="btn-modern-add">
+            <i class="fas fa-plus"></i>
+            <span>Ajouter une categories </span>
+        </a>
     </div>
 @stop
 

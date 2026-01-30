@@ -357,16 +357,6 @@
         </a>
         @endcan
 
-        {{-- Articles - Tous les utilisateurs authentifiés --}}
-        <a href="{{ route('articles.index') }}" class="grid-card card-articles">
-            <div class="card-icon">
-                <i class="fas fa-cube"></i>
-            </div>
-            <div class="card-content">
-                <div class="card-title">Articles</div>
-                <div class="card-subtitle">Consulter les articles</div>
-            </div>
-        </a>
 
         {{-- Mouvements (Historique) - Gestionnaire & Directeur avec permission manage stock --}}
         @can('manage stock')
