@@ -13,6 +13,8 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\DemandeController;
 use App\Http\Controllers\CommandeController;
 use App\Http\Controllers\InventaireController;
+use App\Http\Controllers\RoleController;
+use App\Http\Controllers\EmployeeController;
 
 
 Route::get('/', fn() => view('welcome'));
@@ -56,7 +58,13 @@ Route::prefix('inventaire')->name('inventaire.')->middleware(['auth'])->group(fu
     Route::get('/print/stock-critique', [InventaireController::class, 'printStockCritique'])->name('print.stock-critique');
     Route::get('/print/mouvements', [InventaireController::class, 'printMouvements'])->name('print.mouvements');
 });
+Route::middleware(['auth', 'permission:manage users'])->group(function () {
+    Route::resource('employees', EmployeeController::class);
+});
 
+Route::middleware(['auth', 'permission:manage roles'])->group(function () {
+    Route::resource('roles', RoleController::class)->only(['index', 'edit', 'update']);
+});
 // Gestionnaire : accès complet aux demandes
 Route::middleware(['auth','role:Gestionnaire'])->group(function () {
     Route::resource('demandes', DemandeController::class);

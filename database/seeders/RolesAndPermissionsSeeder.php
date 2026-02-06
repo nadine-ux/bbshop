@@ -1,5 +1,4 @@
 <?php
-
 // database/seeders/RolesAndPermissionsSeeder.php
 namespace Database\Seeders;
 
@@ -18,24 +17,32 @@ class RolesAndPermissionsSeeder extends Seeder
             'manage stock', 'manage suppliers', 'manage employees', 'view reports',
             'create entry', 'create exit', 'launch inventory',
             'manage requests', 'create product',
-            'view own requests', 'create request',"manage commandes"
+            'view own requests', 'create request', 'manage commandes',
+            // Nouvelles permissions pour la gestion des utilisateurs
+            'manage users',  // Pour gérer les employés
+            'manage roles',  // Pour gérer les rôles et permissions
         ];
-        foreach ($perms as $p) { Permission::firstOrCreate(['name' => $p]); }
+        
+        foreach ($perms as $p) { 
+            Permission::firstOrCreate(['name' => $p]); 
+        }
 
         $directeur    = Role::firstOrCreate(['name' => 'Directeur']);
         $gestionnaire = Role::firstOrCreate(['name' => 'Gestionnaire']);
         $employe      = Role::firstOrCreate(['name' => 'Employé']);
 
+        // Le Directeur a toutes les permissions
         $directeur->syncPermissions(Permission::all());
 
         $gestionnaire->syncPermissions([
-            'manage stock','create entry','create exit','create product',
-            'manage requests','launch inventory','view reports','manage commandes'
+            'manage stock', 'create entry', 'create exit', 'create product',
+            'manage requests', 'launch inventory', 'view reports', 'manage commandes'
         ]);
 
-        $employe->syncPermissions(['create request','view own requests']);
+        $employe->syncPermissions(['create request', 'view own requests']);
 
-        // Option: premier user devient Directeur
-        if ($u = User::first()) { $u->assignRole('Directeur'); }
+        if ($u = User::first()) { 
+            $u->assignRole('Directeur'); 
+        }
     }
 }

@@ -99,21 +99,20 @@ return [
 ],
 
 
-    // Utilisateurs
-    ['header' => 'UTILISATEURS'],
-    [
-        'text' => 'Employés',
-        'url'  => 'employees',
-        'icon' => 'fas fa-user-friends',
-        'can'  => 'manage users',
-    ],
-    [
-        'text' => 'Gestion des rôles',
-        'url'  => 'roles',
-        'icon' => 'fas fa-user-shield',
-        'can'  => 'manage roles',
-    ],
-
+ // Utilisateurs
+        ['header' => 'UTILISATEURS'],
+        [
+            'text' => 'Employés',
+            'url'  => 'employees',
+            'icon' => 'fas fa-user-friends',
+            'can'  => 'manage users',
+        ],
+        [
+            'text' => 'Gestion des rôles',
+            'url'  => 'roles',
+            'icon' => 'fas fa-user-shield',
+            'can'  => 'manage roles',
+        ],
     // Rapports
     ['header' => 'RAPPORTS & HISTORIQUE'],
     [
