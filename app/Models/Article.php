@@ -17,7 +17,8 @@ class Article extends Model
         'fournisseur_id',
         'description',
         'contenance_carton',
-        'stock'
+        'stock',
+        'marque_id'
     ];
 
     // 🔑 Relation avec fournisseur
@@ -63,4 +64,8 @@ public function inventaires()
 {
     return $this->hasMany(Inventaire::class)->orderBy('date_mouvement', 'desc');
 }
+    public function marque()
+    {
+        return $this->belongsTo(Marque::class);
+    }
 }

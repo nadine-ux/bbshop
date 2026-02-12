@@ -15,6 +15,7 @@ use App\Http\Controllers\CommandeController;
 use App\Http\Controllers\InventaireController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\MarqueController;
 
 
 Route::get('/', fn() => view('welcome'));
@@ -42,6 +43,8 @@ Route::middleware(['auth','role:Employé'])->group(function () {
 // Gestionnaire & Directeur : accès complet aux commandes
 Route::middleware(['auth','role:Gestionnaire|Directeur'])->group(function () {
     Route::resource('commandes', CommandeController::class);
+
+Route::resource('marques', MarqueController::class);
 });
 
 // Routes d'inventaire

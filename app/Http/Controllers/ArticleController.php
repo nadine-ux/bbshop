@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Article;
 use App\Models\Fournisseur;
 use App\Models\Category;
+use App\Models\Marque;
+
 use Illuminate\Http\Request;
 
 class ArticleController extends Controller
@@ -94,7 +96,8 @@ class ArticleController extends Controller
         {
             $fournisseurs = Fournisseur::all();
             $categories = Category::with('children')->get(); 
-            return view('articles.create', compact('fournisseurs','categories'));
+            $marques = Marque::orderBy('nom')->get(['id', 'nom']);
+           return view('articles.create', compact('fournisseurs', 'categories', 'marques'));
         }
     /**
      * Enregistrer un nouvel article
@@ -120,7 +123,7 @@ class ArticleController extends Controller
     $data['photo'] = $path; 
 }
     Article::create($data);
-
+    
     return redirect()->route('articles.index')->with('success','Article créé avec succès');
 }
 public function getDetails($id)

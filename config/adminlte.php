@@ -36,7 +36,15 @@ return [
     'icon' => 'fas fa-tag',
     'can'  => 'manage stock',
 ],
-
+    // 🆕 MARQUES
+    ['header' => 'MARQUES'],
+    [
+        'text' => 'Marques',
+        'url'  => 'marques',
+        'icon' => 'fas fa-certificate',
+        'icon_color' => 'danger',
+        'can'  => 'manage stock',
+    ],
     // Gestion des articles
     ['header' => 'GESTION DES ARTICLES'],
     [
