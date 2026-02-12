@@ -115,11 +115,10 @@ class ArticleController extends Controller
     // on prend tout sauf le champ photo
     $data = $request->except('photo');
 
-    if ($request->hasFile('photo')) {
-        $path = $request->file('photo')->store('articles', 'public');
-        $data['photo'] = '/storage/'.$path;
-    }
-
+   if ($request->hasFile('photo')) {
+    $path = $request->file('photo')->store('articles', 'public');
+    $data['photo'] = $path; 
+}
     Article::create($data);
 
     return redirect()->route('articles.index')->with('success','Article créé avec succès');
