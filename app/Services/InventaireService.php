@@ -45,6 +45,7 @@ class InventaireService
             'motif' => $motif,
             'commentaire' => $commentaire,
             'user_id' => Auth::id(),
+            'date' => now(), 
             'date_mouvement' => now()
         ]);
 

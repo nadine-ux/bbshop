@@ -18,7 +18,8 @@ class Inventaire extends Model
         'motif',
         'commentaire',
         'user_id',
-        'date_mouvement'
+        'date_mouvement',
+        'date'
     ];
 
     protected $casts = [

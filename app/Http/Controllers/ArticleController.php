@@ -102,29 +102,68 @@ class ArticleController extends Controller
     /**
      * Enregistrer un nouvel article
      */
-   public function store(Request $request)
+public function store(Request $request)
 {
     $request->validate([
-        'nom' => 'required|string|max:255',
-        'code_barres' => 'required|unique:articles',
-        'quantite_minimale' => 'required|integer|min:0',
-        'prix_achat' => 'nullable|numeric',
-        'fournisseur_id' => 'nullable|exists:fournisseurs,id',
-        'categorie_id' => 'required|exists:categories,id', 
-        'stock' => 'required|integer|min:0',
-        'photo' => 'nullable|image|mimes:jpg,jpeg,png,gif|max:2048',
+        'fournisseur_id' => 'required|exists:fournisseurs,id',
+        'date_reception' => 'required|date',
+        'commentaire' => 'nullable|string',
+        'articles' => 'required|array|min:1', // ✅ Accepte un tableau
+        'articles.*.article_id' => 'required|exists:articles,id',
+        'articles.*.quantite_cartons' => 'required|integer|min:0',
+        'articles.*.quantite_pieces' => 'required|integer|min:0',
+        'articles.*.prix_unitaire' => 'required|numeric|min:0',
     ]);
 
-    // on prend tout sauf le champ photo
-    $data = $request->except('photo');
+    DB::beginTransaction();
+    try {
+        // 1️⃣ Créer l'entrée
+        $entree = Entree::create([
+            'fournisseur_id' => $request->fournisseur_id,
+            'date_reception' => $request->date_reception,
+            'commentaire' => $request->commentaire,
+            'user_id' => auth()->id(),
+        ]);
 
-   if ($request->hasFile('photo')) {
-    $path = $request->file('photo')->store('articles', 'public');
-    $data['photo'] = $path; 
-}
-    Article::create($data);
-    
-    return redirect()->route('articles.index')->with('success','Article créé avec succès');
+        // 2️⃣ Boucle sur TOUS les articles ✅
+        foreach ($request->articles as $articleData) {
+            $article = Article::findOrFail($articleData['article_id']);
+            
+            // Calculer quantité totale
+            $quantiteCartons = (int) $articleData['quantite_cartons'];
+            $quantitePieces = (int) $articleData['quantite_pieces'];
+            $quantiteTotal = ($quantiteCartons * $article->contenance_carton) + $quantitePieces;
+
+            // Attacher l'article à l'entrée
+            $entree->articles()->attach($article->id, [
+                'quantite_cartons' => $quantiteCartons,
+                'quantite_pieces' => $quantitePieces,
+                'quantite_total' => $quantiteTotal,
+                'prix_unitaire' => $articleData['prix_unitaire'],
+            ]);
+
+            // 3️⃣ Enregistrer dans l'inventaire
+            InventaireService::enregistrerMouvement(
+                article: $article,
+                type: 'entree',
+                quantite: $quantiteTotal,
+                prixUnitaire: $articleData['prix_unitaire'],
+                entreeId: $entree->id,
+                motif: "Réception fournisseur",
+                commentaire: $request->commentaire
+            );
+        }
+
+        DB::commit();
+        return redirect()->route('entrees.index')
+            ->with('success', 'Entrée enregistrée avec succès');
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return redirect()->back()
+            ->withInput()
+            ->with('error', 'Erreur lors de l\'enregistrement : ' . $e->getMessage());
+    }
 }
 public function getDetails($id)
 {

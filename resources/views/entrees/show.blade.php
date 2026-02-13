@@ -1,83 +1,134 @@
 @extends('adminlte::page')
 
-@section('title','Bon d’entrée')
+@section('title', 'Bon d\'entrée #' . $entree->id)
 
 @section('content')
 <div class="card shadow-sm">
     <div class="card-body" id="bon-entree">
 
-        {{-- TITRE --}}
-        <h2 class="text-center mb-5">
-            <strong>Bon d’entrée</strong>
-        </h2>
+        {{-- EN-TÊTE --}}
+        <div class="text-center mb-4">
+            <h2><strong>BON D'ENTRÉE</strong></h2>
+            <h4 class="text-muted">N° {{ str_pad($entree->id, 6, '0', STR_PAD_LEFT) }}</h4>
+        </div>
 
-        {{-- INFOS BAS GAUCHE / DROITE --}}
+        <hr>
+
+        {{-- INFORMATIONS GÉNÉRALES --}}
         <div class="row mb-4">
-            {{-- GAUCHE --}}
+            {{-- COLONNE GAUCHE --}}
             <div class="col-md-6">
-                <p><strong>Date réception :</strong>
-                    {{ \Carbon\Carbon::parse($entree->date_reception)->format('d/m/Y') }}
-                </p>
-                <p><strong>N° Bon :</strong> {{ $entree->id }}</p>
-                <p><strong>Fournisseur :</strong> {{ $entree->fournisseur->nom ?? '—' }}</p>
+                <table class="table table-sm table-borderless">
+                    <tr>
+                        <td width="150"><strong>Date de réception :</strong></td>
+                        <td>{{ \Carbon\Carbon::parse($entree->date_reception)->format('d/m/Y') }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Fournisseur :</strong></td>
+                        <td>{{ $entree->fournisseur->nom ?? '—' }}</td>
+                    </tr>
+                    @if($entree->fournisseur && $entree->fournisseur->telephone)
+                    <tr>
+                        <td><strong>Téléphone :</strong></td>
+                        <td>{{ $entree->fournisseur->telephone }}</td>
+                    </tr>
+                    @endif
+                </table>
             </div>
 
-            {{-- DROITE --}}
-            <div class="col-md-6 text-right">
-                <p><strong>Récepteur / Destination :</strong></p>
-                <p><strong>Gestionnaire :</strong> {{ $entree->gestionnaire->name ?? '—' }}</p>
-
+            {{-- COLONNE DROITE --}}
+            <div class="col-md-6">
+                <table class="table table-sm table-borderless">
+                    <tr>
+                        <td width="150"><strong>Gestionnaire :</strong></td>
+                        <td>{{ $entree->gestionnaire->name ?? '—' }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Date d'enregistrement :</strong></td>
+                        <td>{{ $entree->created_at->format('d/m/Y H:i') }}</td>
+                    </tr>
+                </table>
             </div>
         </div>
 
-        {{-- TABLEAU --}}
+        @if($entree->commentaire)
+        <div class="alert alert-info">
+            <strong><i class="fas fa-comment"></i> Commentaire :</strong> {{ $entree->commentaire }}
+        </div>
+        @endif
+
+        {{-- TABLEAU DES ARTICLES --}}
         <table class="table table-bordered mt-4">
-            <thead class="thead-dark text-center">
-                <tr>
-                    <th>Code-barres</th>
-                    <th>ID Article</th>
-                    <th>Cartons</th>
-                    <th>Pièces</th>
-                    <th>Prix unitaire</th>
-                    <th>Total</th>
+            <thead class="thead-dark">
+                <tr class="text-center">
+                    <th style="width: 5%">#</th>
+                    <th style="width: 15%">Code-barres</th>
+                    <th style="width: 30%">Désignation</th>
+                    <th style="width: 10%">Cartons</th>
+                    <th style="width: 10%">Pièces</th>
+                    <th style="width: 10%">Total pièces</th>
+                    <th style="width: 10%">Prix unitaire</th>
+                    <th style="width: 10%">Montant</th>
                 </tr>
             </thead>
             <tbody>
-                @foreach($entree->articles as $article)
-                  @php
-    $quantiteTotal = ($article->pivot->quantite_cartons * $article->contenance_carton) 
-                     + $article->pivot->quantite_pieces;
+                @php
+                    $grandTotal = 0;
+                    $totalPieces = 0;
+                @endphp
 
-    $total = $quantiteTotal * $article->prix_achat;
-@endphp
+                @foreach($entree->articles as $index => $article)
+                    @php
+                        $quantiteTotal = $article->pivot->quantite_total;
+                        $prixUnitaire = $article->pivot->prix_unitaire;
+                        $montant = $quantiteTotal * $prixUnitaire;
+                        $grandTotal += $montant;
+                        $totalPieces += $quantiteTotal;
+                    @endphp
 
-                    <tr class="text-center">
-                        <td>{{ $article->code_barres ?? '—' }}</td>
-                        <td>{{ $article->nom }}</td>
-                        <td>{{ $article->pivot->quantite_cartons }}</td>
-                        <td>{{ $article->pivot->quantite_pieces }}</td>
-                        <td>{{ number_format($article->prix_achat, 2) }}</td>
-                        <td>{{ number_format($total, 2) }}</td>
+                    <tr>
+                        <td class="text-center">{{ $index + 1 }}</td>
+                        <td class="text-center">{{ $article->code_barres ?? '—' }}</td>
+                        <td><strong>{{ $article->nom }}</strong></td>
+                        <td class="text-center">{{ $article->pivot->quantite_cartons }}</td>
+                        <td class="text-center">{{ $article->pivot->quantite_pieces }}</td>
+                        <td class="text-center">
+                            <span class="badge badge-primary">{{ $quantiteTotal }}</span>
+                        </td>
+                        <td class="text-right">{{ number_format($prixUnitaire, 2) }} DZD</td>
+                        <td class="text-right"><strong>{{ number_format($montant, 2) }} DZD</strong></td>
                     </tr>
                 @endforeach
+
+                {{-- LIGNE TOTAUX --}}
+                <tr class="table-secondary font-weight-bold">
+                    <td colspan="5" class="text-right">TOTAUX :</td>
+                    <td class="text-center">
+                        <span class="badge badge-dark">{{ $totalPieces }}</span>
+                    </td>
+                    <td></td>
+                    <td class="text-right">
+                        <strong style="font-size: 1.1em;">{{ number_format($grandTotal, 2) }} DZD</strong>
+                    </td>
+                </tr>
             </tbody>
         </table>
 
         {{-- SIGNATURES --}}
-        <div class="row mt-5">
-            <div class="col-md-6">
-                <strong>Signature fournisseur :</strong><br><br>
-                ______________________
+        <div class="row mt-5 mb-4">
+            <div class="col-md-6 text-center">
+                <p><strong>Signature du fournisseur</strong></p>
+                <div style="height: 80px; border-bottom: 2px solid #000; margin: 0 20px;"></div>
             </div>
-            <div class="col-md-6 text-right">
-                <strong>Signature réception :</strong><br><br>
-                ______________________
+            <div class="col-md-6 text-center">
+                <p><strong>Signature du réceptionnaire</strong></p>
+                <div style="height: 80px; border-bottom: 2px solid #000; margin: 0 20px;"></div>
             </div>
         </div>
     </div>
 
-    {{-- BOUTONS --}}
-    <div class="card-footer text-right">
+    {{-- BOUTONS D'ACTION --}}
+    <div class="card-footer text-right no-print">
         <button onclick="window.print()" class="btn btn-primary">
             <i class="fas fa-print"></i> Imprimer
         </button>
@@ -86,4 +137,37 @@
         </a>
     </div>
 </div>
+@stop
+
+@section('css')
+<style>
+    @media print {
+        .no-print {
+            display: none !important;
+        }
+        
+        body {
+            margin: 0;
+            padding: 15px;
+        }
+        
+        .card {
+            box-shadow: none !important;
+            border: none !important;
+        }
+        
+        table {
+            page-break-inside: auto;
+        }
+        
+        tr {
+            page-break-inside: avoid;
+            page-break-after: auto;
+        }
+    }
+    
+    #bon-entree {
+        background: white;
+    }
+</style>
 @stop
