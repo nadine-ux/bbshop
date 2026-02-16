@@ -105,64 +105,40 @@ class ArticleController extends Controller
 public function store(Request $request)
 {
     $request->validate([
-        'fournisseur_id' => 'required|exists:fournisseurs,id',
-        'date_reception' => 'required|date',
-        'commentaire' => 'nullable|string',
-        'articles' => 'required|array|min:1', // ✅ Accepte un tableau
-        'articles.*.article_id' => 'required|exists:articles,id',
-        'articles.*.quantite_cartons' => 'required|integer|min:0',
-        'articles.*.quantite_pieces' => 'required|integer|min:0',
-        'articles.*.prix_unitaire' => 'required|numeric|min:0',
+        'nom' => 'required|string|max:255',
+        'code_barres' => 'required|string|unique:articles,code_barres',
+        'categorie_id' => 'required|exists:categories,id',
+        'marque_id' => 'nullable|exists:marques,id',
+        'description' => 'nullable|string',
+        'stock' => 'required|integer|min:0',
+        'quantite_minimale' => 'required|integer|min:0',
+        'contenance_carton' => 'nullable|integer|min:1',
+        'prix_achat' => 'nullable|numeric|min:0',
+        'date_peremption' => 'nullable|date',
+        'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
     ]);
 
-    DB::beginTransaction();
     try {
-        // 1️⃣ Créer l'entrée
-        $entree = Entree::create([
-            'fournisseur_id' => $request->fournisseur_id,
-            'date_reception' => $request->date_reception,
-            'commentaire' => $request->commentaire,
-            'user_id' => auth()->id(),
-        ]);
-
-        // 2️⃣ Boucle sur TOUS les articles ✅
-        foreach ($request->articles as $articleData) {
-            $article = Article::findOrFail($articleData['article_id']);
-            
-            // Calculer quantité totale
-            $quantiteCartons = (int) $articleData['quantite_cartons'];
-            $quantitePieces = (int) $articleData['quantite_pieces'];
-            $quantiteTotal = ($quantiteCartons * $article->contenance_carton) + $quantitePieces;
-
-            // Attacher l'article à l'entrée
-            $entree->articles()->attach($article->id, [
-                'quantite_cartons' => $quantiteCartons,
-                'quantite_pieces' => $quantitePieces,
-                'quantite_total' => $quantiteTotal,
-                'prix_unitaire' => $articleData['prix_unitaire'],
-            ]);
-
-            // 3️⃣ Enregistrer dans l'inventaire
-            InventaireService::enregistrerMouvement(
-                article: $article,
-                type: 'entree',
-                quantite: $quantiteTotal,
-                prixUnitaire: $articleData['prix_unitaire'],
-                entreeId: $entree->id,
-                motif: "Réception fournisseur",
-                commentaire: $request->commentaire
-            );
+        $data = $request->except('photo');
+        
+        // Gestion de l'upload de photo
+        if ($request->hasFile('photo')) {
+            $photo = $request->file('photo');
+            $filename = time() . '_' . $photo->getClientOriginalName();
+            $photo->move(public_path('uploads/articles'), $filename);
+            $data['photo'] = 'uploads/articles/' . $filename;
         }
 
-        DB::commit();
-        return redirect()->route('entrees.index')
-            ->with('success', 'Entrée enregistrée avec succès');
+        // Créer l'article
+        $article = Article::create($data);
+
+        return redirect()->route('articles.index')
+            ->with('success', 'Article créé avec succès !');
 
     } catch (\Exception $e) {
-        DB::rollBack();
         return redirect()->back()
             ->withInput()
-            ->with('error', 'Erreur lors de l\'enregistrement : ' . $e->getMessage());
+            ->with('error', 'Erreur lors de la création : ' . $e->getMessage());
     }
 }
 public function getDetails($id)
