@@ -48,10 +48,10 @@ public function index()
     return redirect()->route('categories.index')
         ->with('success', 'Catégorie créée avec succès');
 }
-public function show(Category $category)
+public function show(Category $category, Request $request)
 {
-    // Charger sous-catégories + nombre d’articles
-    $category->load('children', 'articles');
+    // Charger sous-catégories
+    $category->load('children');
 
     // 🔹 CAS 1 : a des sous-catégories
     if ($category->children->count() > 0) {
@@ -61,10 +61,70 @@ public function show(Category $category)
         ]);
     }
 
-    // 🔹 CAS 2 : pas de sous-catégories → articles
-    $articles = $category->articles()->paginate(12);
+    // 🔹 CAS 2 : pas de sous-catégories → afficher les articles avec filtres
+    
+    // Construire la requête de base
+    $query = $category->articles();
 
-    return view('articles.cards', compact('category', 'articles'));
+    // ✅ Filtre par marque
+    if ($request->has('marque_id') && $request->marque_id != '') {
+        $query->where('marque_id', $request->marque_id);
+    }
+
+    // ✅ Filtre par stock
+    if ($request->has('stock_status')) {
+        if ($request->stock_status == 'low') {
+            $query->whereRaw('stock <= quantite_minimale');
+        } elseif ($request->stock_status == 'ok') {
+            $query->whereRaw('stock > quantite_minimale');
+        }
+    }
+
+    // ✅ Filtre par prix
+    if ($request->has('prix_min') && $request->prix_min != '') {
+        $query->where('prix_vente', '>=', $request->prix_min);
+    }
+    if ($request->has('prix_max') && $request->prix_max != '') {
+        $query->where('prix_vente', '<=', $request->prix_max);
+    }
+
+    // ✅ Recherche par nom
+    if ($request->has('search') && $request->search != '') {
+        $query->where('nom', 'like', '%' . $request->search . '%');
+    }
+
+    // ✅ Tri
+    $sort = $request->get('sort', 'recent');
+    switch($sort) {
+        case 'name_asc':
+            $query->orderBy('nom', 'asc');
+            break;
+        case 'name_desc':
+            $query->orderBy('nom', 'desc');
+            break;
+        case 'price_asc':
+            $query->orderBy('prix_vente', 'asc');
+            break;
+        case 'price_desc':
+            $query->orderBy('prix_vente', 'desc');
+            break;
+        case 'stock_asc':
+            $query->orderBy('stock', 'asc');
+            break;
+        case 'stock_desc':
+            $query->orderBy('stock', 'desc');
+            break;
+        default:
+            $query->orderBy('created_at', 'desc');
+    }
+
+    // Paginer les résultats et conserver les paramètres de filtre
+    $articles = $query->paginate(12)->appends($request->query());
+    
+    // Charger les marques pour le filtre
+    $marques = \App\Models\Marque::orderBy('nom')->get();
+
+    return view('articles.cards', compact('category', 'articles', 'marques'));
 }
  // 🔹 Editer une catégorie
     public function edit(Category $category)

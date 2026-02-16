@@ -16,19 +16,181 @@
                 <p class="page-subtitle">{{ $articles->total() }} article(s) disponible(s)</p>
             </div>
         </div>
-        <a href="{{ route('articles.create') }}" class="btn-modern-add">
-            <i class="fas fa-plus"></i>
-            <span>Ajouter un article</span>
-        </a>
-        <a href="{{ route('categories.create') }}" class="btn-modern-add">
-            <i class="fas fa-plus"></i>
-            <span>Ajouter une categories </span>
-        </a>
+        <div class="header-actions">
+            <a href="{{ route('articles.create') }}" class="btn-modern-add">
+                <i class="fas fa-plus"></i>
+                <span>Ajouter un article</span>
+            </a>
+            <a href="{{ route('categories.create') }}" class="btn-modern-add">
+                <i class="fas fa-folder-plus"></i>
+                <span>Ajouter une catégorie</span>
+            </a>
+        </div>
     </div>
 @stop
 
 @section('content')
 
+{{-- BARRE DE FILTRES PROFESSIONNELLE --}}
+<div class="filters-bar-modern">
+    <form action="{{ route('categories.show', $category->id) }}" method="GET" id="filterForm">
+        <div class="filters-container">
+            
+            {{-- Barre de recherche --}}
+            <div class="filter-group">
+                <label class="filter-label">
+                    <i class="fas fa-search"></i> Rechercher
+                </label>
+                <input type="text" 
+                       name="search" 
+                       class="filter-select" 
+                       placeholder="Nom de l'article..."
+                       value="{{ request('search') }}">
+            </div>
+
+            {{-- Filtre Marque --}}
+            <div class="filter-group">
+                <label class="filter-label">
+                    <i class="fas fa-certificate"></i> Marque
+                </label>
+                <select name="marque_id" class="filter-select">
+                    <option value="">Toutes les marques</option>
+                    @foreach($marques as $marque)
+                        <option value="{{ $marque->id }}" {{ request('marque_id') == $marque->id ? 'selected' : '' }}>
+                            {{ $marque->nom }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+
+            {{-- Filtre Stock --}}
+            <div class="filter-group">
+                <label class="filter-label">
+                    <i class="fas fa-boxes"></i> Stock
+                </label>
+                <select name="stock_status" class="filter-select">
+                    <option value="">Tous les stocks</option>
+                    <option value="low" {{ request('stock_status') == 'low' ? 'selected' : '' }}>
+                        Stock faible
+                    </option>
+                    <option value="ok" {{ request('stock_status') == 'ok' ? 'selected' : '' }}>
+                        Stock suffisant
+                    </option>
+                </select>
+            </div>
+
+            {{-- Filtre Prix --}}
+            <div class="filter-group filter-price-range">
+                <label class="filter-label">
+                    <i class="fas fa-tag"></i> Prix (DZD)
+                </label>
+                <div class="price-inputs">
+                    <input type="number" 
+                           name="prix_min" 
+                           class="filter-input-small" 
+                           placeholder="Min"
+                           value="{{ request('prix_min') }}">
+                    <span class="price-separator">-</span>
+                    <input type="number" 
+                           name="prix_max" 
+                           class="filter-input-small" 
+                           placeholder="Max"
+                           value="{{ request('prix_max') }}">
+                </div>
+            </div>
+
+            {{-- Tri --}}
+            <div class="filter-group">
+                <label class="filter-label">
+                    <i class="fas fa-sort"></i> Trier par
+                </label>
+                <select name="sort" class="filter-select">
+                    <option value="recent" {{ request('sort') == 'recent' ? 'selected' : '' }}>Plus récent</option>
+                    <option value="name_asc" {{ request('sort') == 'name_asc' ? 'selected' : '' }}>Nom (A-Z)</option>
+                    <option value="name_desc" {{ request('sort') == 'name_desc' ? 'selected' : '' }}>Nom (Z-A)</option>
+                    <option value="price_asc" {{ request('sort') == 'price_asc' ? 'selected' : '' }}>Prix ↑</option>
+                    <option value="price_desc" {{ request('sort') == 'price_desc' ? 'selected' : '' }}>Prix ↓</option>
+                    <option value="stock_asc" {{ request('sort') == 'stock_asc' ? 'selected' : '' }}>Stock ↑</option>
+                    <option value="stock_desc" {{ request('sort') == 'stock_desc' ? 'selected' : '' }}>Stock ↓</option>
+                </select>
+            </div>
+
+            {{-- Boutons d'action --}}
+            <div class="filter-actions">
+                <button type="submit" class="btn-filter-apply">
+                    <i class="fas fa-search"></i>
+                    Appliquer
+                </button>
+                @if(request()->hasAny(['marque_id', 'stock_status', 'prix_min', 'prix_max', 'sort', 'search']))
+                <a href="{{ route('categories.show', $category->id) }}" class="btn-filter-reset">
+                    <i class="fas fa-redo"></i>
+                    Réinitialiser
+                </a>
+                @endif
+            </div>
+
+        </div>
+
+        {{-- Filtres actifs (badges) --}}
+        @if(request()->hasAny(['marque_id', 'stock_status', 'prix_min', 'prix_max', 'search']))
+        <div class="active-filters">
+            <span class="active-filters-label">
+                <i class="fas fa-filter"></i> Filtres actifs :
+            </span>
+            
+            @if(request('search'))
+                <span class="filter-badge">
+                    <i class="fas fa-search"></i>
+                    "{{ request('search') }}"
+                    <a href="{{ request()->fullUrlWithQuery(['search' => null]) }}" class="remove-filter">×</a>
+                </span>
+            @endif
+
+            @if(request('marque_id'))
+                @php $marque = $marques->find(request('marque_id')); @endphp
+                <span class="filter-badge">
+                    <i class="fas fa-certificate"></i>
+                    {{ $marque->nom ?? 'Marque' }}
+                    <a href="{{ request()->fullUrlWithQuery(['marque_id' => null]) }}" class="remove-filter">×</a>
+                </span>
+            @endif
+
+            @if(request('stock_status'))
+                <span class="filter-badge">
+                    <i class="fas fa-boxes"></i>
+                    {{ request('stock_status') == 'low' ? 'Stock faible' : 'Stock suffisant' }}
+                    <a href="{{ request()->fullUrlWithQuery(['stock_status' => null]) }}" class="remove-filter">×</a>
+                </span>
+            @endif
+
+            @if(request('prix_min') || request('prix_max'))
+                <span class="filter-badge">
+                    <i class="fas fa-tag"></i>
+                    {{ request('prix_min') ?? '0' }} - {{ request('prix_max') ?? '∞' }} DZD
+                    <a href="{{ request()->fullUrlWithQuery(['prix_min' => null, 'prix_max' => null]) }}" class="remove-filter">×</a>
+                </span>
+            @endif
+        </div>
+        @endif
+    </form>
+</div>
+
+{{-- Résumé des résultats --}}
+@if($articles->total() > 0)
+<div class="results-summary">
+    <span class="results-count">
+        <i class="fas fa-check-circle"></i>
+        <strong>{{ $articles->total() }}</strong> article(s) trouvé(s)
+    </span>
+    @if(request()->hasAny(['marque_id', 'stock_status', 'prix_min', 'prix_max', 'search']))
+        <span class="filtered-indicator">
+            <i class="fas fa-filter"></i> Résultats filtrés
+        </span>
+    @endif
+</div>
+@endif
+
+{{-- GRILLE ARTICLES --}}
 <div class="articles-grid-modern">
     @forelse($articles as $article)
     <div class="article-card-wrapper">
@@ -67,10 +229,17 @@
                 <h3 class="article-title">{{ $article->nom }}</h3>
                 
                 <div class="article-meta">
-                    @if($article->code_barre)
+                    @if($article->code_barres)
                     <span class="meta-item">
                         <i class="fas fa-barcode"></i>
-                        {{ $article->code_barre }}
+                        {{ $article->code_barres }}
+                    </span>
+                    @endif
+
+                    @if($article->marque)
+                    <span class="meta-item">
+                        <i class="fas fa-certificate"></i>
+                        {{ $article->marque->nom }}
                     </span>
                     @endif
                     
@@ -114,21 +283,30 @@
     </div>
     @empty
     <div class="empty-state-articles">
-        <i class="fas fa-box-open"></i>
-        <h3>Aucun article</h3>
-        <p>Cette catégorie ne contient pas encore d'articles</p>
+        <i class="fas fa-search"></i>
+        <h3>Aucun article trouvé</h3>
+        <p>Essayez de modifier vos critères de recherche</p>
+        @if(request()->hasAny(['marque_id', 'stock_status', 'prix_min', 'prix_max', 'search']))
+        <a href="{{ route('categories.show', $category->id) }}" class="btn-modern-add">
+            <i class="fas fa-redo"></i>
+            <span>Réinitialiser les filtres</span>
+        </a>
+        @else
         <a href="{{ route('articles.create') }}" class="btn-modern-add">
             <i class="fas fa-plus"></i>
             <span>Ajouter un article</span>
         </a>
+        @endif
     </div>
     @endforelse
 </div>
 
 {{-- Pagination moderne --}}
+@if($articles->total() > 0)
 <div class="pagination-modern">
     {{ $articles->links() }}
 </div>
+@endif
 
 {{-- MODAL DÉTAILS ARTICLE --}}
 <div class="modal fade" id="articleDetailsModal" tabindex="-1" role="dialog">
@@ -179,14 +357,19 @@
     gap: 1rem;
 }
 
+.header-actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
 .btn-back {
     width: 48px;
     height: 48px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background:linear-gradient(135deg, #E60000 0%, #FF0000 50%, #FF3333 100%) !important;
-
+    background: linear-gradient(135deg, #E60000 0%, #FF0000 50%, #FF3333 100%) !important;
     color: white;
     border-radius: 12px;
     text-decoration: none;
@@ -246,7 +429,225 @@
     box-shadow: 0 6px 25px rgba(255, 107, 53, 0.4);
     color: white;
     text-decoration: none;
-    background:linear-gradient(135deg, #E60000 0%, #FF0000 50%, #FF3333 100%) !important;
+}
+
+/* ============================================
+   BARRE DE FILTRES MODERNE
+   ============================================ */
+.filters-bar-modern {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 16px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+    margin-bottom: 2rem;
+}
+
+.filters-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    align-items: end;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.filter-label {
+    font-weight: 600;
+    color: #2c3e50;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.filter-label i {
+    color: #FF6B35;
+    font-size: 0.85rem;
+}
+
+.filter-select,
+.filter-input-small {
+    padding: 0.75rem 1rem;
+    border: 2px solid #e9ecef;
+    border-radius: 10px;
+    font-size: 0.95rem;
+    transition: all 0.3s ease;
+    background: white;
+    color: #2c3e50;
+}
+
+.filter-select:focus,
+.filter-input-small:focus {
+    border-color: #FF6B35;
+    outline: none;
+    box-shadow: 0 0 0 0.2rem rgba(255, 107, 53, 0.1);
+}
+
+/* Filtre prix range */
+.filter-price-range .price-inputs {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.filter-input-small {
+    flex: 1;
+    min-width: 0;
+}
+
+.price-separator {
+    color: #7f8c8d;
+    font-weight: 600;
+}
+
+/* Actions de filtrage */
+.filter-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: flex-end;
+}
+
+.btn-filter-apply {
+    background: linear-gradient(135deg, #E60000 0%, #FF0000 50%, #FF3333 100%);
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3);
+    white-space: nowrap;
+}
+
+.btn-filter-apply:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 107, 53, 0.4);
+}
+
+.btn-filter-reset {
+    background: #6c757d;
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+}
+
+.btn-filter-reset:hover {
+    background: #5a6268;
+    transform: translateY(-2px);
+    color: white;
+    text-decoration: none;
+}
+
+/* Filtres actifs */
+.active-filters {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 2px solid #f0f0f0;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.active-filters-label {
+    font-weight: 600;
+    color: #7f8c8d;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.filter-badge {
+    background: linear-gradient(135deg, #E60000 0%, #FF0000 50%, #FF3333 100%);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    animation: fadeIn 0.3s ease;
+}
+
+.filter-badge i {
+    font-size: 0.75rem;
+}
+
+.remove-filter {
+    color: white;
+    margin-left: 0.25rem;
+    font-size: 1.2rem;
+    line-height: 1;
+    text-decoration: none;
+    cursor: pointer;
+    opacity: 0.8;
+    transition: opacity 0.2s ease;
+}
+
+.remove-filter:hover {
+    opacity: 1;
+    color: white;
+    text-decoration: none;
+}
+
+/* Résumé des résultats */
+.results-summary {
+    background: white;
+    padding: 1rem 1.5rem;
+    border-radius: 12px;
+    margin-bottom: 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.results-count {
+    font-size: 1rem;
+    color: #2c3e50;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.results-count i {
+    color: #27ae60;
+}
+
+.results-count strong {
+    color: #FF6B35;
+    font-size: 1.1rem;
+}
+
+.filtered-indicator {
+    background: linear-gradient(135deg, #E60000 0%, #FF0000 50%, #FF3333 100%);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 /* ============================================
@@ -482,7 +883,7 @@
 }
 
 .action-edit:hover {
-    background: linear-gradient(135deg, #E60000 0%, #FF0000 50%, #FF3333 100%) !important;
+    background: linear-gradient(135deg, #f39c12, #e67e22);
     color: white;
 }
 
@@ -558,7 +959,7 @@
     height: 50px;
     margin: 0 auto 1rem;
     border: 4px solid #f3f3f3;
-    border-top: 4px solid #ff3535ff;
+    border-top: 4px solid #FF6B35;
     border-radius: 50%;
     animation: spin 1s linear infinite;
 }
@@ -582,7 +983,7 @@
 
 .empty-state-articles i {
     font-size: 5rem;
-    color: #ff3535ff;
+    color: #FF6B35;
     opacity: 0.3;
     margin-bottom: 1.5rem;
 }
@@ -617,7 +1018,7 @@
     border: none;
     border-radius: 10px;
     padding: 0.75rem 1.25rem;
-    color: #ff3535ff;
+    color: #FF6B35;
     font-weight: 600;
     transition: all 0.3s ease;
     background: white;
@@ -625,16 +1026,14 @@
 }
 
 .pagination-modern .page-link:hover {
-    background:linear-gradient(135deg, #E60000 0%, #FF0000 50%, #FF3333 100%) !important;
+    background: linear-gradient(135deg, #E60000 0%, #FF0000 50%, #FF3333 100%) !important;
     color: white;
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3);
 }
 
 .pagination-modern .page-item.active .page-link {
-    background:linear-gradient(135deg, #E60000 0%, #FF0000 50%, #FF3333 100%) !important;
-
-    
+    background: linear-gradient(135deg, #E60000 0%, #FF0000 50%, #FF3333 100%) !important;
     color: white;
     box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3);
 }
@@ -642,6 +1041,17 @@
 /* ============================================
    ANIMATIONS
    ============================================ */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
 @keyframes fadeInDown {
     from {
         opacity: 0;
@@ -678,9 +1088,39 @@
 /* ============================================
    RESPONSIVE
    ============================================ */
+@media (max-width: 1024px) {
+    .filters-container {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .filter-actions {
+        grid-column: 1 / -1;
+    }
+}
+
 @media (max-width: 768px) {
+    .filters-container {
+        grid-template-columns: 1fr;
+    }
+    
+    .filter-actions {
+        flex-direction: column;
+    }
+    
+    .btn-filter-apply,
+    .btn-filter-reset {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .results-summary {
+        flex-direction: column;
+        gap: 0.75rem;
+        text-align: center;
+    }
+
     .articles-grid-modern {
-          grid-template-columns: repeat(2, 1fr) !important; 
+        grid-template-columns: repeat(2, 1fr);
         gap: 1rem;
     }
     
@@ -705,6 +1145,10 @@
         width: 100%;
     }
     
+    .header-actions {
+        width: 100%;
+    }
+
     .btn-modern-add {
         width: 100%;
         justify-content: center;
@@ -772,20 +1216,6 @@ function showArticleDetails(articleId) {
             );
         }
     });
-}
-
-// Toggle affichage du prix
-function togglePrice() {
-    var priceElement = $('#price-value');
-    var icon = $('#toggle-price-icon');
-    
-    if(priceElement.hasClass('price-hidden')) {
-        priceElement.removeClass('price-hidden');
-        icon.removeClass('fa-eye').addClass('fa-eye-slash');
-    } else {
-        priceElement.addClass('price-hidden');
-        icon.removeClass('fa-eye-slash').addClass('fa-eye');
-    }
 }
 </script>
 @stop
