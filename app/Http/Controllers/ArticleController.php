@@ -114,19 +114,17 @@ public function store(Request $request)
         'quantite_minimale' => 'required|integer|min:0',
         'contenance_carton' => 'nullable|integer|min:1',
         'prix_achat' => 'nullable|numeric|min:0',
+        'prix_vente' => 'nullable|numeric|min:0',
         'date_peremption' => 'nullable|date',
-        'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+        'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
     ]);
 
     try {
         $data = $request->except('photo');
         
-        // Gestion de l'upload de photo
+        // ✅ MÊME MÉTHODE que pour les catégories
         if ($request->hasFile('photo')) {
-            $photo = $request->file('photo');
-            $filename = time() . '_' . $photo->getClientOriginalName();
-            $photo->move(public_path('uploads/articles'), $filename);
-            $data['photo'] = 'uploads/articles/' . $filename;
+            $data['photo'] = $request->file('photo')->store('articles', 'public');
         }
 
         // Créer l'article
@@ -136,6 +134,11 @@ public function store(Request $request)
             ->with('success', 'Article créé avec succès !');
 
     } catch (\Exception $e) {
+        // Si erreur, supprimer la photo uploadée
+        if (isset($data['photo']) && \Storage::disk('public')->exists($data['photo'])) {
+            \Storage::disk('public')->delete($data['photo']);
+        }
+        
         return redirect()->back()
             ->withInput()
             ->with('error', 'Erreur lors de la création : ' . $e->getMessage());
