@@ -49,6 +49,7 @@
             </div>
         </div>
 
+        {{-- TABLEAU DES ARTICLES --}}
         <div class="card">
             <div class="card-header bg-primary text-white">
                 <h3 class="card-title">
@@ -63,33 +64,78 @@
                     <table class="table table-bordered table-striped mb-0">
                         <thead class="thead-light">
                             <tr>
-                                <th width="30%">Article</th>
-                                <th width="12%" class="text-center">Cartons</th>
-                                <th width="12%" class="text-center">Pièces</th>
-                                <th width="15%" class="text-center">Prix unitaire (DZD)</th>
-                                <th width="12%" class="text-center">Total pièces</th>
-                                <th width="14%" class="text-center">Montant</th>
-                                <th width="5%" class="text-center">
-                                    <i class="fas fa-trash"></i>
-                                </th>
+                                <th width="25%">Article</th>
+                                <th width="10%" class="text-center">Cartons</th>
+                                <th width="10%" class="text-center">Pièces</th>
+                                <th width="12%" class="text-center">Prix unitaire (DZD)</th>
+                                <th width="9%"  class="text-center">Remise (%)</th>
+                                <th width="9%"  class="text-center">Prix net</th>
+                                <th width="10%" class="text-center">Total pièces</th>
+                                <th width="10%" class="text-center">Montant</th>
+                                <th width="5%"  class="text-center"><i class="fas fa-trash"></i></th>
                             </tr>
                         </thead>
                         <tbody id="tbody-articles">
-                            <!-- Les lignes seront ajoutées ici -->
+                            <!-- lignes ajoutées dynamiquement -->
                         </tbody>
                         <tfoot class="bg-light font-weight-bold">
                             <tr>
-                                <td colspan="4" class="text-right">TOTAL GÉNÉRAL :</td>
-                                <td class="text-center">
-                                    <span id="grand-total-pieces" class="badge badge-primary">0</span>
-                                </td>
-                                <td class="text-center">
-                                    <span id="grand-total-montant">0.00</span> DZD
-                                </td>
+                                <td colspan="7" class="text-right">TOTAL BRUT :</td>
+                                <td class="text-right"><span id="total-brut">0.00</span> DZD</td>
+                                <td></td>
+                            </tr>
+                            <tr class="text-danger" id="row-remises-articles" style="display:none;">
+                                <td colspan="7" class="text-right">Remises articles :</td>
+                                <td class="text-right">- <span id="total-remises-articles">0.00</span> DZD</td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td colspan="7" class="text-right">Sous-total après remises articles :</td>
+                                <td class="text-right"><span id="sous-total">0.00</span> DZD</td>
                                 <td></td>
                             </tr>
                         </tfoot>
                     </table>
+                </div>
+            </div>
+        </div>
+
+        {{-- REMISE GLOBALE + TOTAL FINAL --}}
+        <div class="card">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-4 offset-md-4">
+                        <div class="form-group mb-0">
+                            <label class="font-weight-bold">
+                                <i class="fas fa-percent text-warning"></i>
+                                Remise globale sur le bon (%) <small class="text-muted">— facultatif</small>
+                            </label>
+                            <div class="input-group">
+                                <input type="number"
+                                       name="remise_globale"
+                                       id="remise-globale"
+                                       class="form-control text-center font-weight-bold"
+                                       step="0.01" value="0" min="0" max="100"
+                                       placeholder="0.00">
+                                <div class="input-group-append">
+                                    <span class="input-group-text">%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-success text-white mb-0">
+                            <div class="card-body py-2 text-center">
+                                <div class="text-sm">TOTAL NET À PAYER</div>
+                                <div style="font-size: 1.6em; font-weight: bold;">
+                                    <span id="total-net-final">0.00</span> DZD
+                                </div>
+                                <div id="info-remise-globale" class="text-sm" style="display:none; opacity:0.9;">
+                                    Remise globale : - <span id="montant-remise-globale">0.00</span> DZD
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -112,8 +158,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const articles = @json($articles);
     const tbody = document.getElementById('tbody-articles');
     const btnAdd = document.getElementById('btn-add');
+    const inputRemiseGlobale = document.getElementById('remise-globale');
 
-    // Créer les options pour le select
     function getOptionsHTML() {
         let html = '<option value="">-- Sélectionner un article --</option>';
         articles.forEach(art => {
@@ -124,7 +170,6 @@ document.addEventListener('DOMContentLoaded', function() {
         return html;
     }
 
-    // Ajouter une ligne
     function ajouterLigne() {
         const tr = document.createElement('tr');
         tr.setAttribute('data-index', index);
@@ -135,22 +180,27 @@ document.addEventListener('DOMContentLoaded', function() {
                 </select>
             </td>
             <td>
-                <input type="number" 
-                       name="articles[${index}][quantite_cartons]" 
-                       class="form-control form-control-sm text-center input-cartons" 
+                <input type="number" name="articles[${index}][quantite_cartons]"
+                       class="form-control form-control-sm text-center input-cartons"
                        value="0" min="0" required>
             </td>
             <td>
-                <input type="number" 
-                       name="articles[${index}][quantite_pieces]" 
-                       class="form-control form-control-sm text-center input-pieces" 
+                <input type="number" name="articles[${index}][quantite_pieces]"
+                       class="form-control form-control-sm text-center input-pieces"
                        value="0" min="0" required>
             </td>
             <td>
-                <input type="number" 
-                       name="articles[${index}][prix_unitaire]" 
-                       class="form-control form-control-sm text-right input-prix" 
+                <input type="number" name="articles[${index}][prix_unitaire]"
+                       class="form-control form-control-sm text-right input-prix"
                        step="0.01" value="0" min="0" required>
+            </td>
+            <td>
+                <input type="number" name="articles[${index}][remise]"
+                       class="form-control form-control-sm text-center input-remise"
+                       step="0.01" value="0" min="0" max="100" placeholder="0">
+            </td>
+            <td class="text-center">
+                <span class="prix-net text-success font-weight-bold">0.00</span>
             </td>
             <td class="text-center">
                 <span class="badge badge-info total-pieces">0</span>
@@ -167,82 +217,109 @@ document.addEventListener('DOMContentLoaded', function() {
 
         tbody.appendChild(tr);
 
-        // Attacher les événements
-        const select = tr.querySelector('.select-article');
+        const select       = tr.querySelector('.select-article');
         const inputCartons = tr.querySelector('.input-cartons');
-        const inputPieces = tr.querySelector('.input-pieces');
-        const inputPrix = tr.querySelector('.input-prix');
-        const spanTotal = tr.querySelector('.total-pieces');
-        const spanMontant = tr.querySelector('.montant-ligne');
-        const btnSupprimer = tr.querySelector('.btn-supprimer');
+        const inputPieces  = tr.querySelector('.input-pieces');
+        const inputPrix    = tr.querySelector('.input-prix');
+        const inputRemise  = tr.querySelector('.input-remise');
+        const spanPrixNet  = tr.querySelector('.prix-net');
+        const spanTotal    = tr.querySelector('.total-pieces');
+        const spanMontant  = tr.querySelector('.montant-ligne');
 
         function calculer() {
-            const option = select.selectedOptions[0];
+            const option    = select.selectedOptions[0];
             const contenance = parseInt(option?.dataset.contenance || 0);
-            const cartons = parseInt(inputCartons.value) || 0;
-            const pieces = parseInt(inputPieces.value) || 0;
-            const prix = parseFloat(inputPrix.value) || 0;
+            const cartons   = parseInt(inputCartons.value) || 0;
+            const pieces    = parseInt(inputPieces.value) || 0;
+            const prix      = parseFloat(inputPrix.value) || 0;
+            const remise    = parseFloat(inputRemise.value) || 0;
 
             const totalPieces = (cartons * contenance) + pieces;
-            const montant = totalPieces * prix;
+            const prixNet     = prix * (1 - remise / 100);
+            const montant     = totalPieces * prixNet;
 
-            spanTotal.textContent = totalPieces;
+            spanTotal.textContent   = totalPieces;
+            spanPrixNet.textContent = prixNet.toFixed(2);
             spanMontant.textContent = montant.toFixed(2);
 
-            calculerGrandTotal();
+            calculerTotaux();
         }
 
         select.addEventListener('change', calculer);
         inputCartons.addEventListener('input', calculer);
         inputPieces.addEventListener('input', calculer);
         inputPrix.addEventListener('input', calculer);
+        inputRemise.addEventListener('input', calculer);
 
-        btnSupprimer.addEventListener('click', function() {
+        tr.querySelector('.btn-supprimer').addEventListener('click', function() {
             if (confirm('Supprimer cet article ?')) {
                 tr.remove();
-                calculerGrandTotal();
-                
-                // Si plus de lignes, en ajouter une
-                if (tbody.children.length === 0) {
-                    ajouterLigne();
-                }
+                calculerTotaux();
+                if (tbody.children.length === 0) ajouterLigne();
             }
         });
 
         index++;
     }
 
-    // Calculer les totaux généraux
-    function calculerGrandTotal() {
-        let totalPieces = 0;
-        let totalMontant = 0;
+    function calculerTotaux() {
+        let totalBrut = 0;
+        let sousTotal = 0;
 
         tbody.querySelectorAll('tr').forEach(tr => {
-            const pieces = parseInt(tr.querySelector('.total-pieces')?.textContent || 0);
+            const pieces  = parseInt(tr.querySelector('.total-pieces')?.textContent || 0);
+            const prix    = parseFloat(tr.querySelector('.input-prix')?.value || 0);
             const montant = parseFloat(tr.querySelector('.montant-ligne')?.textContent || 0);
-            totalPieces += pieces;
-            totalMontant += montant;
+            totalBrut += pieces * prix;
+            sousTotal += montant;
         });
 
-        document.getElementById('grand-total-pieces').textContent = totalPieces;
-        document.getElementById('grand-total-montant').textContent = totalMontant.toFixed(2);
+        const remisesArticles = totalBrut - sousTotal;
+        const remiseGlobale   = parseFloat(inputRemiseGlobale.value) || 0;
+        const montantRemiseGlobale = sousTotal * (remiseGlobale / 100);
+        const totalNetFinal   = sousTotal - montantRemiseGlobale;
+
+        // Afficher total brut
+        document.getElementById('total-brut').textContent = totalBrut.toFixed(2);
+
+        // Afficher remises articles (si > 0)
+        const rowRemisesArticles = document.getElementById('row-remises-articles');
+        if (remisesArticles > 0.001) {
+            rowRemisesArticles.style.display = '';
+            document.getElementById('total-remises-articles').textContent = remisesArticles.toFixed(2);
+        } else {
+            rowRemisesArticles.style.display = 'none';
+        }
+
+        // Sous-total
+        document.getElementById('sous-total').textContent = sousTotal.toFixed(2);
+
+        // Total net final
+        document.getElementById('total-net-final').textContent = totalNetFinal.toFixed(2);
+
+        // Info remise globale
+        const infoRemiseGlobale = document.getElementById('info-remise-globale');
+        if (remiseGlobale > 0) {
+            infoRemiseGlobale.style.display = '';
+            document.getElementById('montant-remise-globale').textContent = montantRemiseGlobale.toFixed(2);
+        } else {
+            infoRemiseGlobale.style.display = 'none';
+        }
     }
+
+    // Recalculer quand remise globale change
+    inputRemiseGlobale.addEventListener('input', calculerTotaux);
 
     // Bouton ajouter
     btnAdd.addEventListener('click', ajouterLigne);
 
-    // Validation du formulaire
+    // Validation
     document.getElementById('entree-form').addEventListener('submit', function(e) {
-        console.log('Formulaire soumis');
-        console.log('Nombre de lignes:', tbody.children.length);
-        
         if (tbody.children.length === 0) {
             e.preventDefault();
             alert('Vous devez ajouter au moins un article !');
             return false;
         }
-
-        // Vérifier que tous les selects ont une valeur
         let hasError = false;
         tbody.querySelectorAll('.select-article').forEach(select => {
             if (!select.value) {
@@ -250,22 +327,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 select.classList.add('is-invalid');
             }
         });
-
         if (hasError) {
             e.preventDefault();
             alert('Veuillez sélectionner un article pour chaque ligne !');
             return false;
         }
-        
-        // Afficher ce qui sera envoyé
-        const formData = new FormData(this);
-        console.log('Données du formulaire:');
-        for (let [key, value] of formData.entries()) {
-            console.log(key, value);
-        }
     });
 
-    // Ajouter la première ligne au chargement
+    // Première ligne au chargement
     ajouterLigne();
 });
 </script>
@@ -279,13 +348,8 @@ document.addEventListener('DOMContentLoaded', function() {
     .is-invalid {
         border-color: #dc3545 !important;
     }
-    #grand-total-pieces {
-        font-size: 1.1em;
-        padding: 6px 12px;
-    }
-    #grand-total-montant {
-        font-size: 1.2em;
-        color: #28a745;
+    #total-net-final {
+        font-size: 1.6em;
     }
 </style>
 @stop

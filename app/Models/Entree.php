@@ -5,7 +5,13 @@ use Illuminate\Database\Eloquent\Model;
 
 class Entree extends Model
 {
-    protected $fillable = ['fournisseur_id','date_reception','commentaire','user_id'];
+    protected $fillable = [
+        'fournisseur_id',
+        'date_reception',
+        'commentaire',
+        'remise_globale',  
+        'user_id',
+    ];
 
     public function fournisseur()
     {
@@ -16,15 +22,22 @@ class Entree extends Model
     {
         return $this->hasMany(EntreeLigne::class);
     }
-   public function articles()
+
+    public function articles()
     {
         return $this->belongsToMany(Article::class, 'article_entree')
-                    ->withPivot('quantite_cartons','quantite_pieces','quantite_total','prix_unitaire')
+                    ->withPivot(
+                        'quantite_cartons',
+                        'quantite_pieces',
+                        'quantite_total',
+                        'prix_unitaire',
+                        'remise'           
+                    )
                     ->withTimestamps();
     }
-    public function gestionnaire()
-{
-    return $this->belongsTo(User::class, 'user_id');
-}
 
+    public function gestionnaire()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
 }
