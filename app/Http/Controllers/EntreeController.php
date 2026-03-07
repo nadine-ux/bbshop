@@ -20,22 +20,33 @@ class EntreeController extends Controller
         return view('entrees.index', compact('entrees'));
     }
 
-    public function create()
+     public function create()
     {
         $fournisseurs = Fournisseur::all();
         $articles = Article::with('category')->get();
 
-        return view('entrees.create', compact('fournisseurs', 'articles'));
+        // 👇 Tableau simple pour le JS (évite l'erreur Blade avec fn())
+        $articlesData = [];
+        foreach ($articles as $a) {
+            $articlesData[] = [
+                'id'                => $a->id,
+                'nom'               => $a->nom,
+                'contenance_carton' => $a->contenance_carton,
+                'prix_achat'        => $a->prix_achat,
+            ];
+        }
+
+        return view('entrees.create', compact('fournisseurs', 'articles', 'articlesData'));
     }
 
     public function store(Request $request)
     {
         $request->validate([
-            'fournisseur_id'        => 'required|exists:fournisseurs,id',
-            'date_reception'        => 'required|date',
-            'commentaire'           => 'nullable|string',
-            'remise_globale'        => 'nullable|numeric|min:0|max:100', // 👈 NOUVEAU
-            'articles'              => 'required|array|min:1',
+            'fournisseur_id'               => 'required|exists:fournisseurs,id',
+            'date_reception'               => 'required|date',
+            'commentaire'                  => 'nullable|string',
+            'remise_globale'               => 'nullable|numeric|min:0|max:100',
+            'articles'                     => 'required|array|min:1',
             'articles.*.article_id'        => 'required|exists:articles,id',
             'articles.*.quantite_cartons'  => 'required|integer|min:0',
             'articles.*.quantite_pieces'   => 'required|integer|min:0',
@@ -49,7 +60,7 @@ class EntreeController extends Controller
                 'fournisseur_id'  => $request->fournisseur_id,
                 'date_reception'  => $request->date_reception,
                 'commentaire'     => $request->commentaire,
-                'remise_globale'  => $request->remise_globale ?? 0, // 👈 NOUVEAU
+                'remise_globale'  => $request->remise_globale ?? 0,
                 'user_id'         => auth()->id(),
             ]);
 

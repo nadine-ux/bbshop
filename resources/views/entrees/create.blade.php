@@ -155,15 +155,23 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     let index = 0;
-    const articles = @json($articles);
     const tbody = document.getElementById('tbody-articles');
     const btnAdd = document.getElementById('btn-add');
     const inputRemiseGlobale = document.getElementById('remise-globale');
 
+    // 👇 Récupérer prix_achat + contenance_carton pour chaque article
+    const articles = @json($articlesData);
+
+    // Index rapide par id
+    const articlesMap = {};
+    articles.forEach(a => articlesMap[a.id] = a);
+
     function getOptionsHTML() {
         let html = '<option value="">-- Sélectionner un article --</option>';
         articles.forEach(art => {
-            html += `<option value="${art.id}" data-contenance="${art.contenance_carton}">
+            html += `<option value="${art.id}"
+                        data-contenance="${art.contenance_carton}"
+                        data-prix="${art.prix_achat}">
                 ${art.nom} (Carton = ${art.contenance_carton} pcs)
             </option>`;
         });
@@ -175,7 +183,8 @@ document.addEventListener('DOMContentLoaded', function() {
         tr.setAttribute('data-index', index);
         tr.innerHTML = `
             <td>
-                <select name="articles[${index}][article_id]" class="form-control form-control-sm select-article" required>
+                <select name="articles[${index}][article_id]"
+                        class="form-control form-control-sm select-article" required>
                     ${getOptionsHTML()}
                 </select>
             </td>
@@ -190,9 +199,17 @@ document.addEventListener('DOMContentLoaded', function() {
                        value="0" min="0" required>
             </td>
             <td>
-                <input type="number" name="articles[${index}][prix_unitaire]"
-                       class="form-control form-control-sm text-right input-prix"
-                       step="0.01" value="0" min="0" required>
+                <div class="input-group input-group-sm">
+                    <input type="number" name="articles[${index}][prix_unitaire]"
+                           class="form-control text-right input-prix"
+                           step="0.01" value="0" min="0" required>
+                    <div class="input-group-append" title="Prix d'achat habituel">
+                        <span class="input-group-text px-2 prix-status">
+                            <i class="fas fa-lock text-secondary"></i>
+                        </span>
+                    </div>
+                </div>
+                <small class="text-muted prix-reference d-block mt-1"></small>
             </td>
             <td>
                 <input type="number" name="articles[${index}][remise]"
@@ -217,22 +234,55 @@ document.addEventListener('DOMContentLoaded', function() {
 
         tbody.appendChild(tr);
 
-        const select       = tr.querySelector('.select-article');
-        const inputCartons = tr.querySelector('.input-cartons');
-        const inputPieces  = tr.querySelector('.input-pieces');
-        const inputPrix    = tr.querySelector('.input-prix');
-        const inputRemise  = tr.querySelector('.input-remise');
-        const spanPrixNet  = tr.querySelector('.prix-net');
-        const spanTotal    = tr.querySelector('.total-pieces');
-        const spanMontant  = tr.querySelector('.montant-ligne');
+        const select        = tr.querySelector('.select-article');
+        const inputCartons  = tr.querySelector('.input-cartons');
+        const inputPieces   = tr.querySelector('.input-pieces');
+        const inputPrix     = tr.querySelector('.input-prix');
+        const inputRemise   = tr.querySelector('.input-remise');
+        const spanPrixNet   = tr.querySelector('.prix-net');
+        const spanTotal     = tr.querySelector('.total-pieces');
+        const spanMontant   = tr.querySelector('.montant-ligne');
+        const prixStatus    = tr.querySelector('.prix-status');
+        const prixReference = tr.querySelector('.prix-reference');
+
+        // ✅ Quand on sélectionne un article → remplir le prix automatiquement
+        select.addEventListener('change', function() {
+            const art = articlesMap[this.value];
+            if (art) {
+                const prix = parseFloat(art.prix_achat) || 0;
+                inputPrix.value = prix.toFixed(2);
+                // Cadenas vert = prix auto récupéré
+                prixStatus.innerHTML = '<i class="fas fa-lock text-success"></i>';
+                prixStatus.parentElement.title = 'Prix d\'achat habituel : ' + prix.toFixed(2) + ' DZD';
+                prixReference.textContent = 'Réf. habituelle : ' + prix.toFixed(2) + ' DZD';
+            } else {
+                inputPrix.value = '0.00';
+                prixStatus.innerHTML = '<i class="fas fa-lock text-secondary"></i>';
+                prixReference.textContent = '';
+            }
+            calculer();
+        });
+
+        // ✅ Si on modifie le prix manuellement → cadenas ouvert orange
+        inputPrix.addEventListener('input', function() {
+            const art = articlesMap[select.value];
+            if (art && Math.abs(parseFloat(this.value) - parseFloat(art.prix_achat)) > 0.001) {
+                prixStatus.innerHTML = '<i class="fas fa-lock-open text-warning"></i>';
+                prixStatus.parentElement.title = 'Prix modifié — réf. habituelle : ' + parseFloat(art.prix_achat).toFixed(2) + ' DZD';
+            } else {
+                prixStatus.innerHTML = '<i class="fas fa-lock text-success"></i>';
+                prixStatus.parentElement.title = 'Prix d\'achat habituel';
+            }
+            calculer();
+        });
 
         function calculer() {
-            const option    = select.selectedOptions[0];
+            const option     = select.selectedOptions[0];
             const contenance = parseInt(option?.dataset.contenance || 0);
-            const cartons   = parseInt(inputCartons.value) || 0;
-            const pieces    = parseInt(inputPieces.value) || 0;
-            const prix      = parseFloat(inputPrix.value) || 0;
-            const remise    = parseFloat(inputRemise.value) || 0;
+            const cartons    = parseInt(inputCartons.value) || 0;
+            const pieces     = parseInt(inputPieces.value) || 0;
+            const prix       = parseFloat(inputPrix.value) || 0;
+            const remise     = parseFloat(inputRemise.value) || 0;
 
             const totalPieces = (cartons * contenance) + pieces;
             const prixNet     = prix * (1 - remise / 100);
@@ -245,10 +295,8 @@ document.addEventListener('DOMContentLoaded', function() {
             calculerTotaux();
         }
 
-        select.addEventListener('change', calculer);
         inputCartons.addEventListener('input', calculer);
         inputPieces.addEventListener('input', calculer);
-        inputPrix.addEventListener('input', calculer);
         inputRemise.addEventListener('input', calculer);
 
         tr.querySelector('.btn-supprimer').addEventListener('click', function() {
@@ -274,15 +322,15 @@ document.addEventListener('DOMContentLoaded', function() {
             sousTotal += montant;
         });
 
-        const remisesArticles = totalBrut - sousTotal;
-        const remiseGlobale   = parseFloat(inputRemiseGlobale.value) || 0;
+        const remisesArticles      = totalBrut - sousTotal;
+        const remiseGlobale        = parseFloat(inputRemiseGlobale.value) || 0;
         const montantRemiseGlobale = sousTotal * (remiseGlobale / 100);
-        const totalNetFinal   = sousTotal - montantRemiseGlobale;
+        const totalNetFinal        = sousTotal - montantRemiseGlobale;
 
-        // Afficher total brut
-        document.getElementById('total-brut').textContent = totalBrut.toFixed(2);
+        document.getElementById('total-brut').textContent      = totalBrut.toFixed(2);
+        document.getElementById('sous-total').textContent      = sousTotal.toFixed(2);
+        document.getElementById('total-net-final').textContent = totalNetFinal.toFixed(2);
 
-        // Afficher remises articles (si > 0)
         const rowRemisesArticles = document.getElementById('row-remises-articles');
         if (remisesArticles > 0.001) {
             rowRemisesArticles.style.display = '';
@@ -291,13 +339,6 @@ document.addEventListener('DOMContentLoaded', function() {
             rowRemisesArticles.style.display = 'none';
         }
 
-        // Sous-total
-        document.getElementById('sous-total').textContent = sousTotal.toFixed(2);
-
-        // Total net final
-        document.getElementById('total-net-final').textContent = totalNetFinal.toFixed(2);
-
-        // Info remise globale
         const infoRemiseGlobale = document.getElementById('info-remise-globale');
         if (remiseGlobale > 0) {
             infoRemiseGlobale.style.display = '';
@@ -307,13 +348,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Recalculer quand remise globale change
     inputRemiseGlobale.addEventListener('input', calculerTotaux);
-
-    // Bouton ajouter
     btnAdd.addEventListener('click', ajouterLigne);
 
-    // Validation
     document.getElementById('entree-form').addEventListener('submit', function(e) {
         if (tbody.children.length === 0) {
             e.preventDefault();
@@ -334,7 +371,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Première ligne au chargement
     ajouterLigne();
 });
 </script>
@@ -350,6 +386,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     #total-net-final {
         font-size: 1.6em;
+    }
+    .prix-reference {
+        font-size: 0.75em;
+    }
+    .prix-status {
+        cursor: default;
     }
 </style>
 @stop
