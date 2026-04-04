@@ -11,38 +11,43 @@ use Illuminate\Support\Facades\DB;
 
 class EntreeController extends Controller
 {
-   public function index(Request $request)
+public function index(Request $request)
 {
     $query = Entree::with(['fournisseur', 'gestionnaire', 'articles']);
 
     if ($request->filled('date')) {
         $query->whereDate('date_reception', $request->date);
     }
-
     if ($request->filled('mois')) {
         $query->whereMonth('date_reception', $request->mois);
     }
     if ($request->filled('annee')) {
         $query->whereYear('date_reception', $request->annee);
     }
+    if ($request->filled('fournisseur')) {
+        $query->whereHas('fournisseur', function($q) use ($request) {
+            $q->where('nom', 'like', '%' . $request->fournisseur . '%');
+        });
+    }
+
     $sortField = $request->get('sort', 'date_reception');
     $sortDir   = $request->get('direction', 'desc');
-    $allowedSorts = ['date_reception', 'id'];
-    if (in_array($sortField, $allowedSorts)) {
+
+    if ($sortField === 'fournisseur') {
+        $query->join('fournisseurs', 'entrees.fournisseur_id', '=', 'fournisseurs.id')
+              ->orderBy('fournisseurs.nom', $sortDir === 'asc' ? 'asc' : 'desc')
+              ->select('entrees.*');
+    } elseif (in_array($sortField, ['date_reception', 'id'])) {
         $query->orderBy($sortField, $sortDir === 'asc' ? 'asc' : 'desc');
     }
 
     $entrees = $query->paginate(15)->withQueryString();
 
-    
     $annees = Entree::selectRaw('YEAR(date_reception) as annee')
-        ->distinct()
-        ->orderBy('annee', 'desc')
-        ->pluck('annee');
+        ->distinct()->orderBy('annee', 'desc')->pluck('annee');
 
     return view('entrees.index', compact('entrees', 'annees'));
 }
-
      public function create()
     {
         $fournisseurs = Fournisseur::all();

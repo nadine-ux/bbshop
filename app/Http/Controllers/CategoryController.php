@@ -9,14 +9,29 @@ use Illuminate\Support\Facades\Storage;
 
 class CategoryController extends Controller
 {
-    // Liste des catégories
-public function index()
+public function index(Request $request)
 {
-    $categories = Category::whereNull('parent_id')->get();
+    $query = Category::whereNull('parent_id')->withCount('children');
+
+    // Recherche par nom
+    if ($request->filled('search')) {
+        $query->where('nom', 'like', '%' . $request->search . '%');
+    }
+
+    // Tri
+    $sort      = $request->get('sort', 'nom');
+    $direction = $request->get('direction', 'asc');
+    $allowed   = ['nom', 'created_at'];
+
+    if (in_array($sort, $allowed)) {
+        $query->orderBy($sort, $direction === 'desc' ? 'desc' : 'asc');
+    }
+
+    $categories = $query->get();
 
     return view('categories.cards', [
-        'title' => 'Catégories',
-        'categories' => $categories
+        'title'      => 'Catégories',
+        'categories' => $categories,
     ]);
 }
 
