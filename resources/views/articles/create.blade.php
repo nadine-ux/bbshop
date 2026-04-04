@@ -97,14 +97,6 @@
                         </div>
                     </div>
 
-                    {{-- Boutons de génération --}}
-                    <div class="barcode-actions">
-                        <span class="generate-label"><i class="fas fa-magic"></i> Générer :</span>
-                        <button type="button" class="btn-generate" onclick="generateBarcode('EAN13')">EAN-13</button>
-                        <button type="button" class="btn-generate" onclick="generateBarcode('EAN8')">EAN-8</button>
-                        <button type="button" class="btn-generate" onclick="generateBarcode('CODE128')">Code-128</button>
-                    </div>
-
                     @error('code_barres')
                         <div class="invalid-feedback">{{ $message }}</div>
                     @enderror
@@ -118,7 +110,6 @@
                     <label>
                         <i class="fas fa-tags"></i> Catégorie <span class="text-danger">*</span>
                     </label>
-                    {{-- Champ caché pour envoyer l'ID --}}
                     <input type="hidden" name="categorie_id" id="categorie_id" value="{{ old('categorie_id') }}" required>
                     
                     <div class="category-search-wrapper">
@@ -149,19 +140,36 @@
                     @enderror
                 </div>
 
-                {{-- Marque --}}
+                {{-- ═══ MARQUE PAR RECHERCHE ═══ --}}
                 <div class="form-group-modern">
                     <label>
                         <i class="fas fa-certificate"></i> Marque <span class="text-muted">(Optionnel)</span>
                     </label>
-                    <select name="marque_id" class="form-control-modern @error('marque_id') is-invalid @enderror">
-                        <option value="">-- Sélectionner une marque --</option>
-                        @foreach($marques as $marque)
-                            <option value="{{ $marque->id }}" {{ old('marque_id') == $marque->id ? 'selected' : '' }}>
-                                {{ $marque->nom }}
-                            </option>
-                        @endforeach
-                    </select>
+                    <input type="hidden" name="marque_id" id="marque_id" value="{{ old('marque_id') }}">
+
+                    <div class="category-search-wrapper">
+                        <div class="category-search-input-row">
+                            <i class="fas fa-search category-search-icon"></i>
+                            <input type="text"
+                                   id="marqueSearch"
+                                   class="form-control-modern category-search-input @error('marque_id') is-invalid @enderror"
+                                   placeholder="Rechercher une marque..."
+                                   autocomplete="off">
+                            <button type="button" class="btn-clear-category d-none" id="btnClearMarque" title="Effacer">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div id="marqueDropdown" class="category-dropdown d-none">
+                            <div id="marqueList"></div>
+                            <div id="marqueEmpty" class="category-empty d-none">
+                                <i class="fas fa-search"></i> Aucune marque trouvée
+                            </div>
+                        </div>
+                        <div id="marqueSelected" class="category-selected-badge d-none">
+                            <i class="fas fa-check-circle"></i>
+                            <span id="marqueSelectedName"></span>
+                        </div>
+                    </div>
                     @error('marque_id')
                         <div class="invalid-feedback">{{ $message }}</div>
                     @enderror
@@ -397,15 +405,11 @@
 .form-control-modern.is-invalid { border-color: #e74c3c; }
 .invalid-feedback { display: block; color: #e74c3c; font-size: 0.875rem; margin-top: 0.25rem; }
 
-/* ── BARCODE ────────────────────────────── */
+/* BARCODE */
 .barcode-input-row {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-    margin-bottom: 0.75rem;
+    display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.75rem;
 }
 .barcode-input-row .form-control-modern { flex: 1; margin: 0; }
-
 .btn-scan-camera, .btn-scan-file {
     width: 46px; height: 46px; min-width: 46px;
     border: none; border-radius: 10px; cursor: pointer;
@@ -423,12 +427,10 @@
 }
 .btn-scan-file:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(142,68,173,0.4); }
 
-/* Scanner container */
+/* Scanner */
 .scanner-container {
     border-radius: 14px; overflow: hidden;
-    border: 2px solid #27ae60;
-    margin-bottom: 0.75rem;
-    background: #000;
+    border: 2px solid #27ae60; margin-bottom: 0.75rem; background: #000;
 }
 .scanner-header {
     display: flex; justify-content: space-between; align-items: center;
@@ -449,47 +451,26 @@
 }
 .scanner-frame {
     width: 70%; max-width: 280px; height: 100px;
-    border: 3px solid #2ecc71;
-    border-radius: 10px; position: relative; overflow: hidden;
+    border: 3px solid #2ecc71; border-radius: 10px;
+    position: relative; overflow: hidden;
     box-shadow: 0 0 0 2000px rgba(0,0,0,0.45);
 }
 .scanner-line {
     position: absolute; top: 0; left: 0; right: 0;
-    height: 3px; background: #2ecc71;
-    box-shadow: 0 0 8px #2ecc71;
+    height: 3px; background: #2ecc71; box-shadow: 0 0 8px #2ecc71;
     animation: scanLine 1.8s linear infinite;
 }
-@keyframes scanLine {
-    0%   { top: 0; }
-    100% { top: 100%; }
-}
+@keyframes scanLine { 0% { top: 0; } 100% { top: 100%; } }
 .scanner-hint {
     margin-top: 0.75rem; color: white; font-size: 0.85rem;
     background: rgba(0,0,0,0.5); padding: 0.3rem 0.75rem;
     border-radius: 20px; text-align: center;
 }
-.scanner-status {
-    padding: 0.5rem 1rem; background: #111; color: #aaa; font-size: 0.85rem;
-}
+.scanner-status { padding: 0.5rem 1rem; background: #111; color: #aaa; font-size: 0.85rem; }
 
-/* Barcode generate buttons */
-.barcode-actions {
-    display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;
-}
-.generate-label { font-size: 0.85rem; color: #7f8c8d; font-weight: 600; white-space: nowrap; }
-.btn-generate {
-    background: linear-gradient(135deg, #3498db, #2980b9);
-    color: white; border: none; padding: 0.5rem 1rem;
-    border-radius: 8px; font-weight: 600; cursor: pointer;
-    transition: all 0.3s ease; font-size: 0.85rem;
-}
-.btn-generate:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(52,152,219,0.3); }
-
-/* ── CATEGORY SEARCH ────────────────────── */
+/* CATEGORY / MARQUE SEARCH — styles partagés */
 .category-search-wrapper { position: relative; }
-.category-search-input-row {
-    display: flex; align-items: center; position: relative;
-}
+.category-search-input-row { display: flex; align-items: center; position: relative; }
 .category-search-icon {
     position: absolute; left: 14px; color: #FF6B35; z-index: 2; pointer-events: none;
 }
@@ -503,7 +484,6 @@
     transition: color 0.2s; z-index: 2;
 }
 .btn-clear-category:hover { color: #e74c3c; }
-
 .category-dropdown {
     position: absolute; top: calc(100% + 4px); left: 0; right: 0;
     background: white; border: 2px solid #FF6B35; border-radius: 12px;
@@ -512,12 +492,10 @@
 }
 .category-dropdown::-webkit-scrollbar { width: 6px; }
 .category-dropdown::-webkit-scrollbar-thumb { background: #ddd; border-radius: 3px; }
-
 .category-item {
     display: flex; align-items: center; gap: 0.5rem;
     padding: 0.75rem 1rem; cursor: pointer;
-    transition: background 0.15s; border-bottom: 1px solid #f5f5f5;
-    font-size: 0.95rem;
+    transition: background 0.15s; border-bottom: 1px solid #f5f5f5; font-size: 0.95rem;
 }
 .category-item:last-child { border-bottom: none; }
 .category-item:hover { background: #fff5f2; }
@@ -525,11 +503,7 @@
 .category-item.depth-2 { padding-left: 2.25rem; font-size: 0.88rem; color: #777; }
 .category-item .cat-icon { color: #FF6B35; font-size: 0.8rem; }
 .category-item .cat-match { font-weight: 700; color: #FF6B35; }
-
-.category-empty {
-    padding: 1.25rem; text-align: center; color: #aaa; font-size: 0.9rem;
-}
-
+.category-empty { padding: 1.25rem; text-align: center; color: #aaa; font-size: 0.9rem; }
 .category-selected-badge {
     display: flex; align-items: center; gap: 0.5rem;
     margin-top: 0.5rem; padding: 0.5rem 0.875rem;
@@ -538,7 +512,7 @@
 }
 .category-selected-badge i { font-size: 1rem; }
 
-/* Upload area */
+/* Upload */
 .upload-area {
     position: relative; border: 3px dashed #e9ecef; border-radius: 12px;
     padding: 2rem; text-align: center; cursor: pointer; transition: all 0.3s ease;
@@ -556,11 +530,11 @@
 }
 .btn-remove-img:hover { background: #c0392b; transform: scale(1.1); }
 
-/* Fixed action buttons */
+/* Actions fixes */
 .form-actions-fixed {
     position: sticky; bottom: 0; left: 0; right: 0;
     background: white; padding: 1.5rem 0;
-    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1); z-index: 1000; margin-top: 2rem;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.1); z-index: 1000; margin-top: 2rem;
 }
 .actions-wrapper { display: flex; gap: 1rem; justify-content: flex-end; }
 .btn-cancel {
@@ -575,13 +549,11 @@
     color: white; padding: 0.875rem 2rem; border-radius: 12px; border: none;
     font-weight: 600; display: inline-flex; align-items: center; gap: 0.5rem;
     cursor: pointer; transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(230, 0, 0, 0.3);
+    box-shadow: 0 4px 15px rgba(230,0,0,0.3);
 }
-.btn-submit:hover { transform: translateY(-2px); box-shadow: 0 6px 25px rgba(230, 0, 0, 0.4); }
+.btn-submit:hover { transform: translateY(-2px); box-shadow: 0 6px 25px rgba(230,0,0,0.4); }
 
 @media (max-width: 768px) {
-    .barcode-actions { flex-direction: column; }
-    .btn-generate { width: 100%; }
     .actions-wrapper { flex-direction: column; }
     .btn-cancel, .btn-submit { width: 100%; justify-content: center; }
 }
@@ -590,17 +562,16 @@
 @stop
 
 @section('js')
-{{-- ZXing : scanner universel (Chrome, Firefox, Safari, Edge) --}}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/zxing-js/0.21.1/zxing.min.js"></script>
 <script>
 // ═══════════════════════════════════════════════
-//  DONNÉES CATÉGORIES (flat list pour la recherche)
+//  DONNÉES CATÉGORIES
 // ═══════════════════════════════════════════════
-const allCategories = [
-    @php
-        function flattenCategories($categories, $depth = 0) {
+@php
+    if (!function_exists('flattenCategories')) {
+        function flattenCategories($cats, $depth = 0) {
             $result = [];
-            foreach ($categories as $cat) {
+            foreach ($cats as $cat) {
                 $result[] = ['id' => $cat->id, 'nom' => $cat->nom, 'depth' => $depth];
                 if ($cat->children && count($cat->children)) {
                     $result = array_merge($result, flattenCategories($cat->children, $depth + 1));
@@ -608,120 +579,171 @@ const allCategories = [
             }
             return $result;
         }
-        $flat = flattenCategories($categories);
-        foreach ($flat as $c) {
-            echo "{ id: {$c['id']}, nom: " . json_encode($c['nom']) . ", depth: {$c['depth']} },\n";
+    }
+    $flatCategories = flattenCategories($categories);
+@endphp
+const allCategories = {!! json_encode($flatCategories) !!};
+
+// ═══════════════════════════════════════════════
+//  DONNÉES MARQUES
+// ═══════════════════════════════════════════════
+const allMarques = {!! json_encode($marques->map(fn($m) => ['id' => $m->id, 'nom' => $m->nom])->values()) !!};
+
+// ═══════════════════════════════════════════════
+//  HELPER : créer un moteur de recherche réutilisable
+// ═══════════════════════════════════════════════
+function makeSearchWidget(config) {
+    const {
+        searchInputId, dropdownId, listId, emptyId,
+        hiddenInputId, selectedBadgeId, selectedNameId, clearBtnId,
+        data, iconClass, renderItem
+    } = config;
+
+    const searchInput   = document.getElementById(searchInputId);
+    const dropdown      = document.getElementById(dropdownId);
+    const list          = document.getElementById(listId);
+    const empty         = document.getElementById(emptyId);
+    const hiddenInput   = document.getElementById(hiddenInputId);
+    const selectedBadge = document.getElementById(selectedBadgeId);
+    const selectedName  = document.getElementById(selectedNameId);
+    const clearBtn      = document.getElementById(clearBtnId);
+
+    function selectItem(item) {
+        hiddenInput.value    = item.id;
+        searchInput.value    = item.nom;
+        dropdown.classList.add('d-none');
+        selectedBadge.classList.remove('d-none');
+        selectedName.textContent = item.nom;
+        clearBtn.classList.remove('d-none');
+    }
+
+    searchInput.addEventListener('input', function () {
+        const q = this.value.trim().toLowerCase();
+        clearBtn.classList.toggle('d-none', q === '');
+
+        if (q.length < 1) { dropdown.classList.add('d-none'); return; }
+
+        const filtered = data.filter(item => item.nom.toLowerCase().includes(q));
+        list.innerHTML = '';
+
+        if (filtered.length === 0) {
+            empty.classList.remove('d-none');
+        } else {
+            empty.classList.add('d-none');
+            filtered.forEach(item => {
+                const div = document.createElement('div');
+                div.className = renderItem ? renderItem(item).className : 'category-item';
+                const highlighted = item.nom.replace(
+                    new RegExp(`(${q})`, 'gi'),
+                    '<span class="cat-match">$1</span>'
+                );
+                const icon = renderItem ? renderItem(item).icon : `<i class="${iconClass} cat-icon"></i>`;
+                const prefix = renderItem ? renderItem(item).prefix : '';
+                div.innerHTML = `${icon} ${prefix}${highlighted}`;
+                div.addEventListener('click', () => selectItem(item));
+                list.appendChild(div);
+            });
         }
-    @endphp
-];
+        dropdown.classList.remove('d-none');
+    });
 
-// ═══════════════════════════════════════════════
-//  RECHERCHE CATÉGORIE
-// ═══════════════════════════════════════════════
-const catSearchInput  = document.getElementById('categorieSearch');
-const catDropdown     = document.getElementById('categoryDropdown');
-const catList         = document.getElementById('categoryList');
-const catEmpty        = document.getElementById('categoryEmpty');
-const catIdInput      = document.getElementById('categorie_id');
-const catSelectedBadge = document.getElementById('categorySelected');
-const catSelectedName  = document.getElementById('categorySelectedName');
-const btnClearCat      = document.getElementById('btnClearCategory');
+    clearBtn.addEventListener('click', function () {
+        hiddenInput.value = '';
+        searchInput.value = '';
+        selectedBadge.classList.add('d-none');
+        clearBtn.classList.add('d-none');
+        searchInput.focus();
+    });
 
-// Pre-fill if old value
-@if(old('categorie_id'))
-const preSelected = allCategories.find(c => c.id == {{ old('categorie_id') }});
-if (preSelected) selectCategory(preSelected);
-@endif
+    searchInput.addEventListener('keydown', e => {
+        if (e.key === 'Escape') dropdown.classList.add('d-none');
+    });
 
-catSearchInput.addEventListener('input', function() {
-    const q = this.value.trim().toLowerCase();
-    btnClearCat.classList.toggle('d-none', q === '');
+    // Fermer en cliquant ailleurs
+    document.addEventListener('click', e => {
+        if (!e.target.closest(`#${searchInputId}`) &&
+            !e.target.closest(`#${dropdownId}`) &&
+            !e.target.closest(`#${clearBtnId}`)) {
+            dropdown.classList.add('d-none');
+        }
+    });
 
-    if (q.length < 1) {
-        catDropdown.classList.add('d-none');
-        return;
-    }
-
-    const filtered = allCategories.filter(c => c.nom.toLowerCase().includes(q));
-    catList.innerHTML = '';
-
-    if (filtered.length === 0) {
-        catEmpty.classList.remove('d-none');
-    } else {
-        catEmpty.classList.add('d-none');
-        filtered.forEach(cat => {
-            const div = document.createElement('div');
-            div.className = `category-item depth-${cat.depth}`;
-            const highlighted = cat.nom.replace(new RegExp(`(${q})`, 'gi'), '<span class="cat-match">$1</span>');
-            const prefix = cat.depth === 1 ? '└─ ' : cat.depth === 2 ? '└─ ' : '';
-            const icon = cat.depth === 0
-                ? '<i class="fas fa-folder cat-icon"></i>'
-                : '<i class="fas fa-folder-open cat-icon"></i>';
-            div.innerHTML = `${icon} ${prefix}${highlighted}`;
-            div.addEventListener('click', () => selectCategory(cat));
-            catList.appendChild(div);
-        });
-    }
-
-    catDropdown.classList.remove('d-none');
-});
-
-function selectCategory(cat) {
-    catIdInput.value = cat.id;
-    catSearchInput.value = cat.nom;
-    catDropdown.classList.add('d-none');
-    catSelectedBadge.classList.remove('d-none');
-    catSelectedName.textContent = cat.nom;
-    btnClearCat.classList.remove('d-none');
+    return { selectItem };
 }
 
-btnClearCat.addEventListener('click', function() {
-    catIdInput.value = '';
-    catSearchInput.value = '';
-    catSelectedBadge.classList.add('d-none');
-    btnClearCat.classList.add('d-none');
-    catSearchInput.focus();
+// ═══════════════════════════════════════════════
+//  INIT CATÉGORIE
+// ═══════════════════════════════════════════════
+const catWidget = makeSearchWidget({
+    searchInputId:  'categorieSearch',
+    dropdownId:     'categoryDropdown',
+    listId:         'categoryList',
+    emptyId:        'categoryEmpty',
+    hiddenInputId:  'categorie_id',
+    selectedBadgeId:'categorySelected',
+    selectedNameId: 'categorySelectedName',
+    clearBtnId:     'btnClearCategory',
+    data: allCategories,
+    renderItem: (cat) => ({
+        className: `category-item depth-${cat.depth}`,
+        icon: cat.depth === 0
+            ? '<i class="fas fa-folder cat-icon"></i>'
+            : '<i class="fas fa-folder-open cat-icon"></i>',
+        prefix: cat.depth > 0 ? '└─ ' : ''
+    })
 });
 
-// Fermer dropdown en cliquant ailleurs
-document.addEventListener('click', function(e) {
-    if (!e.target.closest('.category-search-wrapper')) {
-        catDropdown.classList.add('d-none');
-    }
-});
-
-catSearchInput.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') catDropdown.classList.add('d-none');
-});
-
+@if(old('categorie_id'))
+const preSelectedCat = allCategories.find(c => c.id == {{ old('categorie_id') }});
+if (preSelectedCat) catWidget.selectItem(preSelectedCat);
+@endif
 
 // ═══════════════════════════════════════════════
-//  SCANNER CODE-BARRES — CAMÉRA (ZXing universel)
+//  INIT MARQUE
+// ═══════════════════════════════════════════════
+const marqueWidget = makeSearchWidget({
+    searchInputId:  'marqueSearch',
+    dropdownId:     'marqueDropdown',
+    listId:         'marqueList',
+    emptyId:        'marqueEmpty',
+    hiddenInputId:  'marque_id',
+    selectedBadgeId:'marqueSelected',
+    selectedNameId: 'marqueSelectedName',
+    clearBtnId:     'btnClearMarque',
+    data: allMarques,
+    iconClass: 'fas fa-certificate',
+    renderItem: () => ({
+        className: 'category-item',
+        icon: '<i class="fas fa-certificate cat-icon"></i>',
+        prefix: ''
+    })
+});
+
+@if(old('marque_id'))
+const preSelectedMarque = allMarques.find(m => m.id == {{ old('marque_id') }});
+if (preSelectedMarque) marqueWidget.selectItem(preSelectedMarque);
+@endif
+
+// ═══════════════════════════════════════════════
+//  SCANNER CAMÉRA (ZXing)
 // ═══════════════════════════════════════════════
 const btnScanCamera    = document.getElementById('btnScanCamera');
 const btnCloseScanner  = document.getElementById('btnCloseScanner');
 const scannerContainer = document.getElementById('scannerContainer');
 const scannerVideo     = document.getElementById('scannerVideo');
 const scannerStatus    = document.getElementById('scannerStatus');
+let zxingCameraReader  = null;
 
-let zxingCameraReader = null;
-
-btnScanCamera.addEventListener('click', async function() {
+btnScanCamera.addEventListener('click', async function () {
     scannerContainer.classList.remove('d-none');
     scannerStatus.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Initialisation de la caméra...';
-
     try {
-        // Attendre que ZXing soit chargé
         if (typeof ZXing === 'undefined') {
             scannerStatus.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Librairie ZXing non chargée.';
             return;
         }
-
         zxingCameraReader = new ZXing.BrowserMultiFormatReader();
-
-        // Lister les caméras disponibles
         const videoInputDevices = await ZXing.BrowserCodeReader.listVideoInputDevices();
-        // Préférer la caméra arrière
         let deviceId = videoInputDevices.length > 0 ? videoInputDevices[0].deviceId : undefined;
         const backCamera = videoInputDevices.find(d =>
             d.label.toLowerCase().includes('back') ||
@@ -729,9 +751,7 @@ btnScanCamera.addEventListener('click', async function() {
             d.label.toLowerCase().includes('environment')
         );
         if (backCamera) deviceId = backCamera.deviceId;
-
         scannerStatus.innerHTML = '<i class="fas fa-camera"></i> Pointez vers le code-barres...';
-
         await zxingCameraReader.decodeFromVideoDevice(deviceId, 'scannerVideo', (result, err) => {
             if (result) {
                 const code = result.getText();
@@ -741,56 +761,40 @@ btnScanCamera.addEventListener('click', async function() {
                 showToast('✅ Code détecté : ' + code);
                 setTimeout(closeScanner, 1200);
             }
-            // Les erreurs de détection sont normales (frame sans code), on les ignore
         });
-
     } catch (err) {
         scannerStatus.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Erreur caméra : ${err.message}`;
-        console.error('Scanner error:', err);
     }
 });
 
 function closeScanner() {
-    if (zxingCameraReader) {
-        zxingCameraReader.reset();
-        zxingCameraReader = null;
-    }
+    if (zxingCameraReader) { zxingCameraReader.reset(); zxingCameraReader = null; }
     scannerContainer.classList.add('d-none');
 }
-
 btnCloseScanner.addEventListener('click', closeScanner);
 
-
 // ═══════════════════════════════════════════════
-//  SCANNER CODE-BARRES — IMAGE FILE (ZXing)
+//  SCANNER IMAGE FILE (ZXing)
 // ═══════════════════════════════════════════════
 const btnScanFile       = document.getElementById('btnScanFile');
 const barcodeImageInput = document.getElementById('barcodeImageInput');
 
-btnScanFile.addEventListener('click', function() {
-    barcodeImageInput.click();
-});
+btnScanFile.addEventListener('click', () => barcodeImageInput.click());
 
-barcodeImageInput.addEventListener('change', async function() {
+barcodeImageInput.addEventListener('change', async function () {
     if (!this.files || !this.files[0]) return;
-    const file = this.files[0];
-    const url  = URL.createObjectURL(file);
-
+    const url = URL.createObjectURL(this.files[0]);
     try {
-        if (typeof ZXing === 'undefined') {
-            showToast('❌ Librairie ZXing non chargée.', 'error');
-            return;
-        }
+        if (typeof ZXing === 'undefined') { showToast('❌ Librairie ZXing non chargée.', 'error'); return; }
         const reader = new ZXing.BrowserMultiFormatReader();
         const result = await reader.decodeFromImageUrl(url);
-        const code = result.getText();
+        const code   = result.getText();
         document.getElementById('code_barres').value = code;
         flashSuccess();
         showToast('✅ Code détecté : ' + code);
-    } catch(e) {
+    } catch (e) {
         showToast('❌ Aucun code-barres trouvé dans l\'image.', 'error');
     }
-
     URL.revokeObjectURL(url);
     this.value = '';
 });
@@ -798,11 +802,8 @@ barcodeImageInput.addEventListener('change', async function() {
 function flashSuccess() {
     const input = document.getElementById('code_barres');
     input.style.borderColor = '#27ae60';
-    input.style.background = '#f0fdf4';
-    setTimeout(() => {
-        input.style.borderColor = '';
-        input.style.background = '';
-    }, 1500);
+    input.style.background  = '#f0fdf4';
+    setTimeout(() => { input.style.borderColor = ''; input.style.background = ''; }, 1500);
 }
 
 function showToast(msg, type = 'success') {
@@ -812,63 +813,23 @@ function showToast(msg, type = 'success') {
         background:${type === 'error' ? '#e74c3c' : '#27ae60'};
         color:white; padding:0.75rem 1.5rem; border-radius:10px;
         font-weight:600; z-index:9999; box-shadow:0 4px 20px rgba(0,0,0,0.2);
-        animation: fadeInUp 0.3s ease;
     `;
     toast.textContent = msg;
     document.body.appendChild(toast);
     setTimeout(() => toast.remove(), 3000);
 }
 
-
-// ═══════════════════════════════════════════════
-//  GÉNÉRATEUR CODE-BARRES
-// ═══════════════════════════════════════════════
-function generateBarcode(type) {
-    let barcode = '';
-    switch(type) {
-        case 'EAN13':  barcode = generateEAN13();   break;
-        case 'EAN8':   barcode = generateEAN8();    break;
-        case 'CODE128': barcode = generateCODE128(); break;
-    }
-    document.getElementById('code_barres').value = barcode;
-    flashSuccess();
-}
-
-function generateEAN13() {
-    let code = '';
-    for (let i = 0; i < 12; i++) code += Math.floor(Math.random() * 10);
-    let sum = 0;
-    for (let i = 0; i < 12; i++) sum += parseInt(code[i]) * (i % 2 === 0 ? 1 : 3);
-    return code + ((10 - (sum % 10)) % 10);
-}
-
-function generateEAN8() {
-    let code = '';
-    for (let i = 0; i < 7; i++) code += Math.floor(Math.random() * 10);
-    let sum = 0;
-    for (let i = 0; i < 7; i++) sum += parseInt(code[i]) * (i % 2 === 0 ? 3 : 1);
-    return code + ((10 - (sum % 10)) % 10);
-}
-
-function generateCODE128() {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let code = 'ART';
-    for (let i = 0; i < 9; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
-    return code;
-}
-
-
 // ═══════════════════════════════════════════════
 //  PHOTO PREVIEW
 // ═══════════════════════════════════════════════
-document.getElementById('uploadArea').addEventListener('click', function() {
+document.getElementById('uploadArea').addEventListener('click', function () {
     document.getElementById('photoInput').click();
 });
 
 function previewImage(input) {
     if (input.files && input.files[0]) {
         const reader = new FileReader();
-        reader.onload = function(e) {
+        reader.onload = e => {
             document.getElementById('previewImg').src = e.target.result;
             document.getElementById('uploadPlaceholder').classList.add('d-none');
             document.getElementById('uploadPreview').classList.remove('d-none');
@@ -879,26 +840,24 @@ function previewImage(input) {
 
 function removeImage() {
     document.getElementById('photoInput').value = '';
-    document.getElementById('previewImg').src = '';
+    document.getElementById('previewImg').src   = '';
     document.getElementById('uploadPlaceholder').classList.remove('d-none');
     document.getElementById('uploadPreview').classList.add('d-none');
 }
 
-
 // ═══════════════════════════════════════════════
 //  VALIDATION FORMULAIRE
 // ═══════════════════════════════════════════════
-document.querySelector('form').addEventListener('submit', function(e) {
-    // Vérifier qu'une catégorie est sélectionnée
+document.querySelector('form').addEventListener('submit', function (e) {
+    const catIdInput = document.getElementById('categorie_id');
     if (!catIdInput.value) {
         e.preventDefault();
-        catSearchInput.focus();
-        catSearchInput.style.borderColor = '#e74c3c';
+        document.getElementById('categorieSearch').focus();
+        document.getElementById('categorieSearch').style.borderColor = '#e74c3c';
         showToast('❌ Veuillez sélectionner une catégorie.', 'error');
         return;
     }
-
-    const stock = parseInt(document.querySelector('input[name="stock"]').value);
+    const stock      = parseInt(document.querySelector('input[name="stock"]').value);
     const quantiteMin = parseInt(document.querySelector('input[name="quantite_minimale"]').value);
     if (stock < quantiteMin) {
         if (!confirm('⚠️ Attention: Le stock initial est inférieur à la quantité minimale.\n\nVoulez-vous continuer ?')) {
