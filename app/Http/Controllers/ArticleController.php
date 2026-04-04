@@ -270,5 +270,70 @@ public function getDetails($id)
         $article->delete();
         return redirect()->route('articles.index')->with('success','Article supprimé');
     }
+   // ─────────────────────────────────────────────────────────
+    public function detailJson(Article $article)
+    {
+        $article->load(['category', 'marque', 'fournisseur']);
 
+        return response()->json($article);
+    }
+
+    // ─────────────────────────────────────────────────────────
+    //  GET /articles/{article}/mouvements-json
+    //  → utilisé par le popup "Historique" (icône horloge)
+    //  → lit la table inventaires via la relation inventaires()
+    // ─────────────────────────────────────────────────────────
+    public function mouvementsJson(Article $article)
+    {
+        // La relation inventaires() est dans Article.php :
+        // public function inventaires() {
+        //     return $this->hasMany(Inventaire::class)->orderBy('date_mouvement','desc');
+        // }
+
+        $mouvements = $article->inventaires()
+            ->with(['entree.fournisseur', 'sortie'])   // charge les relations si elles existent dans Inventaire
+            ->get()
+            ->map(function ($inv) {
+
+                // ── Construire le motif lisible ──────────────
+                $motif = $inv->motif ?? null;
+
+                // Depuis l'entrée liée
+                if (!$motif && isset($inv->entree_id) && $inv->entree) {
+                    $fournisseurNom = $inv->entree->fournisseur->nom ?? '';
+                    $motif = 'Entrée fournisseur' . ($fournisseurNom ? " : {$fournisseurNom}" : '');
+                    if ($inv->entree->commentaire) {
+                        $motif .= ' — ' . $inv->entree->commentaire;
+                    }
+                }
+
+                // Depuis la sortie liée
+                if (!$motif && isset($inv->sortie_id) && $inv->sortie) {
+                    $dest = $inv->sortie->destination ?? ($inv->sortie->motif ?? '');
+                    $motif = 'Sortie' . ($dest ? " : {$dest}" : '');
+                }
+
+                // Fallback sur commentaire
+                $motif = $motif ?: ($inv->commentaire ?? '—');
+
+                // ── Date formatée ───────────────────────────
+                $date = '—';
+                if ($inv->date_mouvement) {
+                    $date = \Carbon\Carbon::parse($inv->date_mouvement)->format('d/m/Y');
+                } elseif ($inv->created_at) {
+                    $date = $inv->created_at->format('d/m/Y');
+                }
+
+                return [
+                    'type'     => $inv->type,               // 'entree' | 'sortie'
+                    'quantite' => $inv->quantite,
+                    'cartons'  => $inv->quantite_cartons ?? null,
+                    'pieces'   => $inv->quantite_pieces  ?? null,
+                    'motif'    => $motif,
+                    'date'     => $date,
+                ];
+            });
+
+        return response()->json($mouvements);
+    }
 }

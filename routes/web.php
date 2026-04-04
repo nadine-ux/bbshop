@@ -108,5 +108,9 @@ Route::middleware(['auth'])->group(function () {
         });
     });
 });
-
+Route::middleware(['auth'])->group(function () {
+    Route::get('articles/{article}/detail-json',     [ArticleController::class, 'detailJson'])     ->name('articles.detail.json');
+    Route::get('articles/{article}/mouvements-json', [ArticleController::class, 'mouvementsJson']) ->name('articles.mouvements.json');
+    Route::resource('articles', ArticleController::class);
+});
 require __DIR__.'/auth.php';

@@ -1,332 +1,274 @@
 @extends('adminlte::page')
 
-@section('title', $category->nom)
+@section('title', 'Articles')
 
 @section('content_header')
-    <div class="header-modern-articles">
-        <div class="header-left">
-            <a href="{{ route('categories.index') }}" class="btn-back">
-                <i class="fas fa-arrow-left"></i>
-            </a>
-            <div class="header-info">
-                <h1 class="page-title-articles">
-                    <i class="fas fa-cube"></i>
-                    {{ $category->nom }}
-                </h1>
-                <p class="page-subtitle">{{ $articles->total() }} article(s) disponible(s)</p>
-            </div>
-        </div>
-        <div class="header-actions">
-            <a href="{{ route('articles.create') }}" class="btn-modern-add">
-                <i class="fas fa-plus"></i>
-                <span>Ajouter un article</span>
-            </a>
-            <a href="{{ route('categories.create') }}" class="btn-modern-add">
-                <i class="fas fa-folder-plus"></i>
-                <span>Ajouter une catégorie</span>
-            </a>
+<div class="page-header">
+    <div class="page-header__left">
+        <div class="page-header__icon"><i class="fas fa-boxes"></i></div>
+        <div>
+            <h1>Articles</h1>
+            <p>{{ $articles->total() }} article(s) en stock</p>
         </div>
     </div>
+    <a href="{{ route('articles.create') }}" class="btn-add">
+        <i class="fas fa-plus"></i> Nouvel article
+    </a>
+</div>
 @stop
 
 @section('content')
 
-{{-- BARRE DE FILTRES PROFESSIONNELLE --}}
-<div class="filters-bar-modern">
-    <form action="{{ route('categories.show', $category->id) }}" method="GET" id="filterForm">
-        <div class="filters-container">
-            
-            {{-- Barre de recherche --}}
-            <div class="filter-group">
-                <label class="filter-label">
-                    <i class="fas fa-search"></i> Rechercher
-                </label>
-                <input type="text" 
-                       name="search" 
-                       class="filter-select" 
-                       placeholder="Nom de l'article..."
-                       value="{{ request('search') }}">
-            </div>
+{{-- ① BARRE DE RECHERCHE TEXTE --}}
+<div class="search-section">
+    <form method="GET" action="{{ route('articles.index') }}" id="filterForm">
 
-            {{-- Filtre Marque --}}
-            <div class="filter-group">
-                <label class="filter-label">
-                    <i class="fas fa-certificate"></i> Marque
-                </label>
-                <select name="marque_id" class="filter-select">
-                    <option value="">Toutes les marques</option>
-                    @foreach($marques as $marque)
-                        <option value="{{ $marque->id }}" {{ request('marque_id') == $marque->id ? 'selected' : '' }}>
-                            {{ $marque->nom }}
-                        </option>
-                    @endforeach
-                </select>
-            </div>
-
-            {{-- Filtre Stock --}}
-            <div class="filter-group">
-                <label class="filter-label">
-                    <i class="fas fa-boxes"></i> Stock
-                </label>
-                <select name="stock_status" class="filter-select">
-                    <option value="">Tous les stocks</option>
-                    <option value="low" {{ request('stock_status') == 'low' ? 'selected' : '' }}>
-                        Stock faible
-                    </option>
-                    <option value="ok" {{ request('stock_status') == 'ok' ? 'selected' : '' }}>
-                        Stock suffisant
-                    </option>
-                </select>
-            </div>
-
-            {{-- Filtre Prix --}}
-            <div class="filter-group filter-price-range">
-                <label class="filter-label">
-                    <i class="fas fa-tag"></i> Prix (DZD)
-                </label>
-                <div class="price-inputs">
-                    <input type="number" 
-                           name="prix_min" 
-                           class="filter-input-small" 
-                           placeholder="Min"
-                           value="{{ request('prix_min') }}">
-                    <span class="price-separator">-</span>
-                    <input type="number" 
-                           name="prix_max" 
-                           class="filter-input-small" 
-                           placeholder="Max"
-                           value="{{ request('prix_max') }}">
-                </div>
-            </div>
-
-            {{-- Tri --}}
-            <div class="filter-group">
-                <label class="filter-label">
-                    <i class="fas fa-sort"></i> Trier par
-                </label>
-                <select name="sort" class="filter-select">
-                    <option value="recent" {{ request('sort') == 'recent' ? 'selected' : '' }}>Plus récent</option>
-                    <option value="name_asc" {{ request('sort') == 'name_asc' ? 'selected' : '' }}>Nom (A-Z)</option>
-                    <option value="name_desc" {{ request('sort') == 'name_desc' ? 'selected' : '' }}>Nom (Z-A)</option>
-                    <option value="price_asc" {{ request('sort') == 'price_asc' ? 'selected' : '' }}>Prix ↑</option>
-                    <option value="price_desc" {{ request('sort') == 'price_desc' ? 'selected' : '' }}>Prix ↓</option>
-                    <option value="stock_asc" {{ request('sort') == 'stock_asc' ? 'selected' : '' }}>Stock ↑</option>
-                    <option value="stock_desc" {{ request('sort') == 'stock_desc' ? 'selected' : '' }}>Stock ↓</option>
-                </select>
-            </div>
-
-            {{-- Boutons d'action --}}
-            <div class="filter-actions">
-                <button type="submit" class="btn-filter-apply">
-                    <i class="fas fa-search"></i>
-                    Appliquer
-                </button>
-                @if(request()->hasAny(['marque_id', 'stock_status', 'prix_min', 'prix_max', 'sort', 'search']))
-                <a href="{{ route('categories.show', $category->id) }}" class="btn-filter-reset">
-                    <i class="fas fa-redo"></i>
-                    Réinitialiser
+        <div class="search-box">
+            <i class="fas fa-search"></i>
+            <input type="text"
+                   name="nom"
+                   value="{{ request('nom') }}"
+                   placeholder="Rechercher un article par nom..."
+                   autocomplete="off">
+            @if(request('nom'))
+                <a href="{{ request()->fullUrlWithQuery(['nom'=>null]) }}" class="clear-input">
+                    <i class="fas fa-times"></i>
                 </a>
+            @endif
+        </div>
+
+        {{-- ② BARRE DE SCAN CODE-BARRES --}}
+        <div class="scan-box">
+            <div class="scan-input-row">
+                <i class="fas fa-barcode"></i>
+                <input type="text"
+                       name="code_barres"
+                       id="barcodeInput"
+                       value="{{ request('code_barres') }}"
+                       placeholder="Scanner ou saisir un code-barres..."
+                       autocomplete="off">
+                <button type="button" id="btnCamera" class="btn-camera">
+                    <i class="fas fa-camera"></i> Caméra
+                </button>
+                @if(request('code_barres'))
+                    <a href="{{ request()->fullUrlWithQuery(['code_barres'=>null]) }}" class="clear-input">
+                        <i class="fas fa-times"></i>
+                    </a>
                 @endif
             </div>
+            {{-- Fenêtre caméra --}}
+            <div id="cameraBox" class="camera-box d-none">
+                <div class="camera-box__header">
+                    <span><i class="fas fa-camera"></i> Scanner en cours...</span>
+                    <button type="button" id="btnCameraClose"><i class="fas fa-times"></i></button>
+                </div>
+                <video id="cameraVideo" autoplay playsinline muted></video>
+                <div class="camera-frame"><div class="camera-line"></div></div>
+                <p class="camera-hint">Pointez vers le code-barres</p>
+                <div id="cameraStatus">Initialisation...</div>
+            </div>
+        </div>
+
+        {{-- ③ FILTRES : MARQUE / FOURNISSEUR / ÉTAT STOCK --}}
+        <div class="filters-row">
+
+            <div class="filter-item">
+                <label><i class="fas fa-certificate"></i> Marque</label>
+                <select name="marque_id">
+                    <option value="">Toutes les marques</option>
+                    @isset($marques)
+                        @foreach($marques as $m)
+                            <option value="{{ $m->id }}" {{ request('marque_id')==$m->id ? 'selected' : '' }}>
+                                {{ $m->nom }}
+                            </option>
+                        @endforeach
+                    @endisset
+                </select>
+            </div>
+
+            <div class="filter-item">
+                <label><i class="fas fa-truck"></i> Fournisseur</label>
+                <select name="fournisseur_id">
+                    <option value="">Tous les fournisseurs</option>
+                    @isset($fournisseurs)
+                        @foreach($fournisseurs as $f)
+                            <option value="{{ $f->id }}" {{ request('fournisseur_id')==$f->id ? 'selected' : '' }}>
+                                {{ $f->nom }}
+                            </option>
+                        @endforeach
+                    @endisset
+                </select>
+            </div>
+
+            <div class="filter-item">
+                <label><i class="fas fa-warehouse"></i> État du stock</label>
+                <select name="etat_stock">
+                    <option value="">Tous les états</option>
+                    <option value="normal"  {{ request('etat_stock')=='normal'  ? 'selected' : '' }}>✅ Normal</option>
+                    <option value="faible"  {{ request('etat_stock')=='faible'  ? 'selected' : '' }}>⚠️ Stock faible</option>
+                    <option value="rupture" {{ request('etat_stock')=='rupture' ? 'selected' : '' }}>🔴 Rupture</option>
+                </select>
+            </div>
+
+            <div class="filter-actions">
+                <button type="submit" class="btn-filter">
+                    <i class="fas fa-filter"></i> Filtrer
+                </button>
+                <a href="{{ route('articles.index') }}" class="btn-reset">
+                    <i class="fas fa-redo"></i> Réinitialiser
+                </a>
+            </div>
 
         </div>
 
-        {{-- Filtres actifs (badges) --}}
-        @if(request()->hasAny(['marque_id', 'stock_status', 'prix_min', 'prix_max', 'search']))
-        <div class="active-filters">
-            <span class="active-filters-label">
-                <i class="fas fa-filter"></i> Filtres actifs :
-            </span>
-            
-            @if(request('search'))
-                <span class="filter-badge">
-                    <i class="fas fa-search"></i>
-                    "{{ request('search') }}"
-                    <a href="{{ request()->fullUrlWithQuery(['search' => null]) }}" class="remove-filter">×</a>
-                </span>
-            @endif
-
-            @if(request('marque_id'))
-                @php $marque = $marques->find(request('marque_id')); @endphp
-                <span class="filter-badge">
-                    <i class="fas fa-certificate"></i>
-                    {{ $marque->nom ?? 'Marque' }}
-                    <a href="{{ request()->fullUrlWithQuery(['marque_id' => null]) }}" class="remove-filter">×</a>
-                </span>
-            @endif
-
-            @if(request('stock_status'))
-                <span class="filter-badge">
-                    <i class="fas fa-boxes"></i>
-                    {{ request('stock_status') == 'low' ? 'Stock faible' : 'Stock suffisant' }}
-                    <a href="{{ request()->fullUrlWithQuery(['stock_status' => null]) }}" class="remove-filter">×</a>
-                </span>
-            @endif
-
-            @if(request('prix_min') || request('prix_max'))
-                <span class="filter-badge">
-                    <i class="fas fa-tag"></i>
-                    {{ request('prix_min') ?? '0' }} - {{ request('prix_max') ?? '∞' }} DZD
-                    <a href="{{ request()->fullUrlWithQuery(['prix_min' => null, 'prix_max' => null]) }}" class="remove-filter">×</a>
-                </span>
-            @endif
-        </div>
-        @endif
     </form>
 </div>
 
-{{-- Résumé des résultats --}}
-@if($articles->total() > 0)
-<div class="results-summary">
-    <span class="results-count">
-        <i class="fas fa-check-circle"></i>
-        <strong>{{ $articles->total() }}</strong> article(s) trouvé(s)
-    </span>
-    @if(request()->hasAny(['marque_id', 'stock_status', 'prix_min', 'prix_max', 'search']))
-        <span class="filtered-indicator">
-            <i class="fas fa-filter"></i> Résultats filtrés
-        </span>
-    @endif
+{{-- Compteur résultats --}}
+<div class="results-info">
+    <span><strong>{{ $articles->total() }}</strong> article(s) trouvé(s)</span>
 </div>
-@endif
 
-{{-- GRILLE ARTICLES --}}
-<div class="articles-grid-modern">
+{{-- ④ GRILLE DES CARDS --}}
+<div class="cards-grid">
     @forelse($articles as $article)
-    <div class="article-card-wrapper">
-        <div class="article-card-modern" data-id="{{ $article->id }}">
+    @php
+        $s = $article->stock == 0 ? 'rupture'
+           : ($article->stock <= $article->quantite_minimale ? 'faible' : 'normal');
+    @endphp
 
-            {{-- Image avec badge stock --}}
-            <div class="card-image-box" onclick="showArticleDetails({{ $article->id }})">
-                <img src="{{ $article->photo ? asset('storage/'.$article->photo) : asset('images/default-product.png') }}"
-                     class="article-image" 
-                     alt="{{ $article->nom }}">
-                
-                {{-- Badge stock --}}
-                @if($article->stock <= $article->quantite_minimale)
-                    <div class="stock-badge stock-low">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        <span>{{ $article->stock }}</span>
-                    </div>
-                @else
-                    <div class="stock-badge stock-ok">
-                        <i class="fas fa-check-circle"></i>
-                        <span>{{ $article->stock }}</span>
-                    </div>
+    <div class="article-card">
+
+        {{-- IMAGE → clique = popup détail --}}
+        <div class="card-img-wrap" onclick="openDetail({{ $article->id }})">
+            @if($article->photo)
+                <img src="{{ asset('storage/'.$article->photo) }}" alt="{{ $article->nom }}">
+            @else
+                <div class="card-img-placeholder">
+                    <i class="fas fa-box-open"></i>
+                </div>
+            @endif
+
+            {{-- Badge état stock --}}
+            <span class="stock-badge stock-badge--{{ $s }}">
+                @if($s === 'rupture') 🔴 Rupture
+                @elseif($s === 'faible') ⚠️ Faible
+                @else ✅ {{ $article->stock }}
                 @endif
+            </span>
 
-                {{-- Overlay --}}
-                <div class="card-overlay-article">
-                    <button class="quick-view-btn" onclick="event.stopPropagation(); showArticleDetails({{ $article->id }})">
-                        <i class="fas fa-eye"></i>
-                        Voir détails
-                    </button>
-                </div>
+            {{-- Hover overlay --}}
+            <div class="card-img-hover">
+                <i class="fas fa-eye"></i>
+                <span>Voir détails</span>
             </div>
+        </div>
 
-            {{-- Contenu --}}
-            <div class="card-body-modern" onclick="showArticleDetails({{ $article->id }})">
-                <h3 class="article-title">{{ $article->nom }}</h3>
-                
-                <div class="article-meta">
-                    @if($article->code_barres)
-                    <span class="meta-item">
-                        <i class="fas fa-barcode"></i>
-                        {{ $article->code_barres }}
-                    </span>
-                    @endif
+        {{-- Nom + meta --}}
+        <div class="card-info">
+            <h3>{{ $article->nom }}</h3>
+            @if($article->marque)
+                <span class="card-meta"><i class="fas fa-certificate"></i> {{ $article->marque->nom }}</span>
+            @endif
+            @if($article->category)
+                <span class="card-meta"><i class="fas fa-tag"></i> {{ $article->category->nom }}</span>
+            @endif
+            @if($article->prix_achat)
+                <span class="card-price">{{ number_format($article->prix_achat, 2) }} DZD</span>
+            @endif
+        </div>
 
-                    @if($article->marque)
-                    <span class="meta-item">
-                        <i class="fas fa-certificate"></i>
-                        {{ $article->marque->nom }}
-                    </span>
-                    @endif
-                    
-                    @if($article->prix_vente)
-                    <span class="meta-price">
-                        {{ number_format($article->prix_vente, 2) }} DZD
-                    </span>
-                    @endif
-                </div>
-            </div>
+        {{-- ⑤ 3 ICÔNES D'ACTION --}}
+        <div class="card-actions">
 
-            {{-- Actions rapides --}}
-            <div class="card-actions-modern">
-                <button class="action-btn-modern action-view" 
-                        onclick="showArticleDetails({{ $article->id }})"
-                        title="Voir détails">
-                    <i class="fas fa-eye"></i>
-                </button>
-                <a href="{{ route('articles.edit', $article->id) }}" 
-                   class="action-btn-modern action-edit"
-                   title="Modifier">
-                    <i class="fas fa-pen"></i>
-                </a>
-                <button class="action-btn-modern action-delete delete-btn" 
-                        data-id="{{ $article->id }}"
-                        data-form="delete-form-{{ $article->id }}"
-                        title="Supprimer">
+            {{-- Historique (entrées + sorties) --}}
+            <button class="card-btn card-btn--history"
+                    onclick="openHistory({{ $article->id }}, '{{ addslashes($article->nom) }}')"
+                    title="Historique des mouvements">
+                <i class="fas fa-history"></i>
+            </button>
+
+            {{-- Modifier --}}
+            <a href="{{ route('articles.edit', $article) }}"
+               class="card-btn card-btn--edit"
+               title="Modifier l'article">
+                <i class="fas fa-pen"></i>
+            </a>
+
+            {{-- Supprimer --}}
+            <form action="{{ route('articles.destroy', $article) }}" method="POST"
+                  onsubmit="return confirm('Supprimer {{ addslashes($article->nom) }} ?')">
+                @csrf @method('DELETE')
+                <button type="submit" class="card-btn card-btn--delete" title="Supprimer">
                     <i class="fas fa-trash"></i>
                 </button>
-                
-                <form id="delete-form-{{ $article->id }}" 
-                      action="{{ route('articles.destroy', $article->id) }}" 
-                      method="POST" 
-                      style="display: none;">
-                    @csrf
-                    @method('DELETE')
-                </form>
-            </div>
+            </form>
 
         </div>
     </div>
+
     @empty
-    <div class="empty-state-articles">
-        <i class="fas fa-search"></i>
-        <h3>Aucun article trouvé</h3>
-        <p>Essayez de modifier vos critères de recherche</p>
-        @if(request()->hasAny(['marque_id', 'stock_status', 'prix_min', 'prix_max', 'search']))
-        <a href="{{ route('categories.show', $category->id) }}" class="btn-modern-add">
-            <i class="fas fa-redo"></i>
-            <span>Réinitialiser les filtres</span>
-        </a>
-        @else
-        <a href="{{ route('articles.create') }}" class="btn-modern-add">
-            <i class="fas fa-plus"></i>
-            <span>Ajouter un article</span>
-        </a>
-        @endif
+    <div class="empty-state">
+        <i class="fas fa-box-open"></i>
+        <p>Aucun article trouvé</p>
+        <a href="{{ route('articles.index') }}">Réinitialiser les filtres</a>
     </div>
     @endforelse
 </div>
 
-{{-- Pagination moderne --}}
-@if($articles->total() > 0)
-<div class="pagination-modern">
-    {{ $articles->links() }}
+{{-- Pagination --}}
+<div class="pagination-wrap">
+    {{ $articles->appends(request()->query())->links() }}
 </div>
-@endif
 
-{{-- MODAL DÉTAILS ARTICLE --}}
-<div class="modal fade" id="articleDetailsModal" tabindex="-1" role="dialog">
-    <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
-        <div class="modal-content modern-modal">
-            <div class="modal-header-modern">
-                <h5 class="modal-title-modern">
-                    <i class="fas fa-info-circle"></i>
-                    Détails de l'article
-                </h5>
-                <button type="button" class="close-modern" data-dismiss="modal">
-                    <i class="fas fa-times"></i>
-                </button>
+
+{{-- ══════════════════════════════════
+     POPUP DÉTAIL ARTICLE
+══════════════════════════════════ --}}
+<div id="popupDetail" class="popup-overlay" onclick="closePopupOutside(event, 'popupDetail')">
+    <div class="popup-box popup-detail">
+        <button class="popup-close" onclick="closePopup('popupDetail')">
+            <i class="fas fa-times"></i>
+        </button>
+        <div id="popupDetailBody">
+            <div class="popup-loading"><div class="spinner"></div><p>Chargement...</p></div>
+        </div>
+    </div>
+</div>
+
+
+{{-- ══════════════════════════════════
+     POPUP HISTORIQUE MOUVEMENTS
+══════════════════════════════════ --}}
+<div id="popupHistory" class="popup-overlay" onclick="closePopupOutside(event, 'popupHistory')">
+    <div class="popup-box popup-history">
+        <button class="popup-close" onclick="closePopup('popupHistory')">
+            <i class="fas fa-times"></i>
+        </button>
+
+        <div class="popup-history__header">
+            <div class="popup-history__icon"><i class="fas fa-history"></i></div>
+            <div>
+                <h2>Historique des mouvements</h2>
+                <p id="historyArticleName"></p>
             </div>
-            <div class="modal-body-modern" id="articleDetailsContent">
-                <div class="loading-spinner">
-                    <div class="spinner"></div>
-                    <p>Chargement des détails...</p>
-                </div>
-            </div>
+        </div>
+
+        {{-- Onglets --}}
+        <div class="history-tabs">
+            <button class="htab active" data-filter="all"    onclick="switchTab(this,'all')">
+                <i class="fas fa-list"></i> Tous
+            </button>
+            <button class="htab" data-filter="entree" onclick="switchTab(this,'entree')">
+                <i class="fas fa-arrow-down"></i> Entrées
+            </button>
+            <button class="htab" data-filter="sortie" onclick="switchTab(this,'sortie')">
+                <i class="fas fa-arrow-up"></i> Sorties
+            </button>
+        </div>
+
+        <div id="historyBody">
+            <div class="popup-loading"><div class="spinner"></div></div>
         </div>
     </div>
 </div>
@@ -335,887 +277,575 @@
 
 @section('css')
 <style>
-/* ============================================
-   HEADER ARTICLES MODERNE
-   ============================================ */
-.header-modern-articles {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 2rem;
-    flex-wrap: wrap;
-    gap: 1rem;
-    background: white;
-    padding: 1.5rem;
-    border-radius: 16px;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+/* ══ VARIABLES ══════════════════════════════ */
+:root {
+    --red:    #E60000;
+    --orange: #FF6B35;
+    --green:  #27ae60;
+    --yellow: #f39c12;
+    --blue:   #3498db;
+    --purple: #8e44ad;
+    --text:   #2c3e50;
+    --muted:  #7f8c8d;
+    --border: #e9ecef;
+    --bg:     #f5f6fa;
+    --white:  #fff;
+    --radius: 14px;
+    --shadow: 0 2px 14px rgba(0,0,0,.07);
 }
+.content-wrapper { background: var(--bg) !important; }
 
-.header-left {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-}
-
-.header-actions {
-    display: flex;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-}
-
-.btn-back {
-    width: 48px;
-    height: 48px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: linear-gradient(135deg, #E60000 0%, #FF0000 50%, #FF3333 100%) !important;
-    color: white;
-    border-radius: 12px;
-    text-decoration: none;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3);
-}
-
-.btn-back:hover {
-    transform: translateX(-4px);
-    box-shadow: 0 6px 20px rgba(255, 107, 53, 0.4);
-    color: white;
-    text-decoration: none;
-}
-
-.header-info {
-    display: flex;
-    flex-direction: column;
-}
-
-.page-title-articles {
-    font-size: 1.75rem;
-    font-weight: 800;
-    color: #2c3e50;
-    margin: 0;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-}
-
-.page-title-articles i {
-    color: #FF6B35;
-}
-
-.page-subtitle {
-    color: #7f8c8d;
-    font-size: 0.95rem;
-    margin: 0.25rem 0 0 0;
-}
-
-.btn-modern-add {
-    background: linear-gradient(135deg, #E60000 0%, #FF0000 50%, #FF3333 100%) !important;
-    color: white;
-    padding: 0.875rem 1.75rem;
-    border-radius: 12px;
-    border: none;
-    font-weight: 600;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    text-decoration: none;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
-}
-
-.btn-modern-add:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 25px rgba(255, 107, 53, 0.4);
-    color: white;
-    text-decoration: none;
-}
-
-/* ============================================
-   BARRE DE FILTRES MODERNE
-   ============================================ */
-.filters-bar-modern {
-    background: white;
-    padding: 1.5rem;
-    border-radius: 16px;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-    margin-bottom: 2rem;
-}
-
-.filters-container {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1rem;
-    align-items: end;
-}
-
-.filter-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.filter-label {
-    font-weight: 600;
-    color: #2c3e50;
-    font-size: 0.9rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.filter-label i {
-    color: #FF6B35;
-    font-size: 0.85rem;
-}
-
-.filter-select,
-.filter-input-small {
-    padding: 0.75rem 1rem;
-    border: 2px solid #e9ecef;
-    border-radius: 10px;
-    font-size: 0.95rem;
-    transition: all 0.3s ease;
-    background: white;
-    color: #2c3e50;
-}
-
-.filter-select:focus,
-.filter-input-small:focus {
-    border-color: #FF6B35;
-    outline: none;
-    box-shadow: 0 0 0 0.2rem rgba(255, 107, 53, 0.1);
-}
-
-/* Filtre prix range */
-.filter-price-range .price-inputs {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.filter-input-small {
-    flex: 1;
-    min-width: 0;
-}
-
-.price-separator {
-    color: #7f8c8d;
-    font-weight: 600;
-}
-
-/* Actions de filtrage */
-.filter-actions {
-    display: flex;
-    gap: 0.5rem;
-    align-items: flex-end;
-}
-
-.btn-filter-apply {
-    background: linear-gradient(135deg, #E60000 0%, #FF0000 50%, #FF3333 100%);
-    color: white;
-    border: none;
-    padding: 0.75rem 1.5rem;
-    border-radius: 10px;
-    font-weight: 600;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3);
-    white-space: nowrap;
-}
-
-.btn-filter-apply:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(255, 107, 53, 0.4);
-}
-
-.btn-filter-reset {
-    background: #6c757d;
-    color: white;
-    border: none;
-    padding: 0.75rem 1.5rem;
-    border-radius: 10px;
-    font-weight: 600;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    text-decoration: none;
-    transition: all 0.3s ease;
-    white-space: nowrap;
-}
-
-.btn-filter-reset:hover {
-    background: #5a6268;
-    transform: translateY(-2px);
-    color: white;
-    text-decoration: none;
-}
-
-/* Filtres actifs */
-.active-filters {
-    margin-top: 1rem;
-    padding-top: 1rem;
-    border-top: 2px solid #f0f0f0;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-}
-
-.active-filters-label {
-    font-weight: 600;
-    color: #7f8c8d;
-    font-size: 0.9rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.filter-badge {
-    background: linear-gradient(135deg, #E60000 0%, #FF0000 50%, #FF3333 100%);
-    color: white;
-    padding: 0.5rem 1rem;
-    border-radius: 20px;
-    font-size: 0.85rem;
-    font-weight: 600;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    animation: fadeIn 0.3s ease;
-}
-
-.filter-badge i {
-    font-size: 0.75rem;
-}
-
-.remove-filter {
-    color: white;
-    margin-left: 0.25rem;
-    font-size: 1.2rem;
-    line-height: 1;
-    text-decoration: none;
-    cursor: pointer;
-    opacity: 0.8;
-    transition: opacity 0.2s ease;
-}
-
-.remove-filter:hover {
-    opacity: 1;
-    color: white;
-    text-decoration: none;
-}
-
-/* Résumé des résultats */
-.results-summary {
-    background: white;
-    padding: 1rem 1.5rem;
-    border-radius: 12px;
+/* ══ PAGE HEADER ════════════════════════════ */
+.page-header {
+    display: flex; justify-content: space-between; align-items: center;
+    background: var(--white); padding: 1.25rem 1.5rem;
+    border-radius: var(--radius); box-shadow: var(--shadow);
     margin-bottom: 1.5rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+.page-header__left { display: flex; align-items: center; gap: 1rem; }
+.page-header__icon {
+    width: 50px; height: 50px; border-radius: 13px;
+    background: linear-gradient(135deg, var(--red), #ff4444);
+    color: white; display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem; box-shadow: 0 4px 12px rgba(230,0,0,.25);
+}
+.page-header h1 { font-size: 1.55rem; font-weight: 800; color: var(--text); margin: 0; }
+.page-header p  { color: var(--muted); font-size: .88rem; margin: 0; }
+.btn-add {
+    background: linear-gradient(135deg, var(--red), #ff4444);
+    color: white; padding: .75rem 1.4rem; border-radius: 12px;
+    font-weight: 700; text-decoration: none; display: flex; align-items: center; gap: .4rem;
+    box-shadow: 0 4px 12px rgba(230,0,0,.25); transition: all .3s;
+}
+.btn-add:hover { transform: translateY(-2px); color: white; text-decoration: none; }
+
+/* ══ SEARCH SECTION ═════════════════════════ */
+.search-section {
+    background: var(--white); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 1.5rem;
+    margin-bottom: 1rem; display: flex; flex-direction: column; gap: 1rem;
 }
 
-.results-count {
-    font-size: 1rem;
-    color: #2c3e50;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+/* ① Recherche texte */
+.search-box {
+    display: flex; align-items: center; gap: .75rem;
+    border: 2px solid var(--border); border-radius: 12px;
+    padding: .25rem .75rem; transition: border-color .25s; position: relative;
+}
+.search-box:focus-within { border-color: var(--orange); }
+.search-box > i { color: var(--orange); font-size: 1.1rem; flex-shrink: 0; }
+.search-box input {
+    flex: 1; border: none; outline: none; background: transparent;
+    font-size: 1rem; padding: .65rem .25rem; color: var(--text);
+}
+.clear-input {
+    color: var(--muted); text-decoration: none; padding: .25rem .5rem;
+    border-radius: 6px; transition: color .2s;
+}
+.clear-input:hover { color: var(--red); }
+
+/* ② Scan code-barres */
+.scan-box { display: flex; flex-direction: column; gap: .6rem; }
+.scan-input-row {
+    display: flex; align-items: center; gap: .6rem;
+    border: 2px solid var(--border); border-radius: 12px;
+    padding: .25rem .75rem; transition: border-color .25s;
+}
+.scan-input-row:focus-within { border-color: var(--green); }
+.scan-input-row > i { color: var(--green); font-size: 1.1rem; flex-shrink: 0; }
+.scan-input-row input {
+    flex: 1; border: none; outline: none; background: transparent;
+    font-size: .95rem; padding: .65rem .25rem; color: var(--text);
+}
+.btn-camera {
+    background: linear-gradient(135deg, var(--green), #2ecc71);
+    color: white; border: none; border-radius: 9px; padding: .55rem 1rem;
+    font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: .4rem;
+    font-size: .85rem; white-space: nowrap; transition: all .3s;
+    box-shadow: 0 3px 8px rgba(39,174,96,.3);
+}
+.btn-camera:hover { transform: translateY(-1px); }
+
+/* Caméra */
+.camera-box {
+    border-radius: 12px; overflow: hidden; border: 2px solid var(--green); background: #000;
+}
+.camera-box__header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: .55rem 1rem; background: var(--green); color: white; font-weight: 600; font-size: .88rem;
+}
+.camera-box__header button {
+    background: rgba(255,255,255,.2); color: white; border: none;
+    border-radius: 7px; padding: .25rem .65rem; cursor: pointer;
+}
+#cameraVideo { width: 100%; max-height: 200px; display: block; object-fit: cover; }
+.camera-frame {
+    position: relative; height: 0; pointer-events: none;
+}
+/* Frame overlay dessiné en CSS sur la vidéo */
+.camera-box { position: relative; }
+.camera-line {
+    position: absolute; top: 40px; left: 50%; transform: translateX(-50%);
+    width: 65%; height: 3px; background: #2ecc71;
+    box-shadow: 0 0 8px #2ecc71; animation: scanLine 1.8s linear infinite; z-index: 10;
+}
+@keyframes scanLine {
+    0%   { top: 40px; }
+    100% { top: 200px; }
+}
+.camera-hint {
+    position: absolute; bottom: 28px; left: 50%; transform: translateX(-50%);
+    color: white; font-size: .78rem; background: rgba(0,0,0,.5);
+    padding: .2rem .65rem; border-radius: 20px; white-space: nowrap; z-index: 10;
+}
+#cameraStatus {
+    padding: .4rem 1rem; background: #111; color: #aaa; font-size: .78rem;
 }
 
-.results-count i {
-    color: #27ae60;
+/* ③ Filtres */
+.filters-row {
+    display: flex; flex-wrap: wrap; gap: .75rem; align-items: flex-end;
+    padding-top: 1rem; border-top: 2px solid var(--border);
 }
-
-.results-count strong {
-    color: #FF6B35;
-    font-size: 1.1rem;
+.filter-item { display: flex; flex-direction: column; gap: .3rem; flex: 1; min-width: 150px; }
+.filter-item label {
+    font-size: .78rem; font-weight: 700; color: var(--muted);
+    display: flex; align-items: center; gap: .3rem; text-transform: uppercase; letter-spacing: .04em;
 }
-
-.filtered-indicator {
-    background: linear-gradient(135deg, #E60000 0%, #FF0000 50%, #FF3333 100%);
-    color: white;
-    padding: 0.5rem 1rem;
-    border-radius: 20px;
-    font-size: 0.85rem;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+.filter-item label i { color: var(--orange); }
+.filter-item select {
+    border: 2px solid var(--border); border-radius: 10px; padding: .6rem .75rem;
+    font-size: .9rem; outline: none; background: white; color: var(--text);
+    transition: border-color .25s; cursor: pointer;
 }
+.filter-item select:focus { border-color: var(--orange); }
+.filter-actions { display: flex; gap: .5rem; align-items: flex-end; }
+.btn-filter {
+    background: linear-gradient(135deg, var(--red), #ff4444);
+    color: white; border: none; padding: .7rem 1.25rem; border-radius: 10px;
+    font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: .4rem;
+    transition: all .3s;
+}
+.btn-filter:hover { transform: translateY(-1px); }
+.btn-reset {
+    background: #6c757d; color: white; padding: .7rem 1.1rem; border-radius: 10px;
+    font-weight: 600; text-decoration: none; display: flex; align-items: center; gap: .4rem;
+    transition: all .3s;
+}
+.btn-reset:hover { background: #5a6268; color: white; text-decoration: none; }
 
-/* ============================================
-   GRILLE ARTICLES
-   ============================================ */
-.articles-grid-modern {
+/* Compteur */
+.results-info {
+    color: var(--muted); font-size: .88rem; margin-bottom: 1rem; padding: 0 .25rem;
+}
+.results-info strong { color: var(--text); font-size: .95rem; }
+
+/* ══ GRILLE CARDS ════════════════════════════ */
+.cards-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: 1.5rem;
-    padding: 0.5rem 0;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 1.25rem;
 }
 
-/* ============================================
-   CARTE ARTICLE MODERNE
-   ============================================ */
-.article-card-modern {
-    background: white;
-    border-radius: 18px;
-    overflow: hidden;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    height: 100%;
-    display: flex;
-    flex-direction: column;
+/* ④ CARD ARTICLE */
+.article-card {
+    background: var(--white); border-radius: 16px;
+    box-shadow: var(--shadow); overflow: hidden;
+    display: flex; flex-direction: column;
+    transition: transform .3s, box-shadow .3s;
+    animation: fadeUp .3s ease both;
+}
+@keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+.article-card:hover { transform: translateY(-5px); box-shadow: 0 12px 32px rgba(255,107,53,.15); }
+
+/* Image */
+.card-img-wrap {
+    position: relative; height: 185px; overflow: hidden;
+    cursor: pointer; background: var(--bg);
+}
+.card-img-wrap img { width: 100%; height: 100%; object-fit: cover; transition: transform .45s; }
+.article-card:hover .card-img-wrap img { transform: scale(1.07); }
+.card-img-placeholder {
+    width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+    font-size: 3.5rem; color: #ddd;
 }
 
-.article-card-modern:hover {
-    transform: translateY(-8px);
-    box-shadow: 0 12px 35px rgba(255, 107, 53, 0.15);
-}
-
-/* Image Container */
-.card-image-box {
-    position: relative;
-    width: 100%;
-    height: 220px;
-    overflow: hidden;
-    cursor: pointer;
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-}
-
-.article-image {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.article-card-modern:hover .article-image {
-    transform: scale(1.1) rotate(2deg);
-}
-
-/* Overlay */
-.card-overlay-article {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.7) 100%);
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-    padding: 1.5rem;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-}
-
-.article-card-modern:hover .card-overlay-article {
-    opacity: 1;
-}
-
-.quick-view-btn {
-    background: white;
-    color: #FF6B35;
-    border: none;
-    padding: 0.75rem 1.5rem;
-    border-radius: 25px;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    cursor: pointer;
-    transform: translateY(20px);
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-}
-
-.article-card-modern:hover .quick-view-btn {
-    transform: translateY(0);
-}
-
-.quick-view-btn:hover {
-    background: #FF6B35;
-    color: white;
-    transform: translateY(-2px) scale(1.05);
-}
-
-/* Badge Stock */
+/* Badge stock */
 .stock-badge {
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    padding: 0.5rem 1rem;
-    border-radius: 20px;
-    font-size: 0.85rem;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    backdrop-filter: blur(10px);
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-    animation: fadeInDown 0.5s ease;
+    position: absolute; top: 9px; left: 9px;
+    font-size: .7rem; font-weight: 700; padding: .22rem .6rem;
+    border-radius: 20px; backdrop-filter: blur(4px);
+    box-shadow: 0 2px 8px rgba(0,0,0,.2);
 }
+.stock-badge--normal  { background: rgba(39,174,96,.9);  color: white; }
+.stock-badge--faible  { background: rgba(243,156,18,.88); color: white; }
+.stock-badge--rupture { background: rgba(230,0,0,.9);    color: white; }
 
-.stock-badge i {
-    font-size: 0.75rem;
+/* Hover overlay sur image */
+.card-img-hover {
+    position: absolute; inset: 0; background: rgba(0,0,0,0);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .4rem;
+    transition: background .3s;
 }
+.article-card:hover .card-img-hover { background: rgba(0,0,0,.38); }
+.card-img-hover i    { font-size: 1.6rem; color: white; opacity: 0; transform: translateY(6px); transition: all .3s; }
+.card-img-hover span { font-size: .85rem; font-weight: 700; color: white; opacity: 0; transform: translateY(6px); transition: all .3s .05s; }
+.article-card:hover .card-img-hover i,
+.article-card:hover .card-img-hover span { opacity: 1; transform: translateY(0); }
 
-.stock-low {
-    background: linear-gradient(135deg, #e74c3c, #c0392b);
-    color: white;
-    animation: pulse 2s infinite;
+/* Info */
+.card-info { padding: .9rem 1rem .5rem; flex: 1; }
+.card-info h3 {
+    font-size: .98rem; font-weight: 800; color: var(--text); margin: 0 0 .45rem;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-
-.stock-ok {
-    background: linear-gradient(135deg, #27ae60, #229954);
-    color: white;
+.card-meta {
+    display: block; font-size: .78rem; color: var(--muted); margin-bottom: .2rem;
 }
+.card-meta i { color: var(--orange); margin-right: .25rem; }
+.card-price { display: block; font-size: 1rem; font-weight: 800; color: var(--orange); margin-top: .4rem; }
 
-@keyframes pulse {
-    0%, 100% {
-        transform: scale(1);
-    }
-    50% {
-        transform: scale(1.05);
-    }
+/* ⑤ 3 ICÔNES D'ACTION */
+.card-actions {
+    display: flex; border-top: 2px solid var(--bg);
+    background: #fafafa;
 }
-
-/* Contenu */
-.card-body-modern {
-    padding: 1.25rem;
-    flex: 1;
-    cursor: pointer;
-}
-
-.article-title {
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: #2c3e50;
-    margin: 0 0 0.75rem 0;
-    line-height: 1.3;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
-
-.article-meta {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.meta-item {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    color: #7f8c8d;
-    font-size: 0.85rem;
-}
-
-.meta-item i {
-    color: #FF8C42;
-}
-
-.meta-price {
-    font-size: 1.25rem;
-    font-weight: 800;
-    color: #FF6B35;
-    background: linear-gradient(135deg, rgba(255, 107, 53, 0.1), rgba(255, 140, 66, 0.1));
-    padding: 0.5rem 1rem;
-    border-radius: 10px;
-    display: inline-block;
-    margin-top: 0.5rem;
-}
-
-/* ============================================
-   ACTIONS MODERNES
-   ============================================ */
-.card-actions-modern {
-    display: flex;
-    padding: 0.75rem;
-    gap: 0.5rem;
-    background: #f8f9fa;
-    border-top: 1px solid #e9ecef;
-}
-
-.action-btn-modern {
-    flex: 1;
-    padding: 0.75rem;
-    border: none;
-    border-radius: 10px;
-    background: white;
-    color: #6c757d;
-    font-size: 1rem;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-decoration: none;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
-
-.action-btn-modern:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+.card-btn {
+    flex: 1; padding: .75rem; border: none; background: transparent;
+    cursor: pointer; font-size: 1rem; transition: all .2s;
+    display: flex; align-items: center; justify-content: center;
     text-decoration: none;
 }
+.card-btn + .card-btn { border-left: 2px solid var(--bg); }
+.card-btn:hover { transform: translateY(-2px); }
 
-.action-view {
-    color: #3498db;
+.card-btn--history { color: var(--purple); }
+.card-btn--history:hover { background: #f3e5f5; color: var(--purple); }
+.card-btn--edit    { color: var(--yellow); }
+.card-btn--edit:hover { background: #fff8e1; color: var(--yellow); text-decoration: none; }
+.card-btn--delete  { color: var(--red); }
+.card-btn--delete:hover { background: #fdecea; color: var(--red); }
+
+/* Empty state */
+.empty-state {
+    grid-column: 1/-1; text-align: center; padding: 3.5rem 2rem;
+    background: white; border-radius: var(--radius); box-shadow: var(--shadow);
+    color: var(--muted);
 }
+.empty-state i { font-size: 3.5rem; color: #ddd; display: block; margin-bottom: 1rem; }
+.empty-state p { font-size: 1.1rem; margin-bottom: .75rem; }
+.empty-state a { color: var(--orange); font-weight: 700; }
 
-.action-view:hover {
-    background: linear-gradient(135deg, #3498db, #2980b9);
-    color: white;
+/* Pagination */
+.pagination-wrap { display: flex; justify-content: center; padding: 1.5rem 0; }
+
+/* ══ POPUPS ══════════════════════════════════ */
+.popup-overlay {
+    display: none; /* caché par défaut */
+    position: fixed; inset: 0; background: rgba(0,0,0,.52);
+    z-index: 9000; align-items: center; justify-content: center; padding: 1rem;
+    backdrop-filter: blur(3px); animation: overlayIn .2s ease;
 }
+.popup-overlay.is-open { display: flex; }
+@keyframes overlayIn { from{opacity:0} to{opacity:1} }
 
-.action-edit {
-    color: #f39c12;
+.popup-box {
+    background: white; border-radius: 20px; position: relative;
+    max-height: 88vh; overflow-y: auto; width: 100%;
+    animation: boxIn .25s ease;
+    box-shadow: 0 24px 64px rgba(0,0,0,.22);
 }
+@keyframes boxIn { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
 
-.action-edit:hover {
-    background: linear-gradient(135deg, #f39c12, #e67e22);
-    color: white;
+.popup-detail  { max-width: 640px; }
+.popup-history { max-width: 660px; }
+
+.popup-close {
+    position: absolute; top: 1rem; right: 1rem; z-index: 2;
+    width: 34px; height: 34px; border-radius: 50%; border: none; background: #f0f0f0;
+    color: var(--muted); cursor: pointer; font-size: .9rem;
+    display: flex; align-items: center; justify-content: center; transition: all .2s;
 }
+.popup-close:hover { background: var(--red); color: white; transform: rotate(90deg); }
 
-.action-delete {
-    color: #e74c3c;
-}
-
-.action-delete:hover {
-    background: linear-gradient(135deg, #e74c3c, #c0392b);
-    color: white;
-}
-
-/* ============================================
-   MODAL MODERNE
-   ============================================ */
-.modern-modal {
-    border: none;
-    border-radius: 20px;
-    overflow: hidden;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-}
-
-.modal-header-modern {
-    background: linear-gradient(135deg, #E60000 0%, #FF0000 50%, #FF3333 100%) !important;
-    color: white;
-    padding: 1.5rem 2rem;
-    border: none;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.modal-title-modern {
-    font-size: 1.5rem;
-    font-weight: 700;
-    margin: 0;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-}
-
-.close-modern {
-    background: rgba(255, 255, 255, 0.2);
-    border: none;
-    color: white;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.close-modern:hover {
-    background: rgba(255, 255, 255, 0.3);
-    transform: rotate(90deg);
-}
-
-.modal-body-modern {
-    padding: 2rem;
-}
-
-/* Loading Spinner */
-.loading-spinner {
-    text-align: center;
-    padding: 3rem;
-}
-
+.popup-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3rem; color: var(--muted); gap: 1rem; }
 .spinner {
-    width: 50px;
-    height: 50px;
-    margin: 0 auto 1rem;
-    border: 4px solid #f3f3f3;
-    border-top: 4px solid #FF6B35;
-    border-radius: 50%;
+    width: 40px; height: 40px; border: 4px solid var(--border);
+    border-top-color: var(--orange); border-radius: 50%;
     animation: spin 1s linear infinite;
 }
+@keyframes spin { to{transform:rotate(360deg)} }
 
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+/* ── POPUP DÉTAIL ──────────────────────── */
+.detail-img {
+    width: 100%; height: 220px; object-fit: cover;
+    border-radius: 20px 20px 0 0; display: block;
 }
-
-/* ============================================
-   ÉTAT VIDE
-   ============================================ */
-.empty-state-articles {
-    grid-column: 1 / -1;
-    text-align: center;
-    padding: 4rem 2rem;
-    background: white;
-    border-radius: 20px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+.detail-img-ph {
+    width: 100%; height: 160px; background: var(--bg);
+    border-radius: 20px 20px 0 0; display: flex; align-items: center; justify-content: center;
+    font-size: 5rem; color: #ddd;
 }
-
-.empty-state-articles i {
-    font-size: 5rem;
-    color: #FF6B35;
-    opacity: 0.3;
-    margin-bottom: 1.5rem;
+.detail-body { padding: 1.5rem; }
+.detail-name { font-size: 1.4rem; font-weight: 800; color: var(--text); margin: 0 0 .25rem; }
+.detail-code { color: var(--muted); font-size: .88rem; margin-bottom: 1rem; }
+.detail-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; margin-bottom: 1rem;
 }
+.detail-cell { background: var(--bg); border-radius: 10px; padding: .7rem .9rem; }
+.detail-cell__label { font-size: .7rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: .2rem; }
+.detail-cell__val   { font-size: .92rem; font-weight: 700; color: var(--text); }
+.detail-desc { background: var(--bg); border-radius: 10px; padding: .75rem .9rem; font-size: .9rem; color: var(--text); margin-bottom: 1rem; line-height: 1.5; }
 
-.empty-state-articles h3 {
-    font-size: 1.75rem;
-    font-weight: 700;
-    color: #2c3e50;
-    margin-bottom: 0.5rem;
+/* ── POPUP HISTORIQUE ──────────────────── */
+.popup-history__header {
+    display: flex; align-items: center; gap: 1rem;
+    padding: 1.5rem 1.5rem 1rem; border-bottom: 2px solid var(--border);
 }
-
-.empty-state-articles p {
-    color: #7f8c8d;
-    font-size: 1.1rem;
-    margin-bottom: 2rem;
+.popup-history__icon {
+    width: 48px; height: 48px; border-radius: 13px; flex-shrink: 0;
+    background: #f3e5f5; color: var(--purple);
+    display: flex; align-items: center; justify-content: center; font-size: 1.4rem;
 }
+.popup-history__header h2 { font-size: 1.15rem; font-weight: 800; color: var(--text); margin: 0; }
+.popup-history__header p  { color: var(--muted); font-size: .88rem; margin: 0; }
 
-/* ============================================
-   PAGINATION MODERNE
-   ============================================ */
-.pagination-modern {
-    margin-top: 2rem;
-    display: flex;
-    justify-content: center;
+/* Onglets */
+.history-tabs {
+    display: flex; gap: .5rem; padding: 1rem 1.5rem; border-bottom: 2px solid var(--border);
 }
-
-.pagination-modern .pagination {
-    gap: 0.5rem;
+.htab {
+    flex: 1; padding: .55rem; border: 2px solid var(--border); background: white;
+    border-radius: 9px; cursor: pointer; font-weight: 700; font-size: .82rem;
+    display: flex; align-items: center; justify-content: center; gap: .35rem; transition: all .2s;
+    color: var(--text);
 }
+.htab.active         { background: var(--text);   border-color: var(--text);  color: white; }
+.htab[data-filter="entree"]:hover { background: var(--green); border-color: var(--green); color: white; }
+.htab[data-filter="sortie"]:hover { background: var(--red);   border-color: var(--red);   color: white; }
+.htab[data-filter="entree"].active { background: var(--green); border-color: var(--green); color: white; }
+.htab[data-filter="sortie"].active { background: var(--red);   border-color: var(--red);   color: white; }
 
-.pagination-modern .page-link {
-    border: none;
-    border-radius: 10px;
-    padding: 0.75rem 1.25rem;
-    color: #FF6B35;
-    font-weight: 600;
-    transition: all 0.3s ease;
-    background: white;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+/* Liste mouvements */
+#historyBody { padding: 1.25rem 1.5rem; max-height: 380px; overflow-y: auto; }
+.mv-item {
+    display: flex; align-items: center; gap: .75rem;
+    padding: .75rem; border-radius: 10px; margin-bottom: .4rem;
+    border: 1.5px solid var(--border); transition: background .15s;
 }
-
-.pagination-modern .page-link:hover {
-    background: linear-gradient(135deg, #E60000 0%, #FF0000 50%, #FF3333 100%) !important;
-    color: white;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3);
+.mv-item:hover { background: var(--bg); }
+.mv-icon {
+    width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: .95rem;
 }
+.mv-icon--entree { background: #e8f5e9; color: var(--green); }
+.mv-icon--sortie { background: #fdecea; color: var(--red); }
+.mv-info { flex: 1; }
+.mv-type { font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; }
+.mv-type--entree { color: var(--green); }
+.mv-type--sortie { color: var(--red); }
+.mv-qty  { font-size: 1.05rem; font-weight: 800; color: var(--text); }
+.mv-motif { font-size: .78rem; color: var(--muted); }
+.mv-date  { font-size: .76rem; color: var(--muted); font-weight: 600; white-space: nowrap; }
+.history-empty { text-align: center; color: var(--muted); padding: 2rem; }
 
-.pagination-modern .page-item.active .page-link {
-    background: linear-gradient(135deg, #E60000 0%, #FF0000 50%, #FF3333 100%) !important;
-    color: white;
-    box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3);
+@media(max-width:768px) {
+    .cards-grid { grid-template-columns: repeat(2,1fr); }
+    .detail-grid { grid-template-columns: 1fr; }
+    .filters-row { flex-direction: column; }
 }
-
-/* ============================================
-   ANIMATIONS
-   ============================================ */
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: scale(0.9);
-    }
-    to {
-        opacity: 1;
-        transform: scale(1);
-    }
-}
-
-@keyframes fadeInDown {
-    from {
-        opacity: 0;
-        transform: translateY(-10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-@keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.article-card-wrapper {
-    animation: fadeInUp 0.5s ease forwards;
-}
-
-.article-card-wrapper:nth-child(1) { animation-delay: 0.05s; }
-.article-card-wrapper:nth-child(2) { animation-delay: 0.1s; }
-.article-card-wrapper:nth-child(3) { animation-delay: 0.15s; }
-.article-card-wrapper:nth-child(4) { animation-delay: 0.2s; }
-.article-card-wrapper:nth-child(5) { animation-delay: 0.25s; }
-.article-card-wrapper:nth-child(6) { animation-delay: 0.3s; }
-
-/* ============================================
-   RESPONSIVE
-   ============================================ */
-@media (max-width: 1024px) {
-    .filters-container {
-        grid-template-columns: repeat(2, 1fr);
-    }
-    
-    .filter-actions {
-        grid-column: 1 / -1;
-    }
-}
-
-@media (max-width: 768px) {
-    .filters-container {
-        grid-template-columns: 1fr;
-    }
-    
-    .filter-actions {
-        flex-direction: column;
-    }
-    
-    .btn-filter-apply,
-    .btn-filter-reset {
-        width: 100%;
-        justify-content: center;
-    }
-
-    .results-summary {
-        flex-direction: column;
-        gap: 0.75rem;
-        text-align: center;
-    }
-
-    .articles-grid-modern {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 1rem;
-    }
-    
-    .card-image-box {
-        height: 160px;
-    }
-    
-    .card-body-modern {
-        padding: 1rem;
-    }
-    
-    .article-title {
-        font-size: 1rem;
-    }
-    
-    .header-modern-articles {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    
-    .header-left {
-        width: 100%;
-    }
-    
-    .header-actions {
-        width: 100%;
-    }
-
-    .btn-modern-add {
-        width: 100%;
-        justify-content: center;
-    }
-}
-
-@media (max-width: 480px) {
-    .articles-grid-modern {
-        grid-template-columns: 1fr;
-    }
-    
-    .card-actions-modern {
-        gap: 0.4rem;
-        padding: 0.5rem;
-    }
-    
-    .action-btn-modern {
-        padding: 0.6rem;
-        font-size: 0.9rem;
-    }
-}
-
-/* Content wrapper */
-.content-wrapper {
-    background: #f5f6fa !important;
+@media(max-width:480px) {
+    .cards-grid { grid-template-columns: 1fr; }
 }
 </style>
 @stop
 
 @section('js')
+<script src="https://cdnjs.cloudflare.com/ajax/libs/zxing-js/0.21.1/zxing.min.js"></script>
 <script>
-$(document).ready(function() {
-    // Confirmation de suppression
-    $('.delete-btn').on('click', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        
-        const formId = $(this).data('form');
-        const form = $('#' + formId);
-        
-        if(confirm('⚠️ Êtes-vous sûr de vouloir supprimer cet article ?\n\nCette action est irréversible.')) {
-            form.submit();
-        }
-    });
+// ═══════════════════════
+//  CAMÉRA SCANNER
+// ═══════════════════════
+const btnCamera  = document.getElementById('btnCamera');
+const btnCameraClose = document.getElementById('btnCameraClose');
+const cameraBox  = document.getElementById('cameraBox');
+const cameraVideo = document.getElementById('cameraVideo');
+const cameraStatus = document.getElementById('cameraStatus');
+let zxReader = null;
+
+btnCamera.addEventListener('click', async () => {
+    cameraBox.classList.remove('d-none');
+    cameraStatus.textContent = 'Ouverture de la caméra...';
+    try {
+        zxReader = new ZXing.BrowserMultiFormatReader();
+        const devices = await ZXing.BrowserCodeReader.listVideoInputDevices();
+        let dId = devices[0]?.deviceId;
+        const back = devices.find(d => /back|arrière|environment/i.test(d.label));
+        if (back) dId = back.deviceId;
+        cameraStatus.textContent = 'Pointez vers le code-barres...';
+        await zxReader.decodeFromVideoDevice(dId, 'cameraVideo', (result) => {
+            if (result) {
+                document.getElementById('barcodeInput').value = result.getText();
+                cameraStatus.textContent = '✅ Détecté : ' + result.getText();
+                stopCamera();
+                setTimeout(() => document.getElementById('filterForm').submit(), 500);
+            }
+        });
+    } catch(e) {
+        cameraStatus.textContent = '❌ ' + e.message;
+    }
 });
 
-// Fonction pour afficher les détails
-function showArticleDetails(articleId) {
-    // Ouvrir le modal
-    $('#articleDetailsModal').modal('show');
-    
-    // Charger les détails via AJAX
-    $.ajax({
-        url: '/articles/' + articleId + '/details',
-        method: 'GET',
-        success: function(response) {
-            $('#articleDetailsContent').html(response);
-        },
-        error: function() {
-            $('#articleDetailsContent').html(
-                '<div class="alert alert-danger" style="border-radius: 12px;">' +
-                '<i class="fas fa-exclamation-triangle mr-2"></i>' +
-                'Erreur lors du chargement des détails.' +
-                '</div>'
-            );
-        }
-    });
+function stopCamera() {
+    if (zxReader) { zxReader.reset(); zxReader = null; }
+    cameraBox.classList.add('d-none');
+}
+btnCameraClose?.addEventListener('click', stopCamera);
+
+
+// ═══════════════════════
+//  POPUP HELPERS
+// ═══════════════════════
+function openPopup(id)  { document.getElementById(id).classList.add('is-open'); }
+function closePopup(id) { document.getElementById(id).classList.remove('is-open'); }
+function closePopupOutside(e, id) { if (e.target.id === id) closePopup(id); }
+
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+        closePopup('popupDetail');
+        closePopup('popupHistory');
+        stopCamera();
+    }
+});
+
+
+// ═══════════════════════
+//  POPUP DÉTAIL
+// ═══════════════════════
+function openDetail(id) {
+    document.getElementById('popupDetailBody').innerHTML =
+        '<div class="popup-loading"><div class="spinner"></div><p>Chargement...</p></div>';
+    openPopup('popupDetail');
+
+    fetch(`/articles/${id}/detail-json`)
+        .then(r => r.json())
+        .then(a => {
+            const s = a.stock == 0 ? 'rupture' : (a.stock <= a.quantite_minimale ? 'faible' : 'normal');
+            const sLabel = s === 'rupture' ? '🔴 Rupture' : s === 'faible' ? '⚠️ Faible' : '✅ Normal';
+            const c = a.contenance_carton || 1;
+            const cartons = Math.floor(a.stock / c);
+            const reste   = a.stock % c;
+
+            document.getElementById('popupDetailBody').innerHTML = `
+                ${a.photo
+                    ? `<img src="/storage/${a.photo}" class="detail-img" alt="${a.nom}">`
+                    : `<div class="detail-img-ph"><i class="fas fa-box-open"></i></div>`}
+                <div class="detail-body">
+                    <h2 class="detail-name">${a.nom}</h2>
+                    <p class="detail-code"><i class="fas fa-barcode"></i> ${a.code_barres || '—'}</p>
+
+                    <div class="detail-grid">
+                        <div class="detail-cell">
+                            <div class="detail-cell__label">Stock</div>
+                            <div class="detail-cell__val">${a.stock} pcs<br><small style="font-weight:500;color:#999">${cartons} cartons + ${reste} pcs</small></div>
+                        </div>
+                        <div class="detail-cell">
+                            <div class="detail-cell__label">État</div>
+                            <div class="detail-cell__val">${sLabel}</div>
+                        </div>
+                        <div class="detail-cell">
+                            <div class="detail-cell__label">Prix d'achat</div>
+                            <div class="detail-cell__val">${a.prix_achat ? parseFloat(a.prix_achat).toFixed(2)+' DZD' : '—'}</div>
+                        </div>
+                        <div class="detail-cell">
+                            <div class="detail-cell__label">Qté minimale</div>
+                            <div class="detail-cell__val">${a.quantite_minimale} pcs</div>
+                        </div>
+                        <div class="detail-cell">
+                            <div class="detail-cell__label">Catégorie</div>
+                            <div class="detail-cell__val">${a.category?.nom || '—'}</div>
+                        </div>
+                        <div class="detail-cell">
+                            <div class="detail-cell__label">Marque</div>
+                            <div class="detail-cell__val">${a.marque?.nom || '—'}</div>
+                        </div>
+                        <div class="detail-cell">
+                            <div class="detail-cell__label">Fournisseur</div>
+                            <div class="detail-cell__val">${a.fournisseur?.nom || '—'}</div>
+                        </div>
+                        <div class="detail-cell">
+                            <div class="detail-cell__label">Péremption</div>
+                            <div class="detail-cell__val">${a.date_peremption || '—'}</div>
+                        </div>
+                    </div>
+
+                    ${a.description ? `<div class="detail-desc">${a.description}</div>` : ''}
+                </div>`;
+        })
+        .catch(() => {
+            document.getElementById('popupDetailBody').innerHTML =
+                '<div class="popup-loading" style="color:#e74c3c"><i class="fas fa-exclamation-triangle fa-2x"></i><p>Erreur de chargement</p></div>';
+        });
+}
+
+
+// ═══════════════════════
+//  POPUP HISTORIQUE
+// ═══════════════════════
+let allMouvements = [];
+
+function openHistory(id, nom) {
+    document.getElementById('historyArticleName').textContent = nom;
+    document.getElementById('historyBody').innerHTML =
+        '<div class="popup-loading"><div class="spinner"></div></div>';
+    openPopup('popupHistory');
+
+    // Réinitialiser onglets
+    document.querySelectorAll('.htab').forEach(t => t.classList.remove('active'));
+    document.querySelector('.htab[data-filter="all"]').classList.add('active');
+
+    fetch(`/articles/${id}/mouvements-json`)
+        .then(r => r.json())
+        .then(data => {
+            allMouvements = data;
+            renderHistory('all');
+        })
+        .catch(() => {
+            document.getElementById('historyBody').innerHTML =
+                '<div class="history-empty"><i class="fas fa-exclamation-triangle"></i> Erreur de chargement</div>';
+        });
+}
+
+function renderHistory(filter) {
+    const list = filter === 'all' ? allMouvements : allMouvements.filter(m => m.type === filter);
+    if (!list.length) {
+        document.getElementById('historyBody').innerHTML =
+            `<div class="history-empty">
+                <i class="fas fa-inbox" style="font-size:2.5rem;display:block;margin-bottom:.75rem;color:#ddd"></i>
+                Aucun mouvement ${filter !== 'all' ? "de type "+filter : ''}
+            </div>`;
+        return;
+    }
+    document.getElementById('historyBody').innerHTML = list.map(m => `
+        <div class="mv-item">
+            <div class="mv-icon mv-icon--${m.type}">
+                <i class="fas fa-arrow-${m.type === 'entree' ? 'down' : 'up'}"></i>
+            </div>
+            <div class="mv-info">
+                <div class="mv-type mv-type--${m.type}">${m.type === 'entree' ? '↓ Entrée' : '↑ Sortie'}</div>
+                <div class="mv-qty">${m.type === 'entree' ? '+' : '-'}${m.quantite} pcs
+                    ${m.cartons ? `<small style="font-weight:500;color:#999">(${m.cartons} ctn + ${m.pieces} pcs)</small>` : ''}
+                </div>
+                <div class="mv-motif">${m.motif || '—'}</div>
+            </div>
+            <div class="mv-date">${m.date || '—'}</div>
+        </div>`).join('');
+}
+
+function switchTab(btn, filter) {
+    document.querySelectorAll('.htab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    renderHistory(filter);
 }
 </script>
 @stop

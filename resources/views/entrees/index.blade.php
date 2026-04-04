@@ -24,7 +24,76 @@
             <button type="button" class="close" data-dismiss="alert">&times;</button>
         </div>
     @endif
+{{-- Filtres --}}
+<div class="card shadow-sm mb-3">
+    <div class="card-body">
+        <form method="GET" action="{{ route('entrees.index') }}" class="form-inline flex-wrap gap-2">
 
+            {{-- Date exacte --}}
+            <div class="form-group mr-2 mb-2">
+                <label class="mr-1">Date</label>
+                <input type="date" name="date" class="form-control form-control-sm"
+                       value="{{ request('date') }}">
+            </div>
+
+            {{-- Mois --}}
+            <div class="form-group mr-2 mb-2">
+                <label class="mr-1">Mois</label>
+                <select name="mois" class="form-control form-control-sm">
+                    <option value="">— Tous —</option>
+                    @foreach([
+                        1=>'Janvier',2=>'Février',3=>'Mars',4=>'Avril',
+                        5=>'Mai',6=>'Juin',7=>'Juillet',8=>'Août',
+                        9=>'Septembre',10=>'Octobre',11=>'Novembre',12=>'Décembre'
+                    ] as $num => $nom)
+                        <option value="{{ $num }}" {{ request('mois') == $num ? 'selected' : '' }}>
+                            {{ $nom }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+
+            {{-- Année --}}
+            <div class="form-group mr-2 mb-2">
+                <label class="mr-1">Année</label>
+                <select name="annee" class="form-control form-control-sm">
+                    <option value="">— Toutes —</option>
+                    @foreach($annees as $annee)
+                        <option value="{{ $annee }}" {{ request('annee') == $annee ? 'selected' : '' }}>
+                            {{ $annee }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+
+            {{-- Tri --}}
+            <div class="form-group mr-2 mb-2">
+                <label class="mr-1">Trier par</label>
+                <select name="sort" class="form-control form-control-sm">
+                    <option value="date_reception" {{ request('sort','date_reception') === 'date_reception' ? 'selected' : '' }}>Date</option>
+                    <option value="id"             {{ request('sort') === 'id' ? 'selected' : '' }}>N° Bon</option>
+                </select>
+            </div>
+
+            <div class="form-group mr-2 mb-2">
+                <select name="direction" class="form-control form-control-sm">
+                    <option value="desc" {{ request('direction','desc') === 'desc' ? 'selected' : '' }}>↓ Décroissant</option>
+                    <option value="asc"  {{ request('direction') === 'asc'  ? 'selected' : '' }}>↑ Croissant</option>
+                </select>
+            </div>
+
+            <div class="mb-2">
+                <button type="submit" class="btn btn-primary btn-sm mr-1">
+                    <i class="fas fa-filter"></i> Filtrer
+                </button>
+                <a href="{{ route('entrees.index') }}" class="btn btn-secondary btn-sm">
+                    <i class="fas fa-times"></i> Réinitialiser
+                </a>
+            </div>
+
+        </form>
+    </div>
+</div>
     <div class="card shadow-sm">
         <div class="card-body table-responsive">
             <table class="table table-bordered table-hover">

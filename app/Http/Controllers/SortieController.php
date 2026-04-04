@@ -13,7 +13,7 @@ class SortieController extends Controller
     public function index()
     {
         $sorties = Sortie::with('articles')
-            ->orderBy('date_sortie', 'desc')
+            ->orderBy('motif', 'desc')
             ->paginate(15);
 
         return view('sorties.index', compact('sorties'));
@@ -30,7 +30,7 @@ class SortieController extends Controller
         $request->validate([
             'destination' => 'required|string|max:255',
             'motif' => 'required|string|max:255',
-            'date_sortie' => 'required|date',
+         
             'commentaire' => 'nullable|string',
             'articles' => 'required|array|min:1',
             'articles.*.article_id' => 'required|exists:articles,id',
@@ -44,7 +44,7 @@ class SortieController extends Controller
             $sortie = Sortie::create([
                 'destination' => $request->destination,
                 'motif' => $request->motif,
-                'date_sortie' => $request->date_sortie,
+                
                 'commentaire' => $request->commentaire,
             ]);
 
