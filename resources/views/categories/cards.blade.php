@@ -321,12 +321,17 @@
 }
 
 @media (max-width: 768px) {
-    .categories-grid { grid-template-columns: repeat(2, 1fr); gap: .75rem; }
-    .card-image-container { height: 130px; }
-    .card-title-modern { font-size: 13px; }
+    .categories-grid { grid-template-columns: repeat(2, 1fr); gap: .5rem; }
+    .card-image-container { height: 100px; }
+    .card-title-modern { font-size: 12px; }
+    .card-description { display: none; }
+    .card-content { padding: .6rem .75rem; }
+    .card-actions { padding: 6px 8px; gap: 4px; }
+    .action-btn { padding: 5px; font-size: 11px; }
 }
 @media (max-width: 480px) {
-    .categories-grid { grid-template-columns: 1fr; }
+    .categories-grid { grid-template-columns: repeat(2, 1fr); gap: .5rem; }
+    .card-image-container { height: 90px; }
 }
 </style>
 @stop
