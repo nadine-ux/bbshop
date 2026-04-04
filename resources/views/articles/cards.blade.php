@@ -403,23 +403,28 @@
 }
 
 /* ③ Filtres */
+/* ③ Filtres */
 .filters-row {
-    display: flex; flex-wrap: wrap; gap: .75rem; align-items: flex-end;
+    display: flex; flex-wrap: nowrap; gap: .5rem; align-items: flex-end;
     padding-top: 1rem; border-top: 2px solid var(--border);
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
 }
-.filter-item { display: flex; flex-direction: column; gap: .3rem; flex: 1; min-width: 150px; }
+.filters-row::-webkit-scrollbar { display: none; }
+.filter-item { display: flex; flex-direction: column; gap: .3rem; flex: 0 0 auto; }
 .filter-item label {
-    font-size: .78rem; font-weight: 700; color: var(--muted);
-    display: flex; align-items: center; gap: .3rem; text-transform: uppercase; letter-spacing: .04em;
+    font-size: .72rem; font-weight: 700; color: var(--muted);
+    display: flex; align-items: center; gap: .3rem;
+    text-transform: uppercase; letter-spacing: .04em; white-space: nowrap;
 }
 .filter-item label i { color: var(--orange); }
 .filter-item select {
-    border: 2px solid var(--border); border-radius: 10px; padding: .6rem .75rem;
-    font-size: .9rem; outline: none; background: white; color: var(--text);
-    transition: border-color .25s; cursor: pointer;
+    border: 2px solid var(--border); border-radius: 10px; padding: .55rem .5rem;
+    font-size: .82rem; outline: none; background: white; color: var(--text);
+    transition: border-color .25s; cursor: pointer; max-width: 130px;
 }
 .filter-item select:focus { border-color: var(--orange); }
-.filter-actions { display: flex; gap: .5rem; align-items: flex-end; }
+.filter-actions { display: flex; gap: .4rem; align-items: flex-end; flex-shrink: 0; }
 .btn-filter {
     background: linear-gradient(135deg, var(--red), #ff4444);
     color: white; border: none; padding: .7rem 1.25rem; border-radius: 10px;
@@ -652,7 +657,7 @@
 @media(max-width:768px) {
     .cards-grid { grid-template-columns: repeat(2,1fr); }
     .detail-grid { grid-template-columns: 1fr; }
-    .filters-row { flex-direction: column; }
+    
 }
 @media(max-width:480px) {
     .cards-grid { grid-template-columns: 1fr; }
