@@ -102,48 +102,7 @@ class ArticleController extends Controller
     /**
      * Enregistrer un nouvel article
      */
-public function store(Request $request)
-{
-    $request->validate([
-        'nom' => 'required|string|max:255',
-        'code_barres' => 'required|string|unique:articles,code_barres',
-        'categorie_id' => 'required|exists:categories,id',
-        'marque_id' => 'nullable|exists:marques,id',
-        'description' => 'nullable|string',
-        'stock' => 'required|integer|min:0',
-        'quantite_minimale' => 'required|integer|min:0',
-        'contenance_carton' => 'nullable|integer|min:1',
-        'prix_achat' => 'nullable|numeric|min:0',
-        'prix_vente' => 'nullable|numeric|min:0',
-        'date_peremption' => 'nullable|date',
-        'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
-    ]);
 
-    try {
-        $data = $request->except('photo');
-        
-        // ✅ MÊME MÉTHODE que pour les catégories
-        if ($request->hasFile('photo')) {
-            $data['photo'] = $request->file('photo')->store('articles', 'public');
-        }
-
-        // Créer l'article
-        $article = Article::create($data);
-
-        return redirect()->route('articles.index')
-            ->with('success', 'Article créé avec succès !');
-
-    } catch (\Exception $e) {
-        // Si erreur, supprimer la photo uploadée
-        if (isset($data['photo']) && \Storage::disk('public')->exists($data['photo'])) {
-            \Storage::disk('public')->delete($data['photo']);
-        }
-        
-        return redirect()->back()
-            ->withInput()
-            ->with('error', 'Erreur lors de la création : ' . $e->getMessage());
-    }
-}
 public function getDetails($id)
 {
     try {
@@ -251,17 +210,151 @@ public function getDetails($id)
     /**
      * Mettre à jour un article
      */
-    public function update(Request $request, Article $article)
-    {
-        $request->validate([
-            'nom' => 'required|string|max:255',
-            'quantite_minimale' => 'required|integer|min:0',
+public function store(Request $request)
+{
+    // Re-indexer le tableau avant la validation
+    if ($request->has('barcodes')) {
+        $request->merge([
+            'barcodes' => array_values($request->input('barcodes', []))
         ]);
-
-        $article->update($request->all());
-        return redirect()->route('articles.index')->with('success','Article mis à jour');
     }
+ 
+    $request->validate([
+        'nom'                => 'required|string|max:255',
+        'barcodes'           => 'required|array|min:1',
+        'barcodes.*.code'    => 'required|string',
+        'barcodes.*.label'   => 'nullable|string|max:100',
+        'barcodes.*.primary' => 'nullable',
+        'categorie_id'       => 'required|exists:categories,id',
+        'marque_id'          => 'nullable|exists:marques,id',
+        'description'        => 'nullable|string',
+        'stock'              => 'required|integer|min:0',
+        'quantite_minimale'  => 'required|integer|min:0',
+        'contenance_carton'  => 'nullable|integer|min:1',
+        'prix_achat'         => 'nullable|numeric|min:0',
+        'prix_vente'         => 'nullable|numeric|min:0',
+        'date_peremption'    => 'nullable|date',
+        'photo'              => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+    ]);
+ 
+    // Vérifier unicité des codes-barres manuellement
+    // (la règle 'distinct' ne fonctionne pas bien avec array_values sur clés custom)
+    $codes = collect($request->input('barcodes'))->pluck('code');
+    if ($codes->unique()->count() !== $codes->count()) {
+        return redirect()->back()
+            ->withInput()
+            ->withErrors(['barcodes' => 'Deux codes-barres identiques détectés.']);
+    }
+    foreach ($codes as $code) {
+        if (\App\Models\ArticleBarcode::where('code_barres', $code)->exists()) {
+            return redirect()->back()
+                ->withInput()
+                ->withErrors(['barcodes' => "Le code-barres « {$code} » existe déjà."]);
+        }
+    }
+ 
+    try {
+        $data = $request->except(['photo', 'barcodes', '_token']);
+ 
+        if ($request->hasFile('photo')) {
+            $data['photo'] = $request->file('photo')->store('articles', 'public');
+        }
+ 
+        $article = \DB::transaction(function () use ($data, $request) {
+            $barcodes = array_values($request->input('barcodes', []));
+$primary  = collect($barcodes)->first(fn($b) => !empty($b['primary'])) ?? $barcodes[0] ?? null;
+$data['code_barres'] = $primary ? trim($primary['code']) : '';
+            $article  = \App\Models\Article::create($data);
+            $barcodes = array_values($request->input('barcodes', []));
+ 
+            // Détecter si au moins un est marqué primary
+            $hasPrimary = collect($barcodes)->contains(
+                fn($b) => !empty($b['primary']) && $b['primary'] !== '0'
+            );
+ 
+            foreach ($barcodes as $i => $b) {
+                $isPrimary = (!empty($b['primary']) && $b['primary'] !== '0')
+                    || (!$hasPrimary && $i === 0);
+ 
+                $article->barcodes()->create([
+                    'code_barres' => trim($b['code']),
+                    'label'       => $b['label'] ?? null,
+                    'is_primary'  => $isPrimary,
+                ]);
+            }
+ 
+            return $article;
+        });
+ 
+        return redirect()->route('articles.index')
+            ->with('success', 'Article créé avec succès !');
+ 
+    } catch (\Exception $e) {
+    dd([
+        'message' => $e->getMessage(),
+        'data'    => $data,
+        'barcodes' => $request->input('barcodes'),
+    ]);
 
+        return redirect()->back()
+            ->withInput()
+            ->with('error', 'Erreur lors de la création : ' . $e->getMessage());
+    }
+}
+ 
+ 
+// ─── update() ────────────────────────────────────────────────────
+public function update(Request $request, \App\Models\Article $article)
+{
+    $request->validate([
+        'nom'               => 'required|string|max:255',
+        'quantite_minimale' => 'required|integer|min:0',
+        'barcodes'          => 'required|array|min:1',
+        'barcodes.*.id'     => 'nullable|exists:article_barcodes,id',
+        'barcodes.*.code'   => [
+            'required', 'string',
+            \Illuminate\Validation\Rule::unique('article_barcodes', 'code_barres')
+                ->ignore($article->id, 'article_id')   // ignore les codes de cet article
+                ->whereNull('deleted_at'),
+        ],
+        'barcodes.*.label'   => 'nullable|string|max:100',
+        'barcodes.*.primary' => 'nullable|boolean',
+    ]);
+ 
+    \DB::transaction(function () use ($request, $article) {
+        $article->update($request->except(['barcodes']));
+ 
+        $submitted  = collect($request->input('barcodes', []));
+        $submittedIds = $submitted->pluck('id')->filter()->all();
+ 
+        // Supprimer les codes retirés
+        $article->barcodes()->whereNotIn('id', $submittedIds)->delete();
+ 
+        $hasPrimary = $submitted->contains(fn($b) => !empty($b['primary']));
+ 
+        foreach ($submitted as $i => $b) {
+            $isPrimary = !empty($b['primary']) || (!$hasPrimary && $i === 0);
+ 
+            if (!empty($b['id'])) {
+                // Mise à jour
+                $article->barcodes()->where('id', $b['id'])->update([
+                    'code_barres' => $b['code'],
+                    'label'       => $b['label'] ?? null,
+                    'is_primary'  => $isPrimary,
+                ]);
+            } else {
+                // Nouveau code-barres ajouté
+                $article->barcodes()->create([
+                    'code_barres' => $b['code'],
+                    'label'       => $b['label'] ?? null,
+                    'is_primary'  => $isPrimary,
+                ]);
+            }
+        }
+    });
+ 
+    return redirect()->route('articles.index')->with('success', 'Article mis à jour');
+}
     /**
      * Supprimer un article
      */

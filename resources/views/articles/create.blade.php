@@ -51,59 +51,49 @@
                     @enderror
                 </div>
 
-                {{-- Code-barres avec générateur + scanner --}}
-                <div class="form-group-modern">
-                    <label>
-                        <i class="fas fa-barcode"></i> Code-barres <span class="text-danger">*</span>
-                    </label>
-
-                    {{-- Input + boutons scan --}}
-                    <div class="barcode-input-row">
-                        <input type="text" 
-                               id="code_barres"
-                               name="code_barres" 
-                               class="form-control-modern @error('code_barres') is-invalid @enderror" 
-                               placeholder="Entrer, générer ou scanner un code-barres" 
-                               value="{{ old('code_barres') }}"
-                               required>
-                        <button type="button" class="btn-scan-camera" id="btnScanCamera" title="Scanner avec la caméra">
-                            <i class="fas fa-camera"></i>
-                        </button>
-                        <button type="button" class="btn-scan-file" id="btnScanFile" title="Scanner depuis une image">
-                            <i class="fas fa-file-image"></i>
-                        </button>
-                        <input type="file" id="barcodeImageInput" accept="image/*" class="d-none" capture="environment">
-                    </div>
-
-                    {{-- Zone vidéo scanner caméra --}}
-                    <div id="scannerContainer" class="scanner-container d-none">
-                        <div class="scanner-header">
-                            <span><i class="fas fa-camera"></i> Scanner en cours...</span>
-                            <button type="button" class="btn-close-scanner" id="btnCloseScanner">
-                                <i class="fas fa-times"></i> Fermer
-                            </button>
-                        </div>
-                        <div class="scanner-viewport">
-                            <video id="scannerVideo" autoplay playsinline muted></video>
-                            <div class="scanner-overlay">
-                                <div class="scanner-frame">
-                                    <div class="scanner-line"></div>
-                                </div>
-                                <p class="scanner-hint">Pointez la caméra vers le code-barres</p>
-                            </div>
-                        </div>
-                        <div id="scannerStatus" class="scanner-status">
-                            <i class="fas fa-spinner fa-spin"></i> Initialisation...
-                        </div>
-                    </div>
-
-                    @error('code_barres')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
-                    <small class="form-text text-muted">
-                        <i class="fas fa-info-circle"></i> Saisissez manuellement, générez ou scannez avec la caméra / une image
-                    </small>
-                </div>
+                {{-- Codes-barres (multi) --}}
+<div class="form-group-modern">
+    <label>
+        <i class="fas fa-barcode"></i> Codes-barres <span class="text-danger">*</span>
+    </label>
+ 
+    <div id="barcodeList">
+        {{-- Les lignes sont injectées par JS via addBarcodeRow() --}}
+    </div>
+ 
+    <button type="button" class="btn-add-barcode" id="btnAddBarcode">
+        <i class="fas fa-plus"></i> Ajouter un code-barres
+    </button>
+ 
+    <small class="form-text text-muted mt-1">
+        <i class="fas fa-info-circle"></i>
+        Le code marqué <strong>Principal</strong> sera utilisé par défaut. Vous pouvez en ajouter autant que nécessaire (carton, pièce, palette…).
+    </small>
+</div>
+ 
+{{-- Zone scanner caméra (partagée, déplacée hors des lignes) --}}
+<div id="scannerContainer" class="scanner-container d-none">
+    <div class="scanner-header">
+        <span><i class="fas fa-camera"></i> Scanner en cours...</span>
+        <button type="button" class="btn-close-scanner" id="btnCloseScanner">
+            <i class="fas fa-times"></i> Fermer
+        </button>
+    </div>
+    <div class="scanner-viewport">
+        <video id="scannerVideo" autoplay playsinline muted></video>
+        <div class="scanner-overlay">
+            <div class="scanner-frame"><div class="scanner-line"></div></div>
+            <p class="scanner-hint">Pointez la caméra vers le code-barres</p>
+        </div>
+    </div>
+    <div id="scannerStatus" class="scanner-status">
+        <i class="fas fa-spinner fa-spin"></i> Initialisation...
+    </div>
+</div>
+ 
+{{-- Input fichier image (partagé) --}}
+<input type="file" id="barcodeImageInput" accept="image/*" class="d-none" capture="environment">
+ 
 
                 {{-- Catégorie par recherche --}}
                 <div class="form-group-modern">
@@ -543,6 +533,51 @@
     display: inline-flex; align-items: center; gap: 0.5rem;
     text-decoration: none; transition: all 0.3s ease;
 }
+/* Ligne barcode */
+.barcode-row {
+    display: flex; gap: 0.5rem; align-items: center;
+    margin-bottom: 0.75rem; padding: 0.75rem; border-radius: 10px;
+    background: #f8f9fa; border: 1.5px solid #e9ecef; transition: border-color 0.2s;
+}
+.barcode-row.is-primary { border-color: #27ae60; background: #f0fdf4; }
+.barcode-row .bc-input { flex: 2; min-width: 0; }
+.barcode-row .bc-label { flex: 1; min-width: 0; }
+.barcode-row .bc-actions { display: flex; gap: 0.35rem; align-items: center; flex-shrink: 0; }
+ 
+/* Bouton primary */
+.btn-primary-badge {
+    padding: 0.4rem 0.65rem; border-radius: 8px; border: 1.5px solid #ccc;
+    background: white; color: #888; cursor: pointer; font-size: 0.75rem;
+    font-weight: 600; white-space: nowrap; transition: all 0.2s;
+}
+.btn-primary-badge.active {
+    background: #27ae60; border-color: #27ae60; color: white;
+}
+.btn-primary-badge:hover:not(.active) { border-color: #27ae60; color: #27ae60; }
+ 
+/* Petits boutons scan/remove */
+.btn-bc-camera, .btn-bc-file, .btn-bc-remove {
+    width: 38px; height: 38px; min-width: 38px;
+    border: none; border-radius: 8px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.95rem; transition: all 0.2s;
+}
+.btn-bc-camera { background: #27ae60; color: white; }
+.btn-bc-file   { background: #8e44ad; color: white; }
+.btn-bc-remove { background: #e74c3c; color: white; }
+.btn-bc-camera:hover { background: #219a52; }
+.btn-bc-file:hover   { background: #7d3c98; }
+.btn-bc-remove:hover { background: #c0392b; }
+ 
+/* Bouton ajouter */
+.btn-add-barcode {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    padding: 0.6rem 1.1rem; border-radius: 10px;
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    color: white; border: none; font-weight: 600; cursor: pointer;
+    font-size: 0.9rem; transition: all 0.2s; margin-top: 0.25rem;
+}
+.btn-add-barcode:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(52,152,219,0.35); }
 .btn-cancel:hover { background: #5a6268; transform: translateY(-2px); color: white; text-decoration: none; }
 .btn-submit {
     background: linear-gradient(135deg, #E60000 0%, #FF0000 50%, #FF3333 100%);
@@ -563,10 +598,11 @@
 
 @section('js')
 <script src="https://cdnjs.cloudflare.com/ajax/libs/zxing-js/0.21.1/zxing.min.js"></script>
+@section('js')
+<script src="https://cdnjs.cloudflare.com/ajax/libs/zxing-js/0.21.1/zxing.min.js"></script>
 <script>
-// ═══════════════════════════════════════════════
-//  DONNÉES CATÉGORIES
-// ═══════════════════════════════════════════════
+
+// ── Données PHP → JS (déclarées en dehors de DOMContentLoaded, c'est OK) ──
 @php
     if (!function_exists('flattenCategories')) {
         function flattenCategories($cats, $depth = 0) {
@@ -583,15 +619,306 @@
     $flatCategories = flattenCategories($categories);
 @endphp
 const allCategories = {!! json_encode($flatCategories) !!};
+const allMarques    = {!! json_encode($marques->map(fn($m) => ['id' => $m->id, 'nom' => $m->nom])->values()) !!};
 
-// ═══════════════════════════════════════════════
-//  DONNÉES MARQUES
-// ═══════════════════════════════════════════════
-const allMarques = {!! json_encode($marques->map(fn($m) => ['id' => $m->id, 'nom' => $m->nom])->values()) !!};
+// ── Variables globales barcode ──
+let bcCounter    = 0;
+let activeScanId = null;
+let zxingReader  = null;
 
-// ═══════════════════════════════════════════════
-//  HELPER : créer un moteur de recherche réutilisable
-// ═══════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════
+//  TOUT LE CODE DOM dans DOMContentLoaded
+// ════════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', function () {
+
+    // ── Init barcodes ──────────────────────────────────────
+    @if(old('barcodes'))
+        const oldBarcodes = Object.values({!! json_encode(old('barcodes')) !!});
+        if (oldBarcodes.length > 0) {
+            // Trouver lequel était primary
+            oldBarcodes.forEach((b, i) => {
+                const isPrimary = (b.primary === '1' || b.primary === 1 || b.primary === true) 
+                                  || i === 0;
+                addBarcodeRow(isPrimary && i === 0, b);
+            });
+            // Remettre le bon primary
+            const primaryIdx = oldBarcodes.findIndex(b => b.primary === '1' || b.primary === 1);
+            if (primaryIdx > 0) {
+                // setPrimary sera appelé avec le bon id après création des lignes
+                // Les ids sont 1..n puisqu'on les ajoute dans l'ordre
+                setPrimary(primaryIdx + 1);
+            }
+        } else {
+            addBarcodeRow(true);
+        }
+    @else
+        addBarcodeRow(true);
+    @endif
+
+    // ── Bouton ajouter barcode ─────────────────────────────
+    document.getElementById('btnAddBarcode')
+            .addEventListener('click', () => addBarcodeRow(false));
+
+    // ── Fermer scanner ─────────────────────────────────────
+    document.getElementById('btnCloseScanner')
+            .addEventListener('click', closeScanner);
+
+    // ── Scanner image ──────────────────────────────────────
+    document.getElementById('barcodeImageInput')
+            .addEventListener('change', async function () {
+        if (!this.files?.[0] || activeScanId === null) return;
+        const url = URL.createObjectURL(this.files[0]);
+        try {
+            if (typeof ZXing === 'undefined') { showToast('❌ ZXing non chargé', 'error'); return; }
+            const reader = new ZXing.BrowserMultiFormatReader();
+            const result = await reader.decodeFromImageUrl(url);
+            document.getElementById(`bc-input-${activeScanId}`).value = result.getText();
+            flashInput(`bc-input-${activeScanId}`);
+            showToast('✅ Code détecté : ' + result.getText());
+        } catch {
+            showToast('❌ Aucun code-barres trouvé dans l\'image.', 'error');
+        }
+        URL.revokeObjectURL(url);
+        this.value   = '';
+        activeScanId = null;
+    });
+
+    // ── Photo upload ───────────────────────────────────────
+    document.getElementById('uploadArea')
+            .addEventListener('click', () => document.getElementById('photoInput').click());
+
+    // ── Init widget Catégorie ──────────────────────────────
+    const catWidget = makeSearchWidget({
+        searchInputId:   'categorieSearch',
+        dropdownId:      'categoryDropdown',
+        listId:          'categoryList',
+        emptyId:         'categoryEmpty',
+        hiddenInputId:   'categorie_id',
+        selectedBadgeId: 'categorySelected',
+        selectedNameId:  'categorySelectedName',
+        clearBtnId:      'btnClearCategory',
+        data: allCategories,
+        renderItem: (cat) => ({
+            className: `category-item depth-${cat.depth}`,
+            icon:      cat.depth === 0
+                           ? '<i class="fas fa-folder cat-icon"></i>'
+                           : '<i class="fas fa-folder-open cat-icon"></i>',
+            prefix:    cat.depth > 0 ? '└─ ' : ''
+        })
+    });
+
+    @if(old('categorie_id'))
+    const preSelectedCat = allCategories.find(c => c.id == {{ old('categorie_id') }});
+    if (preSelectedCat) catWidget.selectItem(preSelectedCat);
+    @endif
+
+    // ── Init widget Marque ─────────────────────────────────
+    const marqueWidget = makeSearchWidget({
+        searchInputId:   'marqueSearch',
+        dropdownId:      'marqueDropdown',
+        listId:          'marqueList',
+        emptyId:         'marqueEmpty',
+        hiddenInputId:   'marque_id',
+        selectedBadgeId: 'marqueSelected',
+        selectedNameId:  'marqueSelectedName',
+        clearBtnId:      'btnClearMarque',
+        data: allMarques,
+        iconClass: 'fas fa-certificate',
+        renderItem: () => ({
+            className: 'category-item',
+            icon:      '<i class="fas fa-certificate cat-icon"></i>',
+            prefix:    ''
+        })
+    });
+
+    @if(old('marque_id'))
+    const preSelectedMarque = allMarques.find(m => m.id == {{ old('marque_id') }});
+    if (preSelectedMarque) marqueWidget.selectItem(preSelectedMarque);
+    @endif
+
+    // ── Validation formulaire ──────────────────────────────
+    document.querySelector('form').addEventListener('submit', function (e) {
+
+        // Catégorie obligatoire
+        if (!document.getElementById('categorie_id').value) {
+            e.preventDefault();
+            const s = document.getElementById('categorieSearch');
+            s.focus();
+            s.style.borderColor = '#e74c3c';
+            showToast('❌ Veuillez sélectionner une catégorie.', 'error');
+            return;
+        }
+
+        // Codes-barres : tous remplis
+        const bcInputs = document.querySelectorAll('[id^="bc-input-"]');
+        let bcOk = true;
+        bcInputs.forEach(inp => {
+            if (!inp.value.trim()) { inp.style.borderColor = '#e74c3c'; bcOk = false; }
+        });
+        if (!bcOk) {
+            e.preventDefault();
+            showToast('❌ Remplissez tous les codes-barres ou supprimez les lignes vides.', 'error');
+            return;
+        }
+
+        // Codes-barres : pas de doublon local
+        const codes = [...bcInputs].map(i => i.value.trim().toLowerCase());
+        if (new Set(codes).size !== codes.length) {
+            e.preventDefault();
+            showToast('❌ Deux codes-barres identiques détectés.', 'error');
+            return;
+        }
+
+        // Avertissement stock < min
+        const stock     = parseInt(document.querySelector('input[name="stock"]').value) || 0;
+        const stockMin  = parseInt(document.querySelector('input[name="quantite_minimale"]').value) || 0;
+        if (stock < stockMin) {
+            if (!confirm('⚠️ Le stock initial est inférieur à la quantité minimale.\n\nContinuer ?')) {
+                e.preventDefault();
+            }
+        }
+    });
+
+}); // fin DOMContentLoaded
+
+// ════════════════════════════════════════════════════════════
+//  FONCTIONS GLOBALES (appelées via onclick= dans le HTML généré)
+// ════════════════════════════════════════════════════════════
+
+function addBarcodeRow(isPrimary = false, data = {}) {
+    const id  = ++bcCounter;
+    const row = document.createElement('div');
+    row.className = 'barcode-row' + (isPrimary ? ' is-primary' : '');
+    row.id = `bc-row-${id}`;
+
+    row.innerHTML = `
+        <input type="hidden" name="barcodes[${id}][id]" value="${data.id || ''}">
+
+        <input type="text"
+               name="barcodes[${id}][code]"
+               id="bc-input-${id}"
+               class="form-control-modern bc-input"
+               placeholder="Code-barres…"
+               value="${escHtml(data.code || '')}"
+               required>
+
+        <input type="text"
+               name="barcodes[${id}][label]"
+               class="form-control-modern bc-label"
+               placeholder="Libellé (optionnel)"
+               value="${escHtml(data.label || '')}">
+
+        <div class="bc-actions">
+            <button type="button"
+                    class="btn-primary-badge ${isPrimary ? 'active' : ''}"
+                    id="bc-primary-${id}"
+                    onclick="setPrimary(${id})"
+                    title="Définir comme code principal">
+                <i class="fas fa-star"></i> Principal
+            </button>
+            <button type="button" class="btn-bc-camera"
+                    onclick="scanCamera(${id})" title="Scanner avec caméra">
+                <i class="fas fa-camera"></i>
+            </button>
+            <button type="button" class="btn-bc-file"
+                    onclick="scanFile(${id})" title="Scanner depuis image">
+                <i class="fas fa-file-image"></i>
+            </button>
+            <button type="button" class="btn-bc-remove"
+                    onclick="removeRow(${id})" title="Supprimer">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+
+        <input type="hidden"
+               name="barcodes[${id}][primary]"
+               id="bc-primary-val-${id}"
+               value="${isPrimary ? '1' : ''}">
+    `;
+
+    document.getElementById('barcodeList').appendChild(row);
+    ensureOnePrimary();
+}
+
+function setPrimary(id) {
+    document.querySelectorAll('#barcodeList .barcode-row')
+            .forEach(r => r.classList.remove('is-primary'));
+    // Cibler uniquement les boutons (pas les hidden inputs)
+    document.querySelectorAll('#barcodeList .btn-primary-badge')
+            .forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('[id^="bc-primary-val-"]')
+            .forEach(i => i.value = '');
+
+    document.getElementById(`bc-row-${id}`).classList.add('is-primary');
+    document.getElementById(`bc-primary-${id}`).classList.add('active');
+    document.getElementById(`bc-primary-val-${id}`).value = '1';
+}
+
+function removeRow(id) {
+    const list = document.getElementById('barcodeList');
+    if (list.children.length <= 1) {
+        showToast('⚠️ Il faut au minimum un code-barres.', 'error');
+        return;
+    }
+    const wasPrimary = document.getElementById(`bc-primary-val-${id}`).value === '1';
+    document.getElementById(`bc-row-${id}`).remove();
+    if (wasPrimary) ensureOnePrimary();
+}
+
+function ensureOnePrimary() {
+    if (!document.querySelector('#barcodeList .btn-primary-badge.active')) {
+        const firstBtn = document.querySelector('#barcodeList .btn-primary-badge');
+        if (firstBtn) {
+            const m = firstBtn.id.match(/bc-primary-(\d+)/);
+            if (m) setPrimary(parseInt(m[1]));
+        }
+    }
+}
+
+async function scanCamera(rowId) {
+    activeScanId = rowId;
+    const container = document.getElementById('scannerContainer');
+    const status    = document.getElementById('scannerStatus');
+    container.classList.remove('d-none');
+    status.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Initialisation...';
+
+    try {
+        if (typeof ZXing === 'undefined') {
+            status.innerHTML = '<i class="fas fa-exclamation-triangle"></i> ZXing non chargé.';
+            return;
+        }
+        zxingReader = new ZXing.BrowserMultiFormatReader();
+        const devices  = await ZXing.BrowserCodeReader.listVideoInputDevices();
+        let   deviceId = devices[0]?.deviceId;
+        const back     = devices.find(d => /back|arrière|environment/i.test(d.label));
+        if (back) deviceId = back.deviceId;
+
+        status.innerHTML = '<i class="fas fa-camera"></i> Pointez vers le code-barres...';
+        await zxingReader.decodeFromVideoDevice(deviceId, 'scannerVideo', (result) => {
+            if (!result) return;
+            const code = result.getText();
+            document.getElementById(`bc-input-${activeScanId}`).value = code;
+            flashInput(`bc-input-${activeScanId}`);
+            showToast('✅ Code détecté : ' + code);
+            closeScanner();
+        });
+    } catch (err) {
+        status.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Erreur : ${err.message}`;
+    }
+}
+
+function closeScanner() {
+    if (zxingReader) { zxingReader.reset(); zxingReader = null; }
+    document.getElementById('scannerContainer').classList.add('d-none');
+    activeScanId = null;
+}
+
+function scanFile(rowId) {
+    activeScanId = rowId;
+    document.getElementById('barcodeImageInput').click();
+}
+
+// ── makeSearchWidget ─────────────────────────────────────────
 function makeSearchWidget(config) {
     const {
         searchInputId, dropdownId, listId, emptyId,
@@ -608,9 +935,15 @@ function makeSearchWidget(config) {
     const selectedName  = document.getElementById(selectedNameId);
     const clearBtn      = document.getElementById(clearBtnId);
 
+    // Garde-fou : si un élément est introuvable, on abandonne proprement
+    if (!searchInput || !dropdown || !hiddenInput) {
+        console.warn('makeSearchWidget: élément introuvable pour', searchInputId);
+        return { selectItem: () => {} };
+    }
+
     function selectItem(item) {
-        hiddenInput.value    = item.id;
-        searchInput.value    = item.nom;
+        hiddenInput.value = item.id;
+        searchInput.value = item.nom;
         dropdown.classList.add('d-none');
         selectedBadge.classList.remove('d-none');
         selectedName.textContent = item.nom;
@@ -620,7 +953,6 @@ function makeSearchWidget(config) {
     searchInput.addEventListener('input', function () {
         const q = this.value.trim().toLowerCase();
         clearBtn.classList.toggle('d-none', q === '');
-
         if (q.length < 1) { dropdown.classList.add('d-none'); return; }
 
         const filtered = data.filter(item => item.nom.toLowerCase().includes(q));
@@ -632,13 +964,14 @@ function makeSearchWidget(config) {
             empty.classList.add('d-none');
             filtered.forEach(item => {
                 const div = document.createElement('div');
-                div.className = renderItem ? renderItem(item).className : 'category-item';
+                const ri  = renderItem ? renderItem(item) : {};
+                div.className = ri.className || 'category-item';
                 const highlighted = item.nom.replace(
-                    new RegExp(`(${q})`, 'gi'),
+                    new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`, 'gi'),
                     '<span class="cat-match">$1</span>'
                 );
-                const icon = renderItem ? renderItem(item).icon : `<i class="${iconClass} cat-icon"></i>`;
-                const prefix = renderItem ? renderItem(item).prefix : '';
+                const icon   = ri.icon   || `<i class="${iconClass || ''} cat-icon"></i>`;
+                const prefix = ri.prefix || '';
                 div.innerHTML = `${icon} ${prefix}${highlighted}`;
                 div.addEventListener('click', () => selectItem(item));
                 list.appendChild(div);
@@ -659,7 +992,6 @@ function makeSearchWidget(config) {
         if (e.key === 'Escape') dropdown.classList.add('d-none');
     });
 
-    // Fermer en cliquant ailleurs
     document.addEventListener('click', e => {
         if (!e.target.closest(`#${searchInputId}`) &&
             !e.target.closest(`#${dropdownId}`) &&
@@ -671,161 +1003,7 @@ function makeSearchWidget(config) {
     return { selectItem };
 }
 
-// ═══════════════════════════════════════════════
-//  INIT CATÉGORIE
-// ═══════════════════════════════════════════════
-const catWidget = makeSearchWidget({
-    searchInputId:  'categorieSearch',
-    dropdownId:     'categoryDropdown',
-    listId:         'categoryList',
-    emptyId:        'categoryEmpty',
-    hiddenInputId:  'categorie_id',
-    selectedBadgeId:'categorySelected',
-    selectedNameId: 'categorySelectedName',
-    clearBtnId:     'btnClearCategory',
-    data: allCategories,
-    renderItem: (cat) => ({
-        className: `category-item depth-${cat.depth}`,
-        icon: cat.depth === 0
-            ? '<i class="fas fa-folder cat-icon"></i>'
-            : '<i class="fas fa-folder-open cat-icon"></i>',
-        prefix: cat.depth > 0 ? '└─ ' : ''
-    })
-});
-
-@if(old('categorie_id'))
-const preSelectedCat = allCategories.find(c => c.id == {{ old('categorie_id') }});
-if (preSelectedCat) catWidget.selectItem(preSelectedCat);
-@endif
-
-// ═══════════════════════════════════════════════
-//  INIT MARQUE
-// ═══════════════════════════════════════════════
-const marqueWidget = makeSearchWidget({
-    searchInputId:  'marqueSearch',
-    dropdownId:     'marqueDropdown',
-    listId:         'marqueList',
-    emptyId:        'marqueEmpty',
-    hiddenInputId:  'marque_id',
-    selectedBadgeId:'marqueSelected',
-    selectedNameId: 'marqueSelectedName',
-    clearBtnId:     'btnClearMarque',
-    data: allMarques,
-    iconClass: 'fas fa-certificate',
-    renderItem: () => ({
-        className: 'category-item',
-        icon: '<i class="fas fa-certificate cat-icon"></i>',
-        prefix: ''
-    })
-});
-
-@if(old('marque_id'))
-const preSelectedMarque = allMarques.find(m => m.id == {{ old('marque_id') }});
-if (preSelectedMarque) marqueWidget.selectItem(preSelectedMarque);
-@endif
-
-// ═══════════════════════════════════════════════
-//  SCANNER CAMÉRA (ZXing)
-// ═══════════════════════════════════════════════
-const btnScanCamera    = document.getElementById('btnScanCamera');
-const btnCloseScanner  = document.getElementById('btnCloseScanner');
-const scannerContainer = document.getElementById('scannerContainer');
-const scannerVideo     = document.getElementById('scannerVideo');
-const scannerStatus    = document.getElementById('scannerStatus');
-let zxingCameraReader  = null;
-
-btnScanCamera.addEventListener('click', async function () {
-    scannerContainer.classList.remove('d-none');
-    scannerStatus.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Initialisation de la caméra...';
-    try {
-        if (typeof ZXing === 'undefined') {
-            scannerStatus.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Librairie ZXing non chargée.';
-            return;
-        }
-        zxingCameraReader = new ZXing.BrowserMultiFormatReader();
-        const videoInputDevices = await ZXing.BrowserCodeReader.listVideoInputDevices();
-        let deviceId = videoInputDevices.length > 0 ? videoInputDevices[0].deviceId : undefined;
-        const backCamera = videoInputDevices.find(d =>
-            d.label.toLowerCase().includes('back') ||
-            d.label.toLowerCase().includes('arrière') ||
-            d.label.toLowerCase().includes('environment')
-        );
-        if (backCamera) deviceId = backCamera.deviceId;
-        scannerStatus.innerHTML = '<i class="fas fa-camera"></i> Pointez vers le code-barres...';
-        await zxingCameraReader.decodeFromVideoDevice(deviceId, 'scannerVideo', (result, err) => {
-            if (result) {
-                const code = result.getText();
-                document.getElementById('code_barres').value = code;
-                scannerStatus.innerHTML = `<i class="fas fa-check-circle" style="color:#27ae60"></i> Code détecté : <strong>${code}</strong>`;
-                flashSuccess();
-                showToast('✅ Code détecté : ' + code);
-                setTimeout(closeScanner, 1200);
-            }
-        });
-    } catch (err) {
-        scannerStatus.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Erreur caméra : ${err.message}`;
-    }
-});
-
-function closeScanner() {
-    if (zxingCameraReader) { zxingCameraReader.reset(); zxingCameraReader = null; }
-    scannerContainer.classList.add('d-none');
-}
-btnCloseScanner.addEventListener('click', closeScanner);
-
-// ═══════════════════════════════════════════════
-//  SCANNER IMAGE FILE (ZXing)
-// ═══════════════════════════════════════════════
-const btnScanFile       = document.getElementById('btnScanFile');
-const barcodeImageInput = document.getElementById('barcodeImageInput');
-
-btnScanFile.addEventListener('click', () => barcodeImageInput.click());
-
-barcodeImageInput.addEventListener('change', async function () {
-    if (!this.files || !this.files[0]) return;
-    const url = URL.createObjectURL(this.files[0]);
-    try {
-        if (typeof ZXing === 'undefined') { showToast('❌ Librairie ZXing non chargée.', 'error'); return; }
-        const reader = new ZXing.BrowserMultiFormatReader();
-        const result = await reader.decodeFromImageUrl(url);
-        const code   = result.getText();
-        document.getElementById('code_barres').value = code;
-        flashSuccess();
-        showToast('✅ Code détecté : ' + code);
-    } catch (e) {
-        showToast('❌ Aucun code-barres trouvé dans l\'image.', 'error');
-    }
-    URL.revokeObjectURL(url);
-    this.value = '';
-});
-
-function flashSuccess() {
-    const input = document.getElementById('code_barres');
-    input.style.borderColor = '#27ae60';
-    input.style.background  = '#f0fdf4';
-    setTimeout(() => { input.style.borderColor = ''; input.style.background = ''; }, 1500);
-}
-
-function showToast(msg, type = 'success') {
-    const toast = document.createElement('div');
-    toast.style.cssText = `
-        position:fixed; bottom:100px; left:50%; transform:translateX(-50%);
-        background:${type === 'error' ? '#e74c3c' : '#27ae60'};
-        color:white; padding:0.75rem 1.5rem; border-radius:10px;
-        font-weight:600; z-index:9999; box-shadow:0 4px 20px rgba(0,0,0,0.2);
-    `;
-    toast.textContent = msg;
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 3000);
-}
-
-// ═══════════════════════════════════════════════
-//  PHOTO PREVIEW
-// ═══════════════════════════════════════════════
-document.getElementById('uploadArea').addEventListener('click', function () {
-    document.getElementById('photoInput').click();
-});
-
+// ── Photo preview ─────────────────────────────────────────────
 function previewImage(input) {
     if (input.files && input.files[0]) {
         const reader = new FileReader();
@@ -845,25 +1023,29 @@ function removeImage() {
     document.getElementById('uploadPreview').classList.add('d-none');
 }
 
-// ═══════════════════════════════════════════════
-//  VALIDATION FORMULAIRE
-// ═══════════════════════════════════════════════
-document.querySelector('form').addEventListener('submit', function (e) {
-    const catIdInput = document.getElementById('categorie_id');
-    if (!catIdInput.value) {
-        e.preventDefault();
-        document.getElementById('categorieSearch').focus();
-        document.getElementById('categorieSearch').style.borderColor = '#e74c3c';
-        showToast('❌ Veuillez sélectionner une catégorie.', 'error');
-        return;
-    }
-    const stock      = parseInt(document.querySelector('input[name="stock"]').value);
-    const quantiteMin = parseInt(document.querySelector('input[name="quantite_minimale"]').value);
-    if (stock < quantiteMin) {
-        if (!confirm('⚠️ Attention: Le stock initial est inférieur à la quantité minimale.\n\nVoulez-vous continuer ?')) {
-            e.preventDefault();
-        }
-    }
-});
+// ── Helpers globaux ───────────────────────────────────────────
+function flashInput(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.borderColor = '#27ae60';
+    el.style.background  = '#f0fdf4';
+    setTimeout(() => { el.style.borderColor = ''; el.style.background = ''; }, 1500);
+}
+
+function escHtml(str) {
+    return String(str).replace(/[&<>"']/g,
+        c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function showToast(msg, type = 'success') {
+    const t = document.createElement('div');
+    t.style.cssText = `position:fixed;bottom:100px;left:50%;transform:translateX(-50%);
+        background:${type === 'error' ? '#e74c3c' : '#27ae60'};color:white;
+        padding:.75rem 1.5rem;border-radius:10px;font-weight:600;
+        z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.2)`;
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3000);
+}
 </script>
 @stop

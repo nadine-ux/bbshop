@@ -19,8 +19,24 @@ class Article extends Model
         'contenance_carton',
         'stock',
         'marque_id',
+        
     ];
+public function barcodes()
+{
+    return $this->hasMany(\App\Models\ArticleBarcode::class)->orderByDesc('is_primary');
+}
 
+public function primaryBarcode()
+{
+    return $this->hasOne(\App\Models\ArticleBarcode::class)->where('is_primary', true);
+}
+
+// Accesseur de compatibilité — $article->code_barres retourne le code principal
+public function getCodeBarresAttribute(): ?string
+{
+    return $this->primaryBarcode?->code_barres
+        ?? $this->barcodes()->value('code_barres');
+}
     public function fournisseur()
     {
         return $this->belongsTo(Fournisseur::class);
