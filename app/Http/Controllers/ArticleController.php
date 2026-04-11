@@ -85,7 +85,9 @@ class ArticleController extends Controller
     $categories   = \App\Models\Category::whereNull('parent_id')->orderBy('nom')->get(['id','nom']);
     $souscats     = \App\Models\Category::whereNotNull('parent_id')->orderBy('nom')->get(['id','nom','parent_id']);
 
-    return view('articles.index', compact('articles','fournisseurs','categories','souscats'));
+   $marques = \App\Models\Marque::orderBy('nom')->get(['id','nom']);
+
+return view('articles.index', compact('articles','fournisseurs','categories','souscats','marques'));
 }
 
     /**
@@ -364,13 +366,11 @@ public function update(Request $request, \App\Models\Article $article)
         return redirect()->route('articles.index')->with('success','Article supprimé');
     }
    // ─────────────────────────────────────────────────────────
-    public function detailJson(Article $article)
-    {
-        $article->load(['category', 'marque', 'fournisseur']);
-
-        return response()->json($article);
-    }
-
+  public function detailJson(Article $article)
+{
+    $article->load(['category', 'marque', 'fournisseur', 'barcodes']);
+    return response()->json($article);
+}
     // ─────────────────────────────────────────────────────────
     //  GET /articles/{article}/mouvements-json
     //  → utilisé par le popup "Historique" (icône horloge)
