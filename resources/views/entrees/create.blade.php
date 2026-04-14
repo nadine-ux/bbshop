@@ -3,7 +3,7 @@
 @section('title','Nouvelle entrée')
 
 @section('content_header')
-    <h1>Créer une nouvelle entrée</h1>
+    <h1>Créer une nouvelle Entrée</h1>
 @stop
 
 @section('content')
@@ -20,24 +20,48 @@
     <form action="{{ route('entrees.store') }}" method="POST" id="entree-form">
         @csrf
 
+        {{-- EN-TÊTE : Fournisseur (texte libre), Date+Heure auto, N° Bon auto --}}
         <div class="card">
             <div class="card-body">
                 <div class="row">
-                    <div class="col-md-6">
+                    <div class="col-md-4">
                         <div class="form-group">
-                            <label>Date de réception <span class="text-danger">*</span></label>
-                            <input type="date" name="date_reception" class="form-control" value="{{ date('Y-m-d') }}" required>
+                            <label><strong>Fournisseur</strong> <span class="text-danger">*</span></label>
+                            <input type="text"
+                                   name="fournisseur_nom"
+                                   id="fournisseur_nom"
+                                   class="form-control"
+                                   placeholder="Écrire le nom du fournisseur..."
+                                   required
+                                   autocomplete="off"
+                                   list="fournisseurs-list">
+                            <datalist id="fournisseurs-list">
+                                @foreach($fournisseurs as $f)
+                                    <option value="{{ $f->nom }}" data-id="{{ $f->id }}">
+                                @endforeach
+                            </datalist>
+                            {{-- Champ hidden pour stocker l'id si trouvé --}}
+                            <input type="hidden" name="fournisseur_id" id="fournisseur_id">
                         </div>
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-md-4">
                         <div class="form-group">
-                            <label>Fournisseur <span class="text-danger">*</span></label>
-                            <select name="fournisseur_id" class="form-control" required>
-                                <option value="">-- Choisir un fournisseur --</option>
-                                @foreach($fournisseurs as $f)
-                                    <option value="{{ $f->id }}">{{ $f->nom }}</option>
-                                @endforeach
-                            </select>
+                            <label><strong>Date et heure</strong></label>
+                            <input type="text"
+                                   id="date-heure-display"
+                                   class="form-control bg-light"
+                                   readonly>
+                            <input type="hidden" name="date_reception" id="date_reception_input">
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label><strong>N° de Bon</strong></label>
+                            <input type="text"
+                                   class="form-control bg-light font-weight-bold text-primary"
+                                   value="{{ $nextBonNumber ?? 'AUTO-' . date('YmdHis') }}"
+                                   readonly>
+                            <input type="hidden" name="numero_bon" value="{{ $nextBonNumber ?? '' }}">
                         </div>
                     </div>
                 </div>
@@ -49,48 +73,81 @@
             </div>
         </div>
 
+        {{-- BARRE DE RECHERCHE D'ARTICLE --}}
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h3 class="card-title">
+                    <i class="fas fa-search"></i> Barre de recherche — Ajouter un article
+                </h3>
+            </div>
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <div class="input-group input-group-lg">
+                            <div class="input-group-prepend">
+                                <span class="input-group-text bg-warning">
+                                    <i class="fas fa-barcode"></i>
+                                </span>
+                            </div>
+                            <input type="text"
+                                   id="search-article"
+                                   class="form-control form-control-lg"
+                                   placeholder="🔍 Chercher un article par Nom ou Code-barres — ou Scaner le code-barres..."
+                                   autocomplete="off">
+                        </div>
+                        <small class="text-muted">
+                            <i class="fas fa-info-circle"></i>
+                            Tapez le nom, la référence ou scannez le code-barres pour ajouter un article directement dans le tableau.
+                        </small>
+                    </div>
+                    <div class="col-md-4">
+                        <div id="search-results" class="list-group shadow" style="display:none; max-height:250px; overflow-y:auto; position:absolute; z-index:1000; width:100%;"></div>
+                        <button type="button" class="btn btn-success btn-lg w-100" id="btn-add-manual">
+                            <i class="fas fa-plus-circle"></i> Ajouter une ligne vide
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         {{-- TABLEAU DES ARTICLES --}}
         <div class="card">
             <div class="card-header bg-primary text-white">
                 <h3 class="card-title">
                     <i class="fas fa-boxes"></i> Articles reçus
                 </h3>
-                <button type="button" class="btn btn-success btn-sm float-right" id="btn-add">
-                    <i class="fas fa-plus"></i> Ajouter un article
-                </button>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
-                    <table class="table table-bordered table-striped mb-0">
-                        <thead class="thead-light">
+                    <table class="table table-bordered table-striped mb-0" id="table-articles">
+                        <thead class="thead-dark">
                             <tr>
-                                <th width="25%">Article</th>
-                                <th width="10%" class="text-center">Cartons</th>
-                                <th width="10%" class="text-center">Pièces</th>
-                                <th width="12%" class="text-center">Prix unitaire (DZD)</th>
-                                <th width="9%"  class="text-center">Remise (%)</th>
-                                <th width="9%"  class="text-center">Prix net</th>
-                                <th width="10%" class="text-center">Total pièces</th>
-                                <th width="10%" class="text-center">Montant</th>
+                                <th width="8%"  class="text-center">Code / Réf.</th>
+                                <th width="28%" class="text-center">Désignation (Nom d'article)</th>
+                                <th width="8%"  class="text-center">Cartons</th>
+                                <th width="8%"  class="text-center">Pièces</th>
+                                <th width="12%" class="text-center">Prix Unitaire (DZD)</th>
+                                <th width="8%"  class="text-center">Remise (%)</th>
+                                <th width="13%" class="text-center">Total Général</th>
                                 <th width="5%"  class="text-center"><i class="fas fa-trash"></i></th>
                             </tr>
                         </thead>
                         <tbody id="tbody-articles">
-                            <!-- lignes ajoutées dynamiquement -->
+                            {{-- lignes ajoutées dynamiquement --}}
                         </tbody>
                         <tfoot class="bg-light font-weight-bold">
                             <tr>
-                                <td colspan="7" class="text-right">TOTAL BRUT :</td>
-                                <td class="text-right"><span id="total-brut">0.00</span> DZD</td>
+                                <td colspan="6" class="text-right">TOTAL BRUT :</td>
+                                <td class="text-right text-dark"><span id="total-brut">0.00</span> DZD</td>
                                 <td></td>
                             </tr>
                             <tr class="text-danger" id="row-remises-articles" style="display:none;">
-                                <td colspan="7" class="text-right">Remises articles :</td>
+                                <td colspan="6" class="text-right">Total Remise articles :</td>
                                 <td class="text-right">- <span id="total-remises-articles">0.00</span> DZD</td>
                                 <td></td>
                             </tr>
                             <tr>
-                                <td colspan="7" class="text-right">Sous-total après remises articles :</td>
+                                <td colspan="6" class="text-right">Sous-total après remises :</td>
                                 <td class="text-right"><span id="sous-total">0.00</span> DZD</td>
                                 <td></td>
                             </tr>
@@ -100,38 +157,58 @@
             </div>
         </div>
 
-        {{-- REMISE GLOBALE + TOTAL FINAL --}}
+        {{-- REMISE GLOBALE + TOTAUX FINAUX --}}
         <div class="card">
             <div class="card-body">
-                <div class="row align-items-center">
-                    <div class="col-md-4 offset-md-4">
-                        <div class="form-group mb-0">
-                            <label class="font-weight-bold">
-                                <i class="fas fa-percent text-warning"></i>
-                                Remise globale sur le bon (%) <small class="text-muted">— facultatif</small>
-                            </label>
-                            <div class="input-group">
-                                <input type="number"
-                                       name="remise_globale"
-                                       id="remise-globale"
-                                       class="form-control text-center font-weight-bold"
-                                       step="0.01" value="0" min="0" max="100"
-                                       placeholder="0.00">
-                                <div class="input-group-append">
-                                    <span class="input-group-text">%</span>
+                <div class="row align-items-stretch">
+                    {{-- Remise globale --}}
+                    <div class="col-md-4">
+                        <div class="card border-warning h-100">
+                            <div class="card-header bg-warning text-dark">
+                                <i class="fas fa-percent"></i> <strong>Remise Globale (%) — facultatif</strong>
+                            </div>
+                            <div class="card-body d-flex align-items-center">
+                                <div class="input-group input-group-lg w-100">
+                                    <input type="number"
+                                           name="remise_globale"
+                                           id="remise-globale"
+                                           class="form-control text-center font-weight-bold"
+                                           step="0.01" value="0" min="0" max="100"
+                                           placeholder="0.00">
+                                    <div class="input-group-append">
+                                        <span class="input-group-text bg-warning">%</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
+
+                    {{-- Nouveau Total (sous-total après remises articles) --}}
                     <div class="col-md-4">
-                        <div class="card bg-success text-white mb-0">
-                            <div class="card-body py-2 text-center">
-                                <div class="text-sm">TOTAL NET À PAYER</div>
-                                <div style="font-size: 1.6em; font-weight: bold;">
-                                    <span id="total-net-final">0.00</span> DZD
+                        <div class="card border-info h-100">
+                            <div class="card-header bg-info text-white text-center">
+                                <strong>Nouveau Total</strong>
+                            </div>
+                            <div class="card-body text-center d-flex flex-column justify-content-center">
+                                <div style="font-size:1.5em; font-weight:bold;" class="text-info">
+                                    <span id="nouveau-total">0.00</span> DZD
                                 </div>
-                                <div id="info-remise-globale" class="text-sm" style="display:none; opacity:0.9;">
-                                    Remise globale : - <span id="montant-remise-globale">0.00</span> DZD
+                                <div id="info-remise-globale" class="text-danger mt-1" style="display:none;">
+                                    <small>Remise globale : - <span id="montant-remise-globale">0.00</span> DZD</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Total Général Final --}}
+                    <div class="col-md-4">
+                        <div class="card bg-success text-white h-100">
+                            <div class="card-header bg-success text-white text-center border-0">
+                                <strong>TOTAL GÉNÉRAL À PAYER</strong>
+                            </div>
+                            <div class="card-body text-center d-flex align-items-center justify-content-center">
+                                <div style="font-size:2em; font-weight:bold;">
+                                    <span id="total-net-final">0.00</span> DZD
                                 </div>
                             </div>
                         </div>
@@ -140,7 +217,7 @@
             </div>
         </div>
 
-        <div class="text-right">
+        <div class="text-right mb-4">
             <button type="submit" class="btn btn-success btn-lg">
                 <i class="fas fa-save"></i> Enregistrer l'entrée
             </button>
@@ -156,76 +233,152 @@
 document.addEventListener('DOMContentLoaded', function() {
     let index = 0;
     const tbody = document.getElementById('tbody-articles');
-    const btnAdd = document.getElementById('btn-add');
+    const btnAddManual = document.getElementById('btn-add-manual');
     const inputRemiseGlobale = document.getElementById('remise-globale');
+    const searchInput = document.getElementById('search-article');
+    const searchResults = document.getElementById('search-results');
 
-    // 👇 Récupérer prix_achat + contenance_carton pour chaque article
+    // ── Articles data from PHP ──────────────────────────────────────────────
     const articles = @json($articlesData);
-
-    // Index rapide par id
     const articlesMap = {};
     articles.forEach(a => articlesMap[a.id] = a);
 
-    function getOptionsHTML() {
-        let html = '<option value="">-- Sélectionner un article --</option>';
-        articles.forEach(art => {
-            html += `<option value="${art.id}"
-                        data-contenance="${art.contenance_carton}"
-                        data-prix="${art.prix_achat}">
-                ${art.nom} (Carton = ${art.contenance_carton} pcs)
-            </option>`;
-        });
-        return html;
+    // ── Date/heure automatique ──────────────────────────────────────────────
+    function updateClock() {
+        const now = new Date();
+        const formatted = now.toLocaleDateString('fr-DZ', {
+            year: 'numeric', month: '2-digit', day: '2-digit'
+        }) + '  ' + now.toLocaleTimeString('fr-DZ');
+        document.getElementById('date-heure-display').value = formatted;
+        document.getElementById('date_reception_input').value = now.toISOString().slice(0, 10);
     }
+    updateClock();
+    setInterval(updateClock, 1000);
 
-    function ajouterLigne() {
+    // ── Fournisseur : résoudre id depuis datalist ──────────────────────────
+    document.getElementById('fournisseur_nom').addEventListener('change', function() {
+        const val = this.value.trim().toLowerCase();
+        const options = document.querySelectorAll('#fournisseurs-list option');
+        let found = null;
+        options.forEach(opt => {
+            if (opt.value.trim().toLowerCase() === val) found = opt;
+        });
+        document.getElementById('fournisseur_id').value = found ? found.dataset.id : '';
+    });
+
+    // ── Barre de recherche article ──────────────────────────────────────────
+    searchInput.addEventListener('input', function() {
+        const q = this.value.trim().toLowerCase();
+        searchResults.innerHTML = '';
+        if (q.length < 1) { searchResults.style.display = 'none'; return; }
+
+        const filtered = articles.filter(a =>
+            a.nom.toLowerCase().includes(q) ||
+            (a.code_barres && a.code_barres.toLowerCase().includes(q)) ||
+            (a.reference && a.reference.toLowerCase().includes(q))
+        );
+
+        if (filtered.length === 0) {
+            searchResults.innerHTML = '<div class="list-group-item text-muted">Aucun article trouvé</div>';
+            searchResults.style.display = 'block';
+            return;
+        }
+
+        filtered.slice(0, 10).forEach(art => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'list-group-item list-group-item-action';
+            btn.innerHTML = `
+                <strong>${art.nom}</strong>
+                <span class="badge badge-secondary float-right">${art.reference ?? art.code_barres ?? ''}</span>
+                <br><small class="text-muted">Prix: ${parseFloat(art.prix_achat).toFixed(2)} DZD — Carton: ${art.contenance_carton} pcs</small>
+            `;
+            btn.addEventListener('click', function() {
+                ajouterLigne(art);
+                searchInput.value = '';
+                searchResults.style.display = 'none';
+            });
+            searchResults.appendChild(btn);
+        });
+        searchResults.style.display = 'block';
+    });
+
+    // Fermer les résultats si on clique ailleurs
+    document.addEventListener('click', function(e) {
+        if (!searchResults.contains(e.target) && e.target !== searchInput) {
+            searchResults.style.display = 'none';
+        }
+    });
+
+    // Scanner : si la valeur est un code-barres exact et appuie Entrée
+    searchInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const q = this.value.trim().toLowerCase();
+            const exact = articles.find(a =>
+                (a.code_barres && a.code_barres.toLowerCase() === q) ||
+                (a.reference && a.reference.toLowerCase() === q)
+            );
+            if (exact) {
+                ajouterLigne(exact);
+                this.value = '';
+                searchResults.style.display = 'none';
+            }
+        }
+    });
+
+    // ── Ajouter une ligne ──────────────────────────────────────────────────
+    function ajouterLigne(art = null) {
         const tr = document.createElement('tr');
         tr.setAttribute('data-index', index);
+
+        const artId       = art ? art.id : '';
+        const artRef = art ? (art.reference || art.code_barres || '') : '';
+        const artNom      = art ? art.nom : '';
+        const artPrix     = art ? parseFloat(art.prix_achat).toFixed(2) : '0.00';
+        const artCarton   = art ? art.contenance_carton : 0;
+
         tr.innerHTML = `
             <td>
-                <select name="articles[${index}][article_id]"
-                        class="form-control form-control-sm select-article" required>
-                    ${getOptionsHTML()}
-                </select>
+                <input type="hidden" name="articles[${index}][article_id]" class="input-article-id" value="${artId}">
+                <input type="text"
+                       class="form-control form-control-sm text-center input-ref"
+                       value="${artRef}"
+                       placeholder="Code/Réf."
+                       data-contenance="${artCarton}"
+                       readonly style="background:#f8f9fa;">
+            </td>
+            <td>
+                <input type="text"
+                       class="form-control form-control-sm input-nom"
+                       value="${artNom}"
+                       placeholder="Nom d'article..."
+                       readonly style="background:#f8f9fa;">
             </td>
             <td>
                 <input type="number" name="articles[${index}][quantite_cartons]"
                        class="form-control form-control-sm text-center input-cartons"
-                       value="0" min="0" required>
+                       value="0" min="0">
             </td>
             <td>
                 <input type="number" name="articles[${index}][quantite_pieces]"
                        class="form-control form-control-sm text-center input-pieces"
-                       value="0" min="0" required>
+                       value="0" min="0">
             </td>
             <td>
-                <div class="input-group input-group-sm">
-                    <input type="number" name="articles[${index}][prix_unitaire]"
-                           class="form-control text-right input-prix"
-                           step="0.01" value="0" min="0" required>
-                    <div class="input-group-append" title="Prix d'achat habituel">
-                        <span class="input-group-text px-2 prix-status">
-                            <i class="fas fa-lock text-secondary"></i>
-                        </span>
-                    </div>
-                </div>
-                <small class="text-muted prix-reference d-block mt-1"></small>
+                <input type="number" name="articles[${index}][prix_unitaire]"
+                       class="form-control form-control-sm text-right input-prix"
+                       step="0.01" value="${artPrix}" min="0">
             </td>
             <td>
                 <input type="number" name="articles[${index}][remise]"
                        class="form-control form-control-sm text-center input-remise"
                        step="0.01" value="0" min="0" max="100" placeholder="0">
             </td>
-            <td class="text-center">
-                <span class="prix-net text-success font-weight-bold">0.00</span>
+            <td class="text-right align-middle">
+                <strong class="montant-ligne text-success">0.00</strong> <small>DZD</small>
             </td>
-            <td class="text-center">
-                <span class="badge badge-info total-pieces">0</span>
-            </td>
-            <td class="text-right">
-                <strong class="montant-ligne">0.00</strong> DZD
-            </td>
-            <td class="text-center">
+            <td class="text-center align-middle">
                 <button type="button" class="btn btn-danger btn-sm btn-supprimer">
                     <i class="fas fa-trash"></i>
                 </button>
@@ -234,51 +387,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
         tbody.appendChild(tr);
 
-        const select        = tr.querySelector('.select-article');
-        const inputCartons  = tr.querySelector('.input-cartons');
-        const inputPieces   = tr.querySelector('.input-pieces');
-        const inputPrix     = tr.querySelector('.input-prix');
-        const inputRemise   = tr.querySelector('.input-remise');
-        const spanPrixNet   = tr.querySelector('.prix-net');
-        const spanTotal     = tr.querySelector('.total-pieces');
-        const spanMontant   = tr.querySelector('.montant-ligne');
-        const prixStatus    = tr.querySelector('.prix-status');
-        const prixReference = tr.querySelector('.prix-reference');
-
-        // ✅ Quand on sélectionne un article → remplir le prix automatiquement
-        select.addEventListener('change', function() {
-            const art = articlesMap[this.value];
-            if (art) {
-                const prix = parseFloat(art.prix_achat) || 0;
-                inputPrix.value = prix.toFixed(2);
-                // Cadenas vert = prix auto récupéré
-                prixStatus.innerHTML = '<i class="fas fa-lock text-success"></i>';
-                prixStatus.parentElement.title = 'Prix d\'achat habituel : ' + prix.toFixed(2) + ' DZD';
-                prixReference.textContent = 'Réf. habituelle : ' + prix.toFixed(2) + ' DZD';
-            } else {
-                inputPrix.value = '0.00';
-                prixStatus.innerHTML = '<i class="fas fa-lock text-secondary"></i>';
-                prixReference.textContent = '';
-            }
-            calculer();
-        });
-
-        // ✅ Si on modifie le prix manuellement → cadenas ouvert orange
-        inputPrix.addEventListener('input', function() {
-            const art = articlesMap[select.value];
-            if (art && Math.abs(parseFloat(this.value) - parseFloat(art.prix_achat)) > 0.001) {
-                prixStatus.innerHTML = '<i class="fas fa-lock-open text-warning"></i>';
-                prixStatus.parentElement.title = 'Prix modifié — réf. habituelle : ' + parseFloat(art.prix_achat).toFixed(2) + ' DZD';
-            } else {
-                prixStatus.innerHTML = '<i class="fas fa-lock text-success"></i>';
-                prixStatus.parentElement.title = 'Prix d\'achat habituel';
-            }
-            calculer();
-        });
+        const inputArticleId = tr.querySelector('.input-article-id');
+        const inputRef       = tr.querySelector('.input-ref');
+        const inputCartons   = tr.querySelector('.input-cartons');
+        const inputPieces    = tr.querySelector('.input-pieces');
+        const inputPrix      = tr.querySelector('.input-prix');
+        const inputRemise    = tr.querySelector('.input-remise');
+        const spanMontant    = tr.querySelector('.montant-ligne');
 
         function calculer() {
-            const option     = select.selectedOptions[0];
-            const contenance = parseInt(option?.dataset.contenance || 0);
+            const contenance = parseInt(inputRef.dataset.contenance || 0);
             const cartons    = parseInt(inputCartons.value) || 0;
             const pieces     = parseInt(inputPieces.value) || 0;
             const prix       = parseFloat(inputPrix.value) || 0;
@@ -288,37 +406,46 @@ document.addEventListener('DOMContentLoaded', function() {
             const prixNet     = prix * (1 - remise / 100);
             const montant     = totalPieces * prixNet;
 
-            spanTotal.textContent   = totalPieces;
-            spanPrixNet.textContent = prixNet.toFixed(2);
             spanMontant.textContent = montant.toFixed(2);
-
             calculerTotaux();
         }
 
-        inputCartons.addEventListener('input', calculer);
-        inputPieces.addEventListener('input', calculer);
-        inputRemise.addEventListener('input', calculer);
+        [inputCartons, inputPieces, inputPrix, inputRemise].forEach(inp => {
+            inp.addEventListener('input', calculer);
+        });
 
         tr.querySelector('.btn-supprimer').addEventListener('click', function() {
             if (confirm('Supprimer cet article ?')) {
                 tr.remove();
                 calculerTotaux();
-                if (tbody.children.length === 0) ajouterLigne();
             }
         });
+
+        // Calcul initial si article pré-rempli
+        if (art) calculer();
 
         index++;
     }
 
+    // ── Calcul des totaux ──────────────────────────────────────────────────
     function calculerTotaux() {
         let totalBrut = 0;
         let sousTotal = 0;
 
         tbody.querySelectorAll('tr').forEach(tr => {
-            const pieces  = parseInt(tr.querySelector('.total-pieces')?.textContent || 0);
-            const prix    = parseFloat(tr.querySelector('.input-prix')?.value || 0);
-            const montant = parseFloat(tr.querySelector('.montant-ligne')?.textContent || 0);
-            totalBrut += pieces * prix;
+            const inputRef    = tr.querySelector('.input-ref');
+            const inputPrix   = tr.querySelector('.input-prix');
+            const inputCartons= tr.querySelector('.input-cartons');
+            const inputPieces = tr.querySelector('.input-pieces');
+            const montant     = parseFloat(tr.querySelector('.montant-ligne')?.textContent || 0);
+
+            const contenance  = parseInt(inputRef?.dataset.contenance || 0);
+            const cartons     = parseInt(inputCartons?.value || 0);
+            const pieces      = parseInt(inputPieces?.value || 0);
+            const prix        = parseFloat(inputPrix?.value || 0);
+            const totalPieces = (cartons * contenance) + pieces;
+
+            totalBrut += totalPieces * prix;
             sousTotal += montant;
         });
 
@@ -329,6 +456,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         document.getElementById('total-brut').textContent      = totalBrut.toFixed(2);
         document.getElementById('sous-total').textContent      = sousTotal.toFixed(2);
+        document.getElementById('nouveau-total').textContent   = sousTotal.toFixed(2);
         document.getElementById('total-net-final').textContent = totalNetFinal.toFixed(2);
 
         const rowRemisesArticles = document.getElementById('row-remises-articles');
@@ -349,8 +477,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     inputRemiseGlobale.addEventListener('input', calculerTotaux);
-    btnAdd.addEventListener('click', ajouterLigne);
+    btnAddManual.addEventListener('click', () => ajouterLigne());
 
+    // ── Validation à la soumission ─────────────────────────────────────────
     document.getElementById('entree-form').addEventListener('submit', function(e) {
         if (tbody.children.length === 0) {
             e.preventDefault();
@@ -358,20 +487,18 @@ document.addEventListener('DOMContentLoaded', function() {
             return false;
         }
         let hasError = false;
-        tbody.querySelectorAll('.select-article').forEach(select => {
-            if (!select.value) {
+        tbody.querySelectorAll('.input-article-id').forEach(inp => {
+            if (!inp.value) {
                 hasError = true;
-                select.classList.add('is-invalid');
+                inp.closest('tr').querySelector('.input-nom').classList.add('is-invalid');
             }
         });
         if (hasError) {
             e.preventDefault();
-            alert('Veuillez sélectionner un article pour chaque ligne !');
+            alert('Certains articles ne sont pas valides. Veuillez les sélectionner via la recherche.');
             return false;
         }
     });
-
-    ajouterLigne();
 });
 </script>
 @stop
@@ -385,13 +512,17 @@ document.addEventListener('DOMContentLoaded', function() {
         border-color: #dc3545 !important;
     }
     #total-net-final {
-        font-size: 1.6em;
+        font-size: 2em;
     }
-    .prix-reference {
-        font-size: 0.75em;
+    #search-results {
+        border-radius: 0 0 8px 8px;
     }
-    .prix-status {
-        cursor: default;
+    .list-group-item:hover {
+        background-color: #e9f5ff;
+        cursor: pointer;
+    }
+    .card-header {
+        font-size: 1em;
     }
 </style>
 @stop

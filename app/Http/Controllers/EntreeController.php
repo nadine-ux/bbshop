@@ -48,24 +48,29 @@ public function index(Request $request)
 
     return view('entrees.index', compact('entrees', 'annees'));
 }
-     public function create()
-    {
-        $fournisseurs = Fournisseur::all();
-        $articles = Article::with('category')->get();
+   public function create()
+{
+    $fournisseurs = Fournisseur::all();
+    $articles = Article::with(['category', 'barcodes'])->get(); // ← charger barcodes
 
-        // 👇 Tableau simple pour le JS (évite l'erreur Blade avec fn())
-        $articlesData = [];
-        foreach ($articles as $a) {
-            $articlesData[] = [
-                'id'                => $a->id,
-                'nom'               => $a->nom,
-                'contenance_carton' => $a->contenance_carton,
-                'prix_achat'        => $a->prix_achat,
-            ];
-        }
+    $articlesData = [];
+    foreach ($articles as $a) {
+        // Récupérer le code-barres primaire
+        $primaryBarcode = $a->barcodes->firstWhere('is_primary', true)
+                        ?? $a->barcodes->first();
 
-        return view('entrees.create', compact('fournisseurs', 'articles', 'articlesData'));
+        $articlesData[] = [
+            'id'                => $a->id,
+            'nom'               => $a->nom,
+            'contenance_carton' => $a->contenance_carton,
+            'prix_achat'        => $a->prix_achat,
+            'code_barres'       => $primaryBarcode?->code_barres ?? $a->code_barres ?? '',
+            'reference'         => $a->reference ?? '',
+        ];
     }
+
+    return view('entrees.create', compact('fournisseurs', 'articles', 'articlesData'));
+}
 
     public function store(Request $request)
     {

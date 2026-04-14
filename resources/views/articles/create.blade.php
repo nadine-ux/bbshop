@@ -598,8 +598,6 @@
 
 @section('js')
 <script src="https://cdnjs.cloudflare.com/ajax/libs/zxing-js/0.21.1/zxing.min.js"></script>
-@section('js')
-<script src="https://cdnjs.cloudflare.com/ajax/libs/zxing-js/0.21.1/zxing.min.js"></script>
 <script>
 
 // ── Données PHP → JS (déclarées en dehors de DOMContentLoaded, c'est OK) ──
