@@ -19,14 +19,27 @@ class CommandeController extends Controller
         return view('commandes.index', compact('commandes'));
     }
 
-    public function create()
-    {
-        // Seuls les gestionnaires peuvent créer
-        $this->authorize('create', Commande::class);
+public function create()
+{
+    $this->authorize('create', Commande::class);
 
-        $articles = Article::all();
-        return view('commandes.create', compact('articles'));
-    }
+    $articlesData = \App\Models\Article::select('id', 'nom', 'code_barres', 'stock', 'quantite_minimale')
+        ->orderBy('nom')
+        ->get()
+        ->map(function ($a) {
+            return [
+                'id'               => $a->id,
+                'nom'              => $a->nom,
+                'code_barres'      => $a->code_barres,
+                'stock'            => $a->stock,
+                'quantite_alerte'  => $a->quantite_minimale, // alias for the JS
+            ];
+        })
+        ->toArray();
+
+    return view('commandes.create', compact('articlesData'));
+
+}
 
     public function store(Request $request)
     {

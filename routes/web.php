@@ -43,7 +43,11 @@ Route::middleware(['auth','role:Employé'])->group(function () {
 // Gestionnaire & Directeur : accès complet aux commandes
 Route::middleware(['auth','role:Gestionnaire|Directeur'])->group(function () {
     Route::resource('commandes', CommandeController::class);
-
+// Route AJAX : détail JSON pour le modal
+    Route::get('commandes/{commande}/detail-json', [CommandeController::class, 'detailJson'])
+         ->name('commandes.detail-json');
+         Route::post('commandes/{commande}/valider', [CommandeController::class, 'valider'])
+         ->name('commandes.valider');
 Route::resource('marques', MarqueController::class);
 });
 
