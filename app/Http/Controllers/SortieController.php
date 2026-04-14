@@ -21,8 +21,24 @@ class SortieController extends Controller
 
     public function create()
     {
-        $articles = Article::with('category')->where('stock', '>', 0)->get();
-        return view('sorties.create', compact('articles'));
+        $articles = Article::with(['category', 'barcodes'])->where('stock', '>', 0)->get();
+
+        $articlesData = [];
+        foreach ($articles as $a) {
+            $primaryBarcode = $a->barcodes->firstWhere('is_primary', true)
+                            ?? $a->barcodes->first();
+
+            $articlesData[] = [
+                'id'                => $a->id,
+                'nom'               => $a->nom,
+                'contenance_carton' => $a->contenance_carton,
+                'stock'             => $a->stock,
+                'code_barres'       => $primaryBarcode?->code_barres ?? $a->code_barres ?? '',
+                'reference'         => $a->reference ?? '',
+            ];
+        }
+
+        return view('sorties.create', compact('articles', 'articlesData'));
     }
 
     public function store(Request $request)
