@@ -660,7 +660,7 @@
     
 }
 @media(max-width:480px) {
-    .cards-grid { grid-template-columns: 1fr; }
+    .cards-grid { grid-template-columns: repeat(2,1fr) !important; }  
 }
 </style>
 @stop
