@@ -74,8 +74,7 @@
                         <thead class="thead-dark">
                             <tr>
                                 <th class="text-center">Nom d'article</th>
-                                <th class="text-center">Code AL</th>
-                                <th class="text-center">Quantité reçue</th>
+                                <th class="text-center">Quantité restante</th>
                                 <th class="text-center">Quantité d'alerte</th>
                                 <th class="text-center">Quantité à commander</th>
                                 <th class="text-center"><i class="fas fa-trash"></i></th>
@@ -194,7 +193,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const artId      = art ? art.id : '';
         const artNom     = art ? art.nom : '';
-        const artCodeAL  = art ? (art.code_al || art.reference || art.code_barres || '') : '';
         const artStock   = art ? (art.stock ?? 0) : 0;
         const artAlerte  = art ? (art.quantite_alerte ?? 0) : 0;
 
@@ -208,13 +206,6 @@ document.addEventListener('DOMContentLoaded', function () {
                        class="form-control form-control-sm input-nom"
                        value="${artNom}"
                        placeholder="Nom d'article..."
-                       readonly style="background:#f8f9fa;">
-            </td>
-            <td>
-                <input type="text"
-                       class="form-control form-control-sm text-center input-code-al"
-                       value="${artCodeAL}"
-                       placeholder="Code AL"
                        readonly style="background:#f8f9fa;">
             </td>
             <td class="text-center align-middle">
