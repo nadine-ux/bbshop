@@ -16,39 +16,38 @@ class InventaireController extends Controller
      * 📊 Vue générale de l'inventaire
      */
     public function index(Request $request)
-    {
-        $query = Article::with(['category', 'fournisseur']);
+{
+    $query = Article::with(['category', 'fournisseur']);
 
-        // 🔍 Filtres
-        if ($request->filled('categorie_id')) {
-            $query->where('categorie_id', $request->categorie_id);
-        }
-
-        if ($request->filled('stock_critique')) {
-            $query->whereRaw('stock <= quantite_minimale');
-        }
-
-        if ($request->filled('recherche')) {
-            $search = $request->recherche;
-            $query->where(function($q) use ($search) {
-                $q->where('nom', 'like', "%{$search}%")
-                  ->orWhere('code_barres', 'like', "%{$search}%");
-            });
-        }
-
-        $articles = $query->paginate(20);
-        $categories = Category::all();
-
-        // 📈 Statistiques
-        $stats = [
-            'total_articles' => Article::count(),
-            'stock_critique' => Article::whereRaw('stock <= quantite_minimale')->count(),
-            'valeur_stock' => Article::sum(DB::raw('stock * prix_achat')),
-            'articles_epuises' => Article::where('stock', 0)->count(),
-        ];
-
-        return view('inventaire.index', compact('articles', 'categories', 'stats'));
+    if ($request->filled('categorie_id')) {
+        $query->where('categorie_id', $request->categorie_id);
     }
+
+    if ($request->filled('stock_critique')) {
+        $query->whereRaw('stock <= quantite_minimale');
+    }
+
+    if ($request->filled('recherche')) {
+        $search = $request->recherche;
+        $query->where(function($q) use ($search) {
+            $q->where('nom', 'like', "%{$search}%")
+              ->orWhere('code_barres', 'like', "%{$search}%");
+        });
+    }
+
+    $articles = $query->paginate(20);
+    
+    $categories = Category::whereNull('parent_id')->orderBy('nom')->get();
+
+    $stats = [
+        'total_articles' => Article::count(),
+        'stock_critique' => Article::whereRaw('stock <= quantite_minimale')->count(),
+        'valeur_stock' => Article::sum(DB::raw('stock * prix_achat')),
+        'articles_epuises' => Article::where('stock', 0)->count(),
+    ];
+
+    return view('inventaire.index', compact('articles', 'categories', 'stats'));
+}
 
     /**
      * 📦 Détails d'un article avec historique depuis la table inventaires
