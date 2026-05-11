@@ -597,7 +597,7 @@
 @stop
 
 @section('js')
-<script src="https://cdnjs.cloudflare.com/ajax/libs/zxing-js/0.21.1/zxing.min.js"></script>
+<script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <script>
 
 // ── Données PHP → JS (déclarées en dehors de DOMContentLoaded, c'est OK) ──
@@ -886,7 +886,7 @@ async function scanCamera(rowId) {
             return;
         }
         zxingReader = new ZXing.BrowserMultiFormatReader();
-        const devices  = await ZXing.BrowserCodeReader.listVideoInputDevices();
+        const devices = await zxingReader.listVideoInputDevices();
         let   deviceId = devices[0]?.deviceId;
         const back     = devices.find(d => /back|arrière|environment/i.test(d.label));
         if (back) deviceId = back.deviceId;
