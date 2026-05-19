@@ -626,7 +626,7 @@ document.addEventListener('DOMContentLoaded', function () {
         cameraStatus.textContent = 'Ouverture de la caméra...';
         try {
             zxReader = new ZXing.BrowserMultiFormatReader();
-            const devices = await ZXing.BrowserCodeReader.listVideoInputDevices();
+            const devices = await zxReader.listVideoInputDevices();
             let dId = devices[0]?.deviceId;
             const back = devices.find(d => /back|arrière|environment/i.test(d.label));
             if (back) dId = back.deviceId;
