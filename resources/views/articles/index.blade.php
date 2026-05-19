@@ -610,7 +610,7 @@
 @stop
 
 @section('js')
-<script src="https://cdnjs.cloudflare.com/ajax/libs/zxing-js/0.21.1/zxing.min.js"></script>
+<script src="{{ asset('js/zxing.min.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
 
