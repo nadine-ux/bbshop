@@ -597,7 +597,7 @@
 @stop
 
 @section('js')
-<script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
+<script src="{{ asset('js/zxing.min.js') }}"></script>
 <script>
 
 // ── Données PHP → JS (déclarées en dehors de DOMContentLoaded, c'est OK) ──
