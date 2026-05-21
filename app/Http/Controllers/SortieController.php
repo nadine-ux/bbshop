@@ -4,20 +4,50 @@ namespace App\Http\Controllers;
 
 use App\Models\Sortie;
 use App\Models\Article;
+use App\Models\User;
+use Illuminate\Support\Facades\Auth;
 use App\Services\InventaireService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class SortieController extends Controller
 {
-    public function index()
-    {
-        $sorties = Sortie::with('articles')
-            ->orderBy('motif', 'desc')
-            ->paginate(15);
+    
+public function index(Request $request)
+{
+    $query = Sortie::with(['articles', 'gestionnaire']);
 
-        return view('sorties.index', compact('sorties'));
+    // Filtre gestionnaire
+    if ($request->filled('gestionnaire')) {
+        $query->whereHas('gestionnaire', function ($q) use ($request) {
+            $q->where('name', 'like', '%' . $request->gestionnaire . '%');
+        });
     }
+
+    // Filtre mois
+    if ($request->filled('mois')) {
+        $query->whereMonth('created_at', $request->mois);
+    }
+
+    // Filtre année
+    if ($request->filled('annee')) {
+        $query->whereYear('created_at', $request->annee);
+    }
+
+    // Tri
+    $sort = $request->get('sort', 'created_at');
+    $direction = $request->get('direction', 'desc');
+    $query->orderBy($sort, $direction);
+
+    $sorties = $query->paginate(15)->withQueryString();
+
+    $annees = Sortie::selectRaw('YEAR(created_at) as annee')
+        ->distinct()
+        ->orderBy('annee', 'desc')
+        ->pluck('annee');
+
+    return view('sorties.index', compact('sorties', 'annees'));
+}
 
     public function create()
     {
@@ -60,8 +90,10 @@ class SortieController extends Controller
             $sortie = Sortie::create([
                 'destination' => $request->destination,
                 'motif' => $request->motif,
-                
+                 'user_id'     => Auth::id(),
                 'commentaire' => $request->commentaire,
+                        'created_at' => $request->date_sortie ?? now(),
+
             ]);
 
             // 2️⃣ Traiter les articles
