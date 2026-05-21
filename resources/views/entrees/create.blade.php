@@ -83,23 +83,40 @@
             <div class="card-body">
                 <div class="row align-items-center">
                     <div class="col-md-8">
-                        <div class="input-group input-group-lg">
-                            <div class="input-group-prepend">
-                                <span class="input-group-text bg-warning">
-                                    <i class="fas fa-barcode"></i>
-                                </span>
-                            </div>
-                            <input type="text"
-                                   id="search-article"
-                                   class="form-control form-control-lg"
-                                   placeholder="🔍 Chercher un article par Nom ou Code-barres — ou Scaner le code-barres..."
-                                   autocomplete="off">
-                        </div>
-                        <small class="text-muted">
-                            <i class="fas fa-info-circle"></i>
-                            Tapez le nom, la référence ou scannez le code-barres pour ajouter un article directement dans le tableau.
-                        </small>
-                    </div>
+    <div class="input-group input-group-lg">
+        <div class="input-group-prepend">
+            <span class="input-group-text bg-warning">
+                <i class="fas fa-barcode"></i>
+            </span>
+        </div>
+        <input type="text"
+               id="search-article"
+               class="form-control form-control-lg"
+               placeholder="🔍 Chercher un article par Nom ou Code-barres — ou Scanner..."
+               autocomplete="off">
+        <div class="input-group-append">
+            <button type="button" class="btn btn-success" id="btn-scan-entree">
+                <i class="fas fa-camera"></i> Caméra
+            </button>
+        </div>
+    </div>
+    <small class="text-muted">
+        <i class="fas fa-info-circle"></i>
+        Tapez le nom, la référence ou scannez le code-barres pour ajouter un article directement dans le tableau.
+    </small>
+
+    {{-- Camera box --}}
+    <div id="scanBoxEntree" class="d-none mt-2" style="border-radius:12px;overflow:hidden;border:2px solid #27ae60;background:#000;">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:.55rem 1rem;background:#27ae60;color:white;font-weight:600;font-size:.88rem;">
+            <span><i class="fas fa-camera"></i> Scanner en cours...</span>
+            <button type="button" id="btnScanEntreeClose" style="background:rgba(255,255,255,.2);color:white;border:none;border-radius:7px;padding:.25rem .65rem;cursor:pointer;">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <video id="scanVideoEntree" autoplay playsinline muted style="width:100%;max-height:200px;display:block;object-fit:cover;"></video>
+        <div id="scanStatusEntree" style="padding:.4rem 1rem;background:#111;color:#aaa;font-size:.78rem;">Initialisation...</div>
+    </div>
+</div>
                     <div class="col-md-4">
                         <div id="search-results" class="list-group shadow" style="display:none; max-height:250px; overflow-y:auto; position:absolute; z-index:1000; width:100%;"></div>
                         <button type="button" class="btn btn-success btn-lg w-100" id="btn-add-manual">
@@ -229,6 +246,7 @@
 @stop
 
 @section('js')
+<script src="{{ asset('js/zxing.min.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     let index = 0;
@@ -474,6 +492,95 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             infoRemiseGlobale.style.display = 'none';
         }
+        // ── Scanner ZXing (même logique que create/index articles) ───────────
+let zxReaderEntree  = null;
+let camStreamEntree = null;
+
+const btnScanEntree      = document.getElementById('btn-scan-entree');
+const btnScanEntreeClose = document.getElementById('btnScanEntreeClose');
+const scanBoxEntree      = document.getElementById('scanBoxEntree');
+const scanStatusEntree   = document.getElementById('scanStatusEntree');
+const scanVideoEntree    = document.getElementById('scanVideoEntree');
+
+btnScanEntree.addEventListener('click', startScanEntree);
+btnScanEntreeClose.addEventListener('click', stopScanEntree);
+
+async function startScanEntree() {
+    scanBoxEntree.classList.remove('d-none');
+    scanStatusEntree.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Accès à la caméra...';
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        scanStatusEntree.textContent = '❌ Caméra non disponible sur ce navigateur.';
+        return;
+    }
+
+    try {
+        camStreamEntree = await navigator.mediaDevices.getUserMedia({
+            video: {
+                facingMode: { ideal: 'environment' },
+                width:  { ideal: 1280 },
+                height: { ideal: 720 }
+            },
+            audio: false
+        });
+
+        scanVideoEntree.srcObject = camStreamEntree;
+        await scanVideoEntree.play();
+
+        scanStatusEntree.innerHTML = '<i class="fas fa-camera"></i> Pointez vers le code-barres...';
+
+        zxReaderEntree = new ZXing.BrowserMultiFormatReader();
+        let lastCode = null, votes = 0;
+
+        zxReaderEntree.decodeFromStream(camStreamEntree, scanVideoEntree, (result) => {
+            if (!result) return;
+            const code = result.getText();
+
+            if (code === lastCode) { votes++; }
+            else { lastCode = code; votes = 1; }
+
+            scanStatusEntree.textContent = `Vérification... (${votes}/2) — ${code}`;
+
+            if (votes >= 2) {
+                stopScanEntree();
+
+                // Cherche l'article exact par code-barres
+                const exact = articles.find(a =>
+                    (a.code_barres && a.code_barres.toLowerCase() === code.toLowerCase()) ||
+                    (a.reference   && a.reference.toLowerCase()   === code.toLowerCase())
+                );
+
+                if (exact) {
+                    ajouterLigne(exact);
+                    searchInput.value = '';
+                    searchResults.style.display = 'none';
+                } else {
+                    // Pas trouvé : injecter dans le champ recherche pour afficher suggestions
+                    searchInput.value = code;
+                    searchInput.dispatchEvent(new Event('input'));
+                    searchInput.focus();
+                }
+            }
+        });
+
+    } catch (err) {
+        console.error('Erreur caméra:', err);
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+            scanStatusEntree.textContent = '❌ Permission caméra refusée. Autorisez l\'accès dans les réglages.';
+        } else if (err.name === 'NotFoundError') {
+            scanStatusEntree.textContent = '❌ Aucune caméra détectée.';
+        } else {
+            scanStatusEntree.textContent = '❌ Erreur : ' + (err.message || err.name);
+        }
+    }
+}
+
+function stopScanEntree() {
+    if (zxReaderEntree)  { try { zxReaderEntree.reset(); } catch(e) {} zxReaderEntree = null; }
+    if (camStreamEntree) { camStreamEntree.getTracks().forEach(t => t.stop()); camStreamEntree = null; }
+    scanVideoEntree.srcObject = null;
+    scanBoxEntree.classList.add('d-none');
+}
     }
 
     inputRemiseGlobale.addEventListener('input', calculerTotaux);
@@ -524,5 +631,6 @@ document.addEventListener('DOMContentLoaded', function() {
     .card-header {
         font-size: 1em;
     }
+    #scanBoxEntree video { background: #000; }
 </style>
 @stop
