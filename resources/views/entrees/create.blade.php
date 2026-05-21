@@ -1,3 +1,4 @@
+
 @extends('adminlte::page')
 
 @section('title','Nouvelle entrée')
@@ -20,7 +21,7 @@
     <form action="{{ route('entrees.store') }}" method="POST" id="entree-form">
         @csrf
 
-        {{-- EN-TÊTE : Fournisseur (texte libre), Date+Heure auto, N° Bon auto --}}
+        {{-- EN-TÊTE --}}
         <div class="card">
             <div class="card-body">
                 <div class="row">
@@ -40,17 +41,13 @@
                                     <option value="{{ $f->nom }}" data-id="{{ $f->id }}">
                                 @endforeach
                             </datalist>
-                            {{-- Champ hidden pour stocker l'id si trouvé --}}
                             <input type="hidden" name="fournisseur_id" id="fournisseur_id">
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="form-group">
                             <label><strong>Date et heure</strong></label>
-                            <input type="text"
-                                   id="date-heure-display"
-                                   class="form-control bg-light"
-                                   readonly>
+                            <input type="text" id="date-heure-display" class="form-control bg-light" readonly>
                             <input type="hidden" name="date_reception" id="date_reception_input">
                         </div>
                     </div>
@@ -65,7 +62,6 @@
                         </div>
                     </div>
                 </div>
-
                 <div class="form-group">
                     <label>Commentaire</label>
                     <textarea name="commentaire" class="form-control" rows="2"></textarea>
@@ -83,42 +79,53 @@
             <div class="card-body">
                 <div class="row align-items-center">
                     <div class="col-md-8">
-    <div class="input-group input-group-lg">
-        <div class="input-group-prepend">
-            <span class="input-group-text bg-warning">
-                <i class="fas fa-barcode"></i>
-            </span>
-        </div>
-        <input type="text"
-               id="search-article"
-               class="form-control form-control-lg"
-               placeholder="🔍 Chercher un article par Nom ou Code-barres — ou Scanner..."
-               autocomplete="off">
-        <div class="input-group-append">
-            <button type="button" class="btn btn-success" id="btn-scan-entree">
-                <i class="fas fa-camera"></i> Caméra
-            </button>
-        </div>
-    </div>
-    <small class="text-muted">
-        <i class="fas fa-info-circle"></i>
-        Tapez le nom, la référence ou scannez le code-barres pour ajouter un article directement dans le tableau.
-    </small>
+                        <div class="input-group input-group-lg">
+                            <div class="input-group-prepend">
+                                <span class="input-group-text bg-warning">
+                                    <i class="fas fa-barcode"></i>
+                                </span>
+                            </div>
+                            <input type="text"
+                                   id="search-article"
+                                   class="form-control form-control-lg"
+                                   placeholder="🔍 Chercher par Nom ou Code-barres — ou Scanner..."
+                                   autocomplete="off">
+                            <div class="input-group-append">
+                                <button type="button" class="btn btn-success" id="btn-scan-entree">
+                                    <i class="fas fa-camera"></i> Caméra
+                                </button>
+                            </div>
+                        </div>
+                        <small class="text-muted">
+                            <i class="fas fa-info-circle"></i>
+                            Tapez le nom, la référence ou scannez le code-barres pour ajouter un article directement dans le tableau.
+                        </small>
 
-    {{-- Camera box --}}
-    <div id="scanBoxEntree" class="d-none mt-2" style="border-radius:12px;overflow:hidden;border:2px solid #27ae60;background:#000;">
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:.55rem 1rem;background:#27ae60;color:white;font-weight:600;font-size:.88rem;">
-            <span><i class="fas fa-camera"></i> Scanner en cours...</span>
-            <button type="button" id="btnScanEntreeClose" style="background:rgba(255,255,255,.2);color:white;border:none;border-radius:7px;padding:.25rem .65rem;cursor:pointer;">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        <video id="scanVideoEntree" autoplay playsinline muted style="width:100%;max-height:200px;display:block;object-fit:cover;"></video>
-        <div id="scanStatusEntree" style="padding:.4rem 1rem;background:#111;color:#aaa;font-size:.78rem;">Initialisation...</div>
-    </div>
-</div>
+                        {{-- Camera box --}}
+                        <div id="scanBoxEntree" class="d-none mt-2"
+                             style="border-radius:12px;overflow:hidden;border:2px solid #27ae60;background:#000;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;
+                                        padding:.55rem 1rem;background:#27ae60;color:white;
+                                        font-weight:600;font-size:.88rem;">
+                                <span><i class="fas fa-camera"></i> Scanner en cours...</span>
+                                <button type="button" id="btnScanEntreeClose"
+                                        style="background:rgba(255,255,255,.2);color:white;border:none;
+                                               border-radius:7px;padding:.25rem .65rem;cursor:pointer;">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <video id="scanVideoEntree" autoplay playsinline muted
+                                   style="width:100%;max-height:200px;display:block;object-fit:cover;background:#000;"></video>
+                            <div id="scanStatusEntree"
+                                 style="padding:.4rem 1rem;background:#111;color:#aaa;font-size:.78rem;">
+                                Initialisation...
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="col-md-4">
-                        <div id="search-results" class="list-group shadow" style="display:none; max-height:250px; overflow-y:auto; position:absolute; z-index:1000; width:100%;"></div>
+                        <div id="search-results" class="list-group shadow"
+                             style="display:none;max-height:250px;overflow-y:auto;position:absolute;z-index:1000;width:100%;"></div>
                         <button type="button" class="btn btn-success btn-lg w-100" id="btn-add-manual">
                             <i class="fas fa-plus-circle"></i> Ajouter une ligne vide
                         </button>
@@ -130,9 +137,7 @@
         {{-- TABLEAU DES ARTICLES --}}
         <div class="card">
             <div class="card-header bg-primary text-white">
-                <h3 class="card-title">
-                    <i class="fas fa-boxes"></i> Articles reçus
-                </h3>
+                <h3 class="card-title"><i class="fas fa-boxes"></i> Articles reçus</h3>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
@@ -149,9 +154,7 @@
                                 <th width="5%"  class="text-center"><i class="fas fa-trash"></i></th>
                             </tr>
                         </thead>
-                        <tbody id="tbody-articles">
-                            {{-- lignes ajoutées dynamiquement --}}
-                        </tbody>
+                        <tbody id="tbody-articles"></tbody>
                         <tfoot class="bg-light font-weight-bold">
                             <tr>
                                 <td colspan="6" class="text-right">TOTAL BRUT :</td>
@@ -178,7 +181,6 @@
         <div class="card">
             <div class="card-body">
                 <div class="row align-items-stretch">
-                    {{-- Remise globale --}}
                     <div class="col-md-4">
                         <div class="card border-warning h-100">
                             <div class="card-header bg-warning text-dark">
@@ -190,8 +192,7 @@
                                            name="remise_globale"
                                            id="remise-globale"
                                            class="form-control text-center font-weight-bold"
-                                           step="0.01" value="0" min="0" max="100"
-                                           placeholder="0.00">
+                                           step="0.01" value="0" min="0" max="100" placeholder="0.00">
                                     <div class="input-group-append">
                                         <span class="input-group-text bg-warning">%</span>
                                     </div>
@@ -199,15 +200,13 @@
                             </div>
                         </div>
                     </div>
-
-                    {{-- Nouveau Total (sous-total après remises articles) --}}
                     <div class="col-md-4">
                         <div class="card border-info h-100">
                             <div class="card-header bg-info text-white text-center">
                                 <strong>Nouveau Total</strong>
                             </div>
                             <div class="card-body text-center d-flex flex-column justify-content-center">
-                                <div style="font-size:1.5em; font-weight:bold;" class="text-info">
+                                <div style="font-size:1.5em;font-weight:bold;" class="text-info">
                                     <span id="nouveau-total">0.00</span> DZD
                                 </div>
                                 <div id="info-remise-globale" class="text-danger mt-1" style="display:none;">
@@ -216,15 +215,13 @@
                             </div>
                         </div>
                     </div>
-
-                    {{-- Total Général Final --}}
                     <div class="col-md-4">
                         <div class="card bg-success text-white h-100">
                             <div class="card-header bg-success text-white text-center border-0">
                                 <strong>TOTAL GÉNÉRAL À PAYER</strong>
                             </div>
                             <div class="card-body text-center d-flex align-items-center justify-content-center">
-                                <div style="font-size:2em; font-weight:bold;">
+                                <div style="font-size:2em;font-weight:bold;">
                                     <span id="total-net-final">0.00</span> DZD
                                 </div>
                             </div>
@@ -248,34 +245,35 @@
 @section('js')
 <script src="{{ asset('js/zxing.min.js') }}"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    let index = 0;
-    const tbody = document.getElementById('tbody-articles');
-    const btnAddManual = document.getElementById('btn-add-manual');
-    const inputRemiseGlobale = document.getElementById('remise-globale');
-    const searchInput = document.getElementById('search-article');
-    const searchResults = document.getElementById('search-results');
+document.addEventListener('DOMContentLoaded', function () {
 
-    // ── Articles data from PHP ──────────────────────────────────────────────
+    let index = 0;
+    const tbody              = document.getElementById('tbody-articles');
+    const btnAddManual       = document.getElementById('btn-add-manual');
+    const inputRemiseGlobale = document.getElementById('remise-globale');
+    const searchInput        = document.getElementById('search-article');
+    const searchResults      = document.getElementById('search-results');
+
+    // ── Articles data from PHP ─────────────────────────────────────────────
     const articles = @json($articlesData);
     const articlesMap = {};
     articles.forEach(a => articlesMap[a.id] = a);
 
-    // ── Date/heure automatique ──────────────────────────────────────────────
+    // ── Date / heure automatique ───────────────────────────────────────────
     function updateClock() {
         const now = new Date();
         const formatted = now.toLocaleDateString('fr-DZ', {
             year: 'numeric', month: '2-digit', day: '2-digit'
         }) + '  ' + now.toLocaleTimeString('fr-DZ');
-        document.getElementById('date-heure-display').value = formatted;
+        document.getElementById('date-heure-display').value  = formatted;
         document.getElementById('date_reception_input').value = now.toISOString().slice(0, 10);
     }
     updateClock();
     setInterval(updateClock, 1000);
 
     // ── Fournisseur : résoudre id depuis datalist ──────────────────────────
-    document.getElementById('fournisseur_nom').addEventListener('change', function() {
-        const val = this.value.trim().toLowerCase();
+    document.getElementById('fournisseur_nom').addEventListener('change', function () {
+        const val     = this.value.trim().toLowerCase();
         const options = document.querySelectorAll('#fournisseurs-list option');
         let found = null;
         options.forEach(opt => {
@@ -284,8 +282,8 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('fournisseur_id').value = found ? found.dataset.id : '';
     });
 
-    // ── Barre de recherche article ──────────────────────────────────────────
-    searchInput.addEventListener('input', function() {
+    // ── Barre de recherche article ─────────────────────────────────────────
+    searchInput.addEventListener('input', function () {
         const q = this.value.trim().toLowerCase();
         searchResults.innerHTML = '';
         if (q.length < 1) { searchResults.style.display = 'none'; return; }
@@ -293,7 +291,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const filtered = articles.filter(a =>
             a.nom.toLowerCase().includes(q) ||
             (a.code_barres && a.code_barres.toLowerCase().includes(q)) ||
-            (a.reference && a.reference.toLowerCase().includes(q))
+            (a.reference   && a.reference.toLowerCase().includes(q))
         );
 
         if (filtered.length === 0) {
@@ -304,14 +302,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
         filtered.slice(0, 10).forEach(art => {
             const btn = document.createElement('button');
-            btn.type = 'button';
+            btn.type      = 'button';
             btn.className = 'list-group-item list-group-item-action';
             btn.innerHTML = `
                 <strong>${art.nom}</strong>
                 <span class="badge badge-secondary float-right">${art.reference ?? art.code_barres ?? ''}</span>
                 <br><small class="text-muted">Prix: ${parseFloat(art.prix_achat).toFixed(2)} DZD — Carton: ${art.contenance_carton} pcs</small>
             `;
-            btn.addEventListener('click', function() {
+            btn.addEventListener('click', function () {
                 ajouterLigne(art);
                 searchInput.value = '';
                 searchResults.style.display = 'none';
@@ -322,20 +320,20 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Fermer les résultats si on clique ailleurs
-    document.addEventListener('click', function(e) {
+    document.addEventListener('click', function (e) {
         if (!searchResults.contains(e.target) && e.target !== searchInput) {
             searchResults.style.display = 'none';
         }
     });
 
-    // Scanner : si la valeur est un code-barres exact et appuie Entrée
-    searchInput.addEventListener('keydown', function(e) {
+    // Enter = correspondance exacte par code-barres
+    searchInput.addEventListener('keydown', function (e) {
         if (e.key === 'Enter') {
             e.preventDefault();
-            const q = this.value.trim().toLowerCase();
+            const q     = this.value.trim().toLowerCase();
             const exact = articles.find(a =>
                 (a.code_barres && a.code_barres.toLowerCase() === q) ||
-                (a.reference && a.reference.toLowerCase() === q)
+                (a.reference   && a.reference.toLowerCase()   === q)
             );
             if (exact) {
                 ajouterLigne(exact);
@@ -350,27 +348,25 @@ document.addEventListener('DOMContentLoaded', function() {
         const tr = document.createElement('tr');
         tr.setAttribute('data-index', index);
 
-        const artId       = art ? art.id : '';
-        const artRef = art ? (art.reference || art.code_barres || '') : '';
-        const artNom      = art ? art.nom : '';
-        const artPrix     = art ? parseFloat(art.prix_achat).toFixed(2) : '0.00';
-        const artCarton   = art ? art.contenance_carton : 0;
+        const artId     = art ? art.id : '';
+        const artRef    = art ? (art.reference || art.code_barres || '') : '';
+        const artNom    = art ? art.nom : '';
+        const artPrix   = art ? parseFloat(art.prix_achat).toFixed(2) : '0.00';
+        const artCarton = art ? art.contenance_carton : 0;
 
         tr.innerHTML = `
             <td>
                 <input type="hidden" name="articles[${index}][article_id]" class="input-article-id" value="${artId}">
                 <input type="text"
                        class="form-control form-control-sm text-center input-ref"
-                       value="${artRef}"
-                       placeholder="Code/Réf."
+                       value="${artRef}" placeholder="Code/Réf."
                        data-contenance="${artCarton}"
                        readonly style="background:#f8f9fa;">
             </td>
             <td>
                 <input type="text"
                        class="form-control form-control-sm input-nom"
-                       value="${artNom}"
-                       placeholder="Nom d'article..."
+                       value="${artNom}" placeholder="Nom d'article..."
                        readonly style="background:#f8f9fa;">
             </td>
             <td>
@@ -405,26 +401,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
         tbody.appendChild(tr);
 
-        const inputArticleId = tr.querySelector('.input-article-id');
-        const inputRef       = tr.querySelector('.input-ref');
-        const inputCartons   = tr.querySelector('.input-cartons');
-        const inputPieces    = tr.querySelector('.input-pieces');
-        const inputPrix      = tr.querySelector('.input-prix');
-        const inputRemise    = tr.querySelector('.input-remise');
-        const spanMontant    = tr.querySelector('.montant-ligne');
+        const inputRef     = tr.querySelector('.input-ref');
+        const inputCartons = tr.querySelector('.input-cartons');
+        const inputPieces  = tr.querySelector('.input-pieces');
+        const inputPrix    = tr.querySelector('.input-prix');
+        const inputRemise  = tr.querySelector('.input-remise');
+        const spanMontant  = tr.querySelector('.montant-ligne');
 
         function calculer() {
-            const contenance = parseInt(inputRef.dataset.contenance || 0);
-            const cartons    = parseInt(inputCartons.value) || 0;
-            const pieces     = parseInt(inputPieces.value) || 0;
-            const prix       = parseFloat(inputPrix.value) || 0;
-            const remise     = parseFloat(inputRemise.value) || 0;
-
+            const contenance  = parseInt(inputRef.dataset.contenance || 0);
+            const cartons     = parseInt(inputCartons.value) || 0;
+            const pieces      = parseInt(inputPieces.value)  || 0;
+            const prix        = parseFloat(inputPrix.value)  || 0;
+            const remise      = parseFloat(inputRemise.value) || 0;
             const totalPieces = (cartons * contenance) + pieces;
             const prixNet     = prix * (1 - remise / 100);
-            const montant     = totalPieces * prixNet;
-
-            spanMontant.textContent = montant.toFixed(2);
+            spanMontant.textContent = (totalPieces * prixNet).toFixed(2);
             calculerTotaux();
         }
 
@@ -432,38 +424,33 @@ document.addEventListener('DOMContentLoaded', function() {
             inp.addEventListener('input', calculer);
         });
 
-        tr.querySelector('.btn-supprimer').addEventListener('click', function() {
+        tr.querySelector('.btn-supprimer').addEventListener('click', function () {
             if (confirm('Supprimer cet article ?')) {
                 tr.remove();
                 calculerTotaux();
             }
         });
 
-        // Calcul initial si article pré-rempli
         if (art) calculer();
-
         index++;
     }
 
     // ── Calcul des totaux ──────────────────────────────────────────────────
     function calculerTotaux() {
-        let totalBrut = 0;
-        let sousTotal = 0;
+        let totalBrut = 0, sousTotal = 0;
 
         tbody.querySelectorAll('tr').forEach(tr => {
-            const inputRef    = tr.querySelector('.input-ref');
-            const inputPrix   = tr.querySelector('.input-prix');
-            const inputCartons= tr.querySelector('.input-cartons');
-            const inputPieces = tr.querySelector('.input-pieces');
-            const montant     = parseFloat(tr.querySelector('.montant-ligne')?.textContent || 0);
+            const inputRef     = tr.querySelector('.input-ref');
+            const inputPrix    = tr.querySelector('.input-prix');
+            const inputCartons = tr.querySelector('.input-cartons');
+            const inputPieces  = tr.querySelector('.input-pieces');
+            const montant      = parseFloat(tr.querySelector('.montant-ligne')?.textContent || 0);
+            const contenance   = parseInt(inputRef?.dataset.contenance || 0);
+            const cartons      = parseInt(inputCartons?.value || 0);
+            const pieces       = parseInt(inputPieces?.value || 0);
+            const prix         = parseFloat(inputPrix?.value || 0);
 
-            const contenance  = parseInt(inputRef?.dataset.contenance || 0);
-            const cartons     = parseInt(inputCartons?.value || 0);
-            const pieces      = parseInt(inputPieces?.value || 0);
-            const prix        = parseFloat(inputPrix?.value || 0);
-            const totalPieces = (cartons * contenance) + pieces;
-
-            totalBrut += totalPieces * prix;
+            totalBrut += ((cartons * contenance) + pieces) * prix;
             sousTotal += montant;
         });
 
@@ -492,102 +479,99 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             infoRemiseGlobale.style.display = 'none';
         }
-        // ── Scanner ZXing (même logique que create/index articles) ───────────
-let zxReaderEntree  = null;
-let camStreamEntree = null;
-
-const btnScanEntree      = document.getElementById('btn-scan-entree');
-const btnScanEntreeClose = document.getElementById('btnScanEntreeClose');
-const scanBoxEntree      = document.getElementById('scanBoxEntree');
-const scanStatusEntree   = document.getElementById('scanStatusEntree');
-const scanVideoEntree    = document.getElementById('scanVideoEntree');
-
-btnScanEntree.addEventListener('click', startScanEntree);
-btnScanEntreeClose.addEventListener('click', stopScanEntree);
-
-async function startScanEntree() {
-    scanBoxEntree.classList.remove('d-none');
-    scanStatusEntree.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Accès à la caméra...';
-
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        scanStatusEntree.textContent = '❌ Caméra non disponible sur ce navigateur.';
-        return;
-    }
-
-    try {
-        camStreamEntree = await navigator.mediaDevices.getUserMedia({
-            video: {
-                facingMode: { ideal: 'environment' },
-                width:  { ideal: 1280 },
-                height: { ideal: 720 }
-            },
-            audio: false
-        });
-
-        scanVideoEntree.srcObject = camStreamEntree;
-        await scanVideoEntree.play();
-
-        scanStatusEntree.innerHTML = '<i class="fas fa-camera"></i> Pointez vers le code-barres...';
-
-        zxReaderEntree = new ZXing.BrowserMultiFormatReader();
-        let lastCode = null, votes = 0;
-
-        zxReaderEntree.decodeFromStream(camStreamEntree, scanVideoEntree, (result) => {
-            if (!result) return;
-            const code = result.getText();
-
-            if (code === lastCode) { votes++; }
-            else { lastCode = code; votes = 1; }
-
-            scanStatusEntree.textContent = `Vérification... (${votes}/2) — ${code}`;
-
-            if (votes >= 2) {
-                stopScanEntree();
-
-                // Cherche l'article exact par code-barres
-                const exact = articles.find(a =>
-                    (a.code_barres && a.code_barres.toLowerCase() === code.toLowerCase()) ||
-                    (a.reference   && a.reference.toLowerCase()   === code.toLowerCase())
-                );
-
-                if (exact) {
-                    ajouterLigne(exact);
-                    searchInput.value = '';
-                    searchResults.style.display = 'none';
-                } else {
-                    // Pas trouvé : injecter dans le champ recherche pour afficher suggestions
-                    searchInput.value = code;
-                    searchInput.dispatchEvent(new Event('input'));
-                    searchInput.focus();
-                }
-            }
-        });
-
-    } catch (err) {
-        console.error('Erreur caméra:', err);
-        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-            scanStatusEntree.textContent = '❌ Permission caméra refusée. Autorisez l\'accès dans les réglages.';
-        } else if (err.name === 'NotFoundError') {
-            scanStatusEntree.textContent = '❌ Aucune caméra détectée.';
-        } else {
-            scanStatusEntree.textContent = '❌ Erreur : ' + (err.message || err.name);
-        }
-    }
-}
-
-function stopScanEntree() {
-    if (zxReaderEntree)  { try { zxReaderEntree.reset(); } catch(e) {} zxReaderEntree = null; }
-    if (camStreamEntree) { camStreamEntree.getTracks().forEach(t => t.stop()); camStreamEntree = null; }
-    scanVideoEntree.srcObject = null;
-    scanBoxEntree.classList.add('d-none');
-}
     }
 
     inputRemiseGlobale.addEventListener('input', calculerTotaux);
     btnAddManual.addEventListener('click', () => ajouterLigne());
 
+    // ── Scanner ZXing ──────────────────────────────────────────────────────
+    let zxReaderEntree  = null;
+    let camStreamEntree = null;
+
+    const btnScanEntree      = document.getElementById('btn-scan-entree');
+    const btnScanEntreeClose = document.getElementById('btnScanEntreeClose');
+    const scanBoxEntree      = document.getElementById('scanBoxEntree');
+    const scanStatusEntree   = document.getElementById('scanStatusEntree');
+    const scanVideoEntree    = document.getElementById('scanVideoEntree');
+
+    btnScanEntree.addEventListener('click', startScanEntree);
+    btnScanEntreeClose.addEventListener('click', stopScanEntree);
+
+    async function startScanEntree() {
+        scanBoxEntree.classList.remove('d-none');
+        scanStatusEntree.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Accès à la caméra...';
+
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            scanStatusEntree.textContent = '❌ Caméra non disponible sur ce navigateur.';
+            return;
+        }
+
+        try {
+            camStreamEntree = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    facingMode: { ideal: 'environment' },
+                    width:  { ideal: 1280 },
+                    height: { ideal: 720 }
+                },
+                audio: false
+            });
+
+            scanVideoEntree.srcObject = camStreamEntree;
+            await scanVideoEntree.play();
+
+            scanStatusEntree.innerHTML = '<i class="fas fa-camera"></i> Pointez vers le code-barres...';
+
+            zxReaderEntree = new ZXing.BrowserMultiFormatReader();
+            let lastCode = null, votes = 0;
+
+            zxReaderEntree.decodeFromStream(camStreamEntree, scanVideoEntree, (result) => {
+                if (!result) return;
+                const code = result.getText();
+
+                if (code === lastCode) { votes++; }
+                else { lastCode = code; votes = 1; }
+
+                scanStatusEntree.textContent = `Vérification... (${votes}/2) — ${code}`;
+
+                if (votes >= 2) {
+                    stopScanEntree();
+                    const exact = articles.find(a =>
+                        (a.code_barres && a.code_barres.toLowerCase() === code.toLowerCase()) ||
+                        (a.reference   && a.reference.toLowerCase()   === code.toLowerCase())
+                    );
+                    if (exact) {
+                        ajouterLigne(exact);
+                        searchInput.value = '';
+                        searchResults.style.display = 'none';
+                    } else {
+                        searchInput.value = code;
+                        searchInput.dispatchEvent(new Event('input'));
+                        searchInput.focus();
+                    }
+                }
+            });
+
+        } catch (err) {
+            console.error('Erreur caméra:', err);
+            if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                scanStatusEntree.textContent = '❌ Permission caméra refusée. Autorisez l\'accès dans les réglages.';
+            } else if (err.name === 'NotFoundError') {
+                scanStatusEntree.textContent = '❌ Aucune caméra détectée.';
+            } else {
+                scanStatusEntree.textContent = '❌ Erreur : ' + (err.message || err.name);
+            }
+        }
+    }
+
+    function stopScanEntree() {
+        if (zxReaderEntree)  { try { zxReaderEntree.reset(); } catch (e) {} zxReaderEntree = null; }
+        if (camStreamEntree) { camStreamEntree.getTracks().forEach(t => t.stop()); camStreamEntree = null; }
+        scanVideoEntree.srcObject = null;
+        scanBoxEntree.classList.add('d-none');
+    }
+
     // ── Validation à la soumission ─────────────────────────────────────────
-    document.getElementById('entree-form').addEventListener('submit', function(e) {
+    document.getElementById('entree-form').addEventListener('submit', function (e) {
         if (tbody.children.length === 0) {
             e.preventDefault();
             alert('Vous devez ajouter au moins un article !');
@@ -606,31 +590,19 @@ function stopScanEntree() {
             return false;
         }
     });
-});
+
+}); // fin DOMContentLoaded
 </script>
 @stop
 
 @section('css')
 <style>
-    .table td, .table th {
-        vertical-align: middle !important;
-    }
-    .is-invalid {
-        border-color: #dc3545 !important;
-    }
-    #total-net-final {
-        font-size: 2em;
-    }
-    #search-results {
-        border-radius: 0 0 8px 8px;
-    }
-    .list-group-item:hover {
-        background-color: #e9f5ff;
-        cursor: pointer;
-    }
-    .card-header {
-        font-size: 1em;
-    }
-    #scanBoxEntree video { background: #000; }
+    .table td, .table th { vertical-align: middle !important; }
+    .is-invalid          { border-color: #dc3545 !important; }
+    #total-net-final     { font-size: 2em; }
+    #search-results      { border-radius: 0 0 8px 8px; }
+    .list-group-item:hover { background-color: #e9f5ff; cursor: pointer; }
+    .card-header         { font-size: 1em; }
+    #scanBoxEntree video  { background: #000; }
 </style>
 @stop
