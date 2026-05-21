@@ -614,41 +614,83 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
 
-    // ── Caméra scanner ────────────────────────────────────
-    let zxReader = null;
-    const btnCamera     = document.getElementById('btnCamera');
-    const btnCameraClose = document.getElementById('btnCameraClose');
-    const cameraBox     = document.getElementById('cameraBox');
-    const cameraStatus  = document.getElementById('cameraStatus');
+    let zxReader  = null;
+let camStream = null;
 
-    btnCamera.addEventListener('click', async () => {
-        cameraBox.classList.remove('d-none');
-        cameraStatus.textContent = 'Ouverture de la caméra...';
-        try {
-            zxReader = new ZXing.BrowserMultiFormatReader();
-            const devices = await zxReader.listVideoInputDevices();
-            let dId = devices[0]?.deviceId;
-            const back = devices.find(d => /back|arrière|environment/i.test(d.label));
-            if (back) dId = back.deviceId;
-            cameraStatus.textContent = 'Pointez vers le code-barres...';
-            await zxReader.decodeFromVideoDevice(dId, 'cameraVideo', (result) => {
-                if (!result) return;
-                document.getElementById('barcodeInput').value = result.getText();
-                cameraStatus.textContent = '✅ Détecté : ' + result.getText();
-                stopCamera();
-                setTimeout(() => document.getElementById('filterForm').submit(), 500);
-            });
-        } catch(e) {
-            cameraStatus.textContent = '❌ ' + e.message;
-        }
-    });
+const btnCamera      = document.getElementById('btnCamera');
+const btnCameraClose = document.getElementById('btnCameraClose');
+const cameraBox      = document.getElementById('cameraBox');
+const cameraStatus   = document.getElementById('cameraStatus');
+const cameraVideo    = document.getElementById('cameraVideo');
 
-    function stopCamera() {
-        if (zxReader) { zxReader.reset(); zxReader = null; }
-        cameraBox.classList.add('d-none');
+btnCamera.addEventListener('click', startCamera);
+btnCameraClose.addEventListener('click', stopCamera);
+
+async function startCamera() {
+    cameraBox.classList.remove('d-none');
+    cameraStatus.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Accès à la caméra...';
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        cameraStatus.textContent = '❌ Caméra non disponible sur ce navigateur.';
+        return;
     }
-    btnCameraClose.addEventListener('click', stopCamera);
 
+    try {
+        // 1. Obtenir le stream manuellement
+        camStream = await navigator.mediaDevices.getUserMedia({
+            video: {
+                facingMode: { ideal: 'environment' },
+                width:  { ideal: 1280 },
+                height: { ideal: 720 }
+            },
+            audio: false
+        });
+
+        // 2. Affecter à la vidéo
+        cameraVideo.srcObject = camStream;
+        await cameraVideo.play();
+
+        cameraStatus.innerHTML = '<i class="fas fa-camera"></i> Pointez vers le code-barres...';
+
+        // 3. ZXing avec système de vote (2 lectures identiques)
+        zxReader = new ZXing.BrowserMultiFormatReader();
+        let lastCode = null, votes = 0;
+
+        zxReader.decodeFromStream(camStream, cameraVideo, (result, err) => {
+            if (!result) return;
+            const code = result.getText();
+
+            if (code === lastCode) { votes++; } 
+            else { lastCode = code; votes = 1; }
+
+            cameraStatus.textContent = `Vérification... (${votes}/2) — ${code}`;
+
+            if (votes >= 2) {
+                document.getElementById('barcodeInput').value = code;
+                cameraStatus.textContent = '✅ Détecté : ' + code;
+                stopCamera();
+                setTimeout(() => document.getElementById('filterForm').submit(), 400);
+            }
+        });
+
+    } catch (err) {
+        console.error('Erreur caméra:', err);
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+            cameraStatus.textContent = '❌ Permission caméra refusée. Autorisez l\'accès dans les réglages.';
+        } else if (err.name === 'NotFoundError') {
+            cameraStatus.textContent = '❌ Aucune caméra détectée sur cet appareil.';
+        } else {
+            cameraStatus.textContent = '❌ Erreur : ' + (err.message || err.name);
+        }
+    }
+}
+
+function stopCamera() {
+    if (zxReader)   { try { zxReader.reset(); } catch(e) {} zxReader = null; }
+    if (camStream)  { camStream.getTracks().forEach(t => t.stop()); camStream = null; }
+    cameraVideo.srcObject = null;
+    cameraBox.classList.add('d-none');
+}
     document.addEventListener('keydown', e => {
         if (e.key === 'Escape') {
             closePopup('popupDetail');
