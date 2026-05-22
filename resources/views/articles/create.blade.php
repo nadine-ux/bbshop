@@ -505,18 +505,45 @@
 </style>
 @stop
 
-@section('js')
 {{--
-    SCANNER : ZXing uniquement
-    - Fonctionne sur iOS Safari, Android Chrome, Desktop
-    - Gestion correcte du stream caméra (stop propre à chaque fermeture)
-    - Fallback image (ZXing decode depuis fichier)
-    - Fallback saisie manuelle
+    ╔══════════════════════════════════════════════════════════════╗
+    ║  SCANNER COMPLET — section @section('js')                   ║
+    ║  Priorité : BarcodeDetector natif → Polyfill WASM → ZXing   ║
+    ╚══════════════════════════════════════════════════════════════╝
 --}}
-<script src="https://unpkg.com/@zxing/library@0.18.6/umd/index.min.js"></script>
+
+@section('js')
+
+{{-- Polyfill BarcodeDetector (iOS Safari, Firefox) --}}
+<script src="https://cdn.jsdelivr.net/npm/@undecaf/barcode-detector-polyfill@0.9.21/dist/index.js"></script>
+
+{{-- ZXing (fallback ultime pour vieux iOS / WebAssembly absent) --}}
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/index.min.js"></script>
+
 <script>
 
-// ── Données PHP → JS ──────────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+//  1. INIT BarcodeDetector — une seule fois, globalement
+// ══════════════════════════════════════════════════════════════
+(function initBarcodeDetector() {
+    if (typeof BarcodeDetector !== 'undefined') return; // natif dispo
+
+    // Le polyfill @undecaf expose le constructeur sous plusieurs noms
+    // selon la version du CDN — on teste les trois variantes
+    const poly =
+        window.BarcodeDetectorPolyfill ||
+        (window.barcodeDetectorPolyfill && window.barcodeDetectorPolyfill.BarcodeDetectorPolyfill) ||
+        (window['barcode-detector-polyfill'] && window['barcode-detector-polyfill'].BarcodeDetectorPolyfill);
+
+    if (poly) {
+        window.BarcodeDetector = poly;
+        console.log('[Scanner] BarcodeDetector : polyfill WASM activé');
+    } else {
+        console.warn('[Scanner] BarcodeDetector : polyfill introuvable — ZXing sera utilisé en fallback');
+    }
+})();
+
+// ── Données PHP → JS ──────────────────────────────────────────
 @php
     if (!function_exists('flattenCategories')) {
         function flattenCategories($cats, $depth = 0) {
@@ -535,18 +562,29 @@
 const allCategories = {!! json_encode($flatCategories) !!};
 const allMarques    = {!! json_encode($marques->map(fn($m) => ['id'=>$m->id,'nom'=>$m->nom])->values()) !!};
 
-// ── State global ──────────────────────────────────────────
-let bcCounter   = 0;
-let activeRowId = null;   // id de la ligne en cours de scan
-let camStream   = null;   // MediaStream actif
-let zxReader    = null;   // instance ZXing BrowserMultiFormatReader
+// ── State global ───────────────────────────────────────────────
+let bcCounter    = 0;
+let activeRowId  = null;
+let camStream    = null;
+let detector     = null;    // BarcodeDetector instance (natif/polyfill)
+let zxingReader  = null;    // ZXing fallback instance
+let rafId        = null;
+let lastCode     = null;
+let votes        = 0;
+let useZXing     = false;   // true si BarcodeDetector non dispo
 
-// ══════════════════════════════════════════════════════════
-//  DOMContentLoaded
-// ══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
+//  2. DOMContentLoaded
+// ══════════════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', function () {
 
-    // ── Init lignes barcode (old values ou 1 vide) ──────
+    // Détecter si on devra basculer sur ZXing
+    useZXing = (typeof BarcodeDetector === 'undefined');
+    if (useZXing) {
+        console.warn('[Scanner] BarcodeDetector absent → mode ZXing');
+    }
+
+    // ── Init lignes barcode (old values ou 1 vide) ──────────
     @if(old('barcodes'))
         const oldBarcodes = Object.values({!! json_encode(old('barcodes')) !!});
         oldBarcodes.forEach((b, i) => addBarcodeRow(i === 0, b));
@@ -556,43 +594,72 @@ document.addEventListener('DOMContentLoaded', function () {
         addBarcodeRow(true);
     @endif
 
-    // ── Bouton ajouter ──────────────────────────────────
+    // ── Bouton ajouter ──────────────────────────────────────
     document.getElementById('btnAddBarcode')
             .addEventListener('click', () => addBarcodeRow(false));
 
-    // ── Fermer modal ────────────────────────────────────
+    // ── Fermer modal ────────────────────────────────────────
     document.getElementById('btnCloseScan')
             .addEventListener('click', closeScan);
 
-    // ── Clic hors modal → fermer ────────────────────────
+    // ── Clic hors modal → fermer ────────────────────────────
     document.getElementById('scanModal')
             .addEventListener('click', function (e) {
                 if (e.target === this) closeScan();
             });
 
-    // ── Fichier image → ZXing decode ───────────────────
+    // ── Fichier image → BarcodeDetector ou ZXing ────────────
     document.getElementById('scanImageInput')
             .addEventListener('change', async function () {
         if (!this.files?.[0] || activeRowId === null) return;
         const statusEl = document.getElementById('scanFileStatus');
         statusEl.textContent = '⏳ Analyse en cours...';
-        try {
-            const reader = new ZXing.BrowserMultiFormatReader();
-            const url    = URL.createObjectURL(this.files[0]);
-            const result = await reader.decodeFromImageUrl(url);
-            URL.revokeObjectURL(url);
-            applyCode(result.getText());
-        } catch {
-            statusEl.textContent = '❌ Aucun code-barres détecté dans cette image.';
+
+        if (!useZXing && typeof BarcodeDetector !== 'undefined') {
+            // ── BarcodeDetector (natif/polyfill) ────────────
+            const img = new Image();
+            img.src = URL.createObjectURL(this.files[0]);
+            await img.decode().catch(() => {});
+            try {
+                const det = new BarcodeDetector({
+                    formats: ['ean_13','ean_8','code_128','code_39',
+                              'qr_code','data_matrix','upc_a','upc_e','itf']
+                });
+                const results = await det.detect(img);
+                URL.revokeObjectURL(img.src);
+                if (results.length > 0) {
+                    applyCode(results[0].rawValue);
+                } else {
+                    statusEl.textContent = '❌ Aucun code-barres détecté dans cette image.';
+                }
+            } catch(e) {
+                URL.revokeObjectURL(img.src);
+                statusEl.textContent = '❌ Erreur : ' + e.message;
+            }
+        } else {
+            // ── ZXing fallback ───────────────────────────────
+            if (typeof ZXing === 'undefined') {
+                statusEl.textContent = '❌ Aucun scanner disponible sur cet appareil.';
+                return;
+            }
+            try {
+                const reader = new ZXing.BrowserMultiFormatReader();
+                const result = await reader.decodeFromImageUrl(
+                    URL.createObjectURL(this.files[0])
+                );
+                applyCode(result.getText());
+            } catch(e) {
+                statusEl.textContent = '❌ Aucun code-barres détecté dans cette image.';
+            }
         }
         this.value = '';
     });
 
-    // ── Photo upload ────────────────────────────────────
+    // ── Photo upload ────────────────────────────────────────
     document.getElementById('uploadArea')
             .addEventListener('click', () => document.getElementById('photoInput').click());
 
-    // ── Widgets recherche catégorie & marque ────────────
+    // ── Widgets recherche catégorie & marque ────────────────
     const catWidget = makeSearchWidget({
         searchInputId:'categorieSearch', dropdownId:'categoryDropdown',
         listId:'categoryList', emptyId:'categoryEmpty',
@@ -631,7 +698,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (preSelMarque) marqueWidget.selectItem(preSelMarque);
     @endif
 
-    // ── Validation formulaire ───────────────────────────
+    // ── Validation formulaire ───────────────────────────────
     document.querySelector('form').addEventListener('submit', function (e) {
 
         if (!document.getElementById('categorie_id').value) {
@@ -671,9 +738,9 @@ document.addEventListener('DOMContentLoaded', function () {
 }); // fin DOMContentLoaded
 
 
-// ══════════════════════════════════════════════════════════
-//  GESTION LIGNES BARCODE
-// ══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
+//  3. GESTION LIGNES BARCODE
+// ══════════════════════════════════════════════════════════════
 
 function addBarcodeRow(isPrimary = false, data = {}) {
     const id  = ++bcCounter;
@@ -766,15 +833,10 @@ function ensureOnePrimary() {
 }
 
 
-// ══════════════════════════════════════════════════════════
-//  SCANNER ZXing
-// ══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
+//  4. SCANNER — Modal & dispatch
+// ══════════════════════════════════════════════════════════════
 
-/**
- * Ouvre la modal et démarre directement la méthode souhaitée
- * @param {number} rowId - id de la ligne barcode
- * @param {string} method - 'camera' | 'file' | 'manual'
- */
 function openScanModal(rowId, method) {
     activeRowId = rowId;
     resetScanSections();
@@ -788,8 +850,10 @@ function resetScanSections() {
         document.getElementById(id).classList.add('d-none');
     });
     document.querySelectorAll('.btn-method').forEach(b => b.classList.remove('active'));
-    document.getElementById('scanFileStatus').textContent = '';
-    document.getElementById('scanManualInput').value = '';
+    const statusEl = document.getElementById('scanFileStatus');
+    if (statusEl) statusEl.textContent = '';
+    const manualEl = document.getElementById('scanManualInput');
+    if (manualEl) manualEl.value = '';
 }
 
 function closeScan() {
@@ -798,31 +862,30 @@ function closeScan() {
     activeRowId = null;
 }
 
-/**
- * Arrête proprement le stream caméra et ZXing
- */
 function stopCamStream() {
-    // Stopper ZXing
-    if (zxReader) {
-        try { zxReader.reset(); } catch(e) {}
-        zxReader = null;
+    // Stopper la boucle RAF (BarcodeDetector)
+    if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+    detector = null;
+    lastCode = null;
+    votes    = 0;
+
+    // Stopper ZXing si actif
+    if (zxingReader) {
+        try { zxingReader.reset(); } catch(e) {}
+        zxingReader = null;
     }
-    // Stopper les pistes MediaStream
+
+    // Stopper le stream caméra
     if (camStream) {
         camStream.getTracks().forEach(t => t.stop());
         camStream = null;
     }
-    // Vider la vidéo
     const video = document.getElementById('scanVideo');
-    if (video) { video.srcObject = null; }
+    if (video) { video.srcObject = null; video.load(); }
 }
 
-/**
- * Active une méthode de scan
- */
 function scanStart(method) {
     resetScanSections();
-
     const btnMap = { camera:'btnMethodCamera', file:'btnMethodFile', manual:'btnMethodManual' };
     const el = document.getElementById(btnMap[method]);
     if (el) el.classList.add('active');
@@ -838,96 +901,184 @@ function scanStart(method) {
     }
 }
 
-/**
- * Démarre la caméra via ZXing BrowserMultiFormatReader
- * Compatible iOS Safari (getUserMedia + decodeFromStream)
- */
+
+// ══════════════════════════════════════════════════════════════
+//  5. CAMÉRA — BarcodeDetector (natif / polyfill WASM)
+// ══════════════════════════════════════════════════════════════
+
 async function startCamera() {
     const statusEl = document.getElementById('scanStatus');
     const video    = document.getElementById('scanVideo');
     statusEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Accès à la caméra...';
 
-    // Vérifier que getUserMedia est disponible
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    if (!navigator.mediaDevices?.getUserMedia) {
         statusEl.textContent = '❌ Caméra non disponible sur ce navigateur.';
         return;
     }
 
+    // ── Tenter BarcodeDetector ──────────────────────────────
+    if (!useZXing) {
+        try {
+            detector = new BarcodeDetector({
+                formats: ['ean_13','ean_8','code_128','code_39',
+                          'qr_code','data_matrix','upc_a','upc_e','itf']
+            });
+        } catch(e) {
+            console.warn('[Scanner] BarcodeDetector instanciation échouée, bascule ZXing :', e.message);
+            useZXing = true;
+            detector = null;
+        }
+    }
+
+    // ── Ouvrir le flux caméra ───────────────────────────────
     try {
-        // 1. Obtenir le stream manuellement (donne la main sur les contraintes)
         camStream = await navigator.mediaDevices.getUserMedia({
             video: {
-                facingMode: { ideal: 'environment' },  // caméra arrière sur mobile
-                width:  { ideal: 1280 },
-                height: { ideal: 720 }
+                facingMode : { ideal: 'environment' },
+                width      : { ideal: 1920 },
+                height     : { ideal: 1080 }
             },
             audio: false
         });
-
-        // 2. Affecter le stream à la vidéo
         video.srcObject = camStream;
         await video.play();
 
-        statusEl.innerHTML = '<i class="fas fa-camera"></i> Pointez vers le code-barres...';
-
-        // 3. Créer le reader ZXing et décoder en continu
-        zxReader = new ZXing.BrowserMultiFormatReader();
-
-        // Système de vote : 2 lectures identiques consécutives pour valider
-        let lastCode = null;
-        let votes    = 0;
-
-        // decodeFromStream est la méthode correcte pour un stream déjà actif
-        zxReader.decodeFromStream(camStream, video, (result, err) => {
-            if (!result) return;  // pas encore de code détecté, on attend
-
-            const code = result.getText();
-
-            if (code === lastCode) {
-                votes++;
-            } else {
-                lastCode = code;
-                votes    = 1;
+        // Torche LED (si supportée)
+        try {
+            const track = camStream.getVideoTracks()[0];
+            const caps  = track.getCapabilities?.() || {};
+            if (caps.torch) {
+                await track.applyConstraints({ advanced: [{ torch: true }] });
             }
+        } catch(e) { /* torche non supportée */ }
 
-            statusEl.textContent = 'Vérification... (' + votes + '/2) — ' + code;
-
-            if (votes >= 2) {
-                applyCode(code);
-            }
-        });
-
-    } catch (err) {
-        console.error('Erreur caméra:', err);
+    } catch(err) {
+        console.error('[Scanner] Erreur getUserMedia :', err);
         if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
             statusEl.textContent = '❌ Permission caméra refusée. Autorisez l\'accès dans les réglages.';
         } else if (err.name === 'NotFoundError') {
             statusEl.textContent = '❌ Aucune caméra détectée sur cet appareil.';
         } else {
-            statusEl.textContent = '❌ Erreur : ' + (err.message || err.name);
+            statusEl.textContent = '❌ Erreur caméra : ' + (err.message || err.name);
         }
+        return;
+    }
+
+    // ── Lancer la boucle de détection ───────────────────────
+    if (!useZXing) {
+        statusEl.innerHTML = '<i class="fas fa-camera"></i> Pointez vers le code-barres...';
+        lastCode = null;
+        votes    = 0;
+        rafLoop(video, statusEl);
+    } else {
+        startCameraZXing(video, statusEl);
     }
 }
 
-/**
- * Applique le code détecté dans le champ barcode actif
- */
+// ──────────────────────────────────────────────────────────────
+//  5a. Boucle RAF — BarcodeDetector (natif / polyfill WASM)
+// ──────────────────────────────────────────────────────────────
+async function rafLoop(video, statusEl) {
+    if (!detector || !camStream) return;
+
+    if (video.readyState < video.HAVE_ENOUGH_DATA) {
+        rafId = requestAnimationFrame(() => rafLoop(video, statusEl));
+        return;
+    }
+
+    try {
+        const results = await detector.detect(video);
+        if (results.length > 0) {
+            const code = results[0].rawValue;
+            if (code === lastCode) {
+                votes++;
+                statusEl.textContent = 'Vérification... (' + votes + '/2) — ' + code;
+            } else {
+                lastCode = code;
+                votes    = 1;
+                statusEl.textContent = 'Code détecté, confirmation... — ' + code;
+            }
+            if (votes >= 2) {
+                applyCode(code);
+                return; // stoppe la boucle
+            }
+        }
+    } catch(e) {
+        // frame ignorée si VideoFrame pas encore disponible (normal au démarrage)
+    }
+
+    rafId = requestAnimationFrame(() => rafLoop(video, statusEl));
+}
+
+// ──────────────────────────────────────────────────────────────
+//  5b. ZXing fallback caméra
+//  Utilisé quand BarcodeDetector est totalement absent
+// ──────────────────────────────────────────────────────────────
+function startCameraZXing(video, statusEl) {
+    if (typeof ZXing === 'undefined') {
+        statusEl.textContent = '❌ Aucun scanner disponible sur cet appareil (ZXing absent).';
+        return;
+    }
+
+    statusEl.innerHTML = '<i class="fas fa-camera"></i> Mode compatibilité — pointez le code...';
+
+    try {
+        const hints = new Map();
+        hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+            ZXing.BarcodeFormat.EAN_13,
+            ZXing.BarcodeFormat.EAN_8,
+            ZXing.BarcodeFormat.CODE_128,
+            ZXing.BarcodeFormat.CODE_39,
+            ZXing.BarcodeFormat.QR_CODE,
+            ZXing.BarcodeFormat.DATA_MATRIX,
+            ZXing.BarcodeFormat.UPC_A,
+            ZXing.BarcodeFormat.UPC_E
+        ]);
+        hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+
+        zxingReader = new ZXing.BrowserMultiFormatReader(hints);
+
+        // Utiliser le stream déjà ouvert (pas d'appel getUserMedia supplémentaire)
+        zxingReader.decodeFromStream(camStream, video, (result, err) => {
+            if (result) {
+                zxingReader.reset();
+                zxingReader = null;
+                applyCode(result.getText());
+            }
+            // err est lancé à chaque frame sans code → on ignore silencieusement
+        });
+
+    } catch(e) {
+        statusEl.textContent = '❌ Erreur ZXing : ' + e.message;
+    }
+}
+
+
+// ══════════════════════════════════════════════════════════════
+//  6. Appliquer le code dans le champ barcode actif
+// ══════════════════════════════════════════════════════════════
 function applyCode(code) {
     if (activeRowId === null) return;
 
     const input = document.getElementById('bc-input-' + activeRowId);
     if (input) {
         input.value = code;
-        // Flash vert
         input.style.borderColor = '#27ae60';
         input.style.background  = '#f0fdf4';
-        setTimeout(() => { input.style.borderColor = ''; input.style.background = ''; }, 1500);
+        setTimeout(() => {
+            input.style.borderColor = '';
+            input.style.background  = '';
+        }, 1500);
     }
 
     showToast('✅ Code détecté : ' + code);
     closeScan();
 }
 
+
+// ══════════════════════════════════════════════════════════════
+//  7. Saisie manuelle
+// ══════════════════════════════════════════════════════════════
 function scanConfirmManual() {
     const val = document.getElementById('scanManualInput').value.trim();
     if (!val) {
@@ -949,9 +1100,9 @@ document.addEventListener('keydown', function (e) {
 });
 
 
-// ══════════════════════════════════════════════════════════
-//  WIDGET RECHERCHE (catégorie & marque)
-// ══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
+//  8. WIDGET RECHERCHE (catégorie & marque)
+// ══════════════════════════════════════════════════════════════
 function makeSearchWidget(config) {
     const {
         searchInputId, dropdownId, listId, emptyId,
@@ -1034,9 +1185,9 @@ function makeSearchWidget(config) {
 }
 
 
-// ══════════════════════════════════════════════════════════
-//  PHOTO
-// ══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
+//  9. PHOTO
+// ══════════════════════════════════════════════════════════════
 function previewImage(input) {
     if (input.files && input.files[0]) {
         const reader = new FileReader();
@@ -1057,9 +1208,9 @@ function removeImage() {
 }
 
 
-// ══════════════════════════════════════════════════════════
-//  HELPERS
-// ══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
+//  10. HELPERS
+// ══════════════════════════════════════════════════════════════
 function escHtml(str) {
     return String(str).replace(/[&<>"']/g,
         c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
