@@ -873,15 +873,7 @@ async function startCamera() {
         // 3. Créer le reader ZXing et décoder en continu
         zxReader = new ZXing.BrowserMultiFormatReader();
 
-        // Système de vote : 2 lectures identiques consécutives pour valider
-        let lastCode = null;
-        let votes    = 0;
-
-        // decodeFromStream est la méthode correcte pour un stream déjà actif
         zxReader.decodeFromStream(camStream, video, (result, err) => {
-            if (!result) return;  // pas encore de code détecté, on attend
-
-            zxReader.decodeFromStream(camStream, video, (result, err) => {
             if (!result) return;
             applyCode(result.getText());
         });
