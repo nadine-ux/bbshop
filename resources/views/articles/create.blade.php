@@ -290,12 +290,8 @@
 
         {{-- Section caméra --}}
         <div id="scanCamSection" class="d-none">
-            <div class="scan-viewport">
-                <video id="scanVideo" playsinline autoplay muted></video>
-                <div class="scan-overlay">
-                    <div class="scan-frame"><div class="scan-line"></div></div>
-                    <p class="scan-hint">Pointez vers le code-barres</p>
-                </div>
+           <div class="scan-viewport">
+                <div id="scanVideo" style="width:100%"></div>
             </div>
             <div id="scanStatus" class="scan-status">
                 <i class="fas fa-spinner fa-spin"></i> Démarrage caméra...
@@ -513,7 +509,7 @@
     - Fallback image (ZXing decode depuis fichier)
     - Fallback saisie manuelle
 --}}
-<script src="https://unpkg.com/@zxing/library@0.18.6/umd/index.min.js"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script>
 
 // ── Données PHP → JS ──────────────────────────────────────
@@ -538,8 +534,7 @@ const allMarques    = {!! json_encode($marques->map(fn($m) => ['id'=>$m->id,'nom
 // ── State global ──────────────────────────────────────────
 let bcCounter   = 0;
 let activeRowId = null;   // id de la ligne en cours de scan
-let camStream   = null;   // MediaStream actif
-let zxReader    = null;   // instance ZXing BrowserMultiFormatReader
+let html5Scanner = null;  // instance html5-qrcode
 
 // ══════════════════════════════════════════════════════════
 //  DOMContentLoaded
@@ -802,17 +797,12 @@ function closeScan() {
  * Arrête proprement le stream caméra et ZXing
  */
 function stopCamStream() {
-    // Stopper ZXing
-    if (zxReader) {
-        try { zxReader.reset(); } catch(e) {}
-        zxReader = null;
+    if (html5Scanner) {
+        try {
+            html5Scanner.stop().catch(() => {});
+        } catch(e) {}
+        html5Scanner = null;
     }
-    // Stopper les pistes MediaStream
-    if (camStream) {
-        camStream.getTracks().forEach(t => t.stop());
-        camStream = null;
-    }
-    // Vider la vidéo
     const video = document.getElementById('scanVideo');
     if (video) { video.srcObject = null; }
 }
@@ -844,48 +834,35 @@ function scanStart(method) {
  */
 async function startCamera() {
     const statusEl = document.getElementById('scanStatus');
-    const video    = document.getElementById('scanVideo');
     statusEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Accès à la caméra...';
 
-    // Vérifier que getUserMedia est disponible
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        statusEl.textContent = '❌ Caméra non disponible sur ce navigateur.';
-        return;
-    }
-
     try {
-        // 1. Obtenir le stream manuellement (donne la main sur les contraintes)
-        camStream = await navigator.mediaDevices.getUserMedia({
-            video: {
-                facingMode: { ideal: 'environment' },  // caméra arrière sur mobile
-                width:  { ideal: 1280 },
-                height: { ideal: 720 }
-            },
-            audio: false
-        });
+        html5Scanner = new Html5Qrcode('scanVideo');
 
-        // 2. Affecter le stream à la vidéo
-        video.srcObject = camStream;
-        await video.play();
+        await html5Scanner.start(
+            { facingMode: 'environment' },
+            {
+                fps: 15,
+                qrbox: { width: 250, height: 120 },
+                supportedScanTypes: [
+                    Html5QrcodeScanType.SCAN_TYPE_CAMERA
+                ]
+            },
+            (decodedText) => {
+                applyCode(decodedText);
+            },
+            () => {} // erreurs silencieuses (frame sans code)
+        );
 
         statusEl.innerHTML = '<i class="fas fa-camera"></i> Pointez vers le code-barres...';
 
-        // 3. Créer le reader ZXing et décoder en continu
-        zxReader = new ZXing.BrowserMultiFormatReader();
-
-        zxReader.decodeFromStream(camStream, video, (result, err) => {
-            if (!result) return;
-            applyCode(result.getText());
-        });
-
     } catch (err) {
-        console.error('Erreur caméra:', err);
-        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-            statusEl.textContent = '❌ Permission caméra refusée. Autorisez l\'accès dans les réglages.';
+        if (err.name === 'NotAllowedError' || String(err).includes('permission')) {
+            statusEl.textContent = '❌ Permission caméra refusée.';
         } else if (err.name === 'NotFoundError') {
-            statusEl.textContent = '❌ Aucune caméra détectée sur cet appareil.';
+            statusEl.textContent = '❌ Aucune caméra détectée.';
         } else {
-            statusEl.textContent = '❌ Erreur : ' + (err.message || err.name);
+            statusEl.textContent = '❌ Erreur : ' + (err.message || err);
         }
     }
 }
