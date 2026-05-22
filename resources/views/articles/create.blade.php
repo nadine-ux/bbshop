@@ -881,20 +881,9 @@ async function startCamera() {
         zxReader.decodeFromStream(camStream, video, (result, err) => {
             if (!result) return;  // pas encore de code détecté, on attend
 
-            const code = result.getText();
-
-            if (code === lastCode) {
-                votes++;
-            } else {
-                lastCode = code;
-                votes    = 1;
-            }
-
-            statusEl.textContent = 'Vérification... (' + votes + '/2) — ' + code;
-
-            if (votes >= 2) {
-                applyCode(code);
-            }
+            zxReader.decodeFromStream(camStream, video, (result, err) => {
+            if (!result) return;
+            applyCode(result.getText());
         });
 
     } catch (err) {
