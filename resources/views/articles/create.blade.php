@@ -513,8 +513,7 @@
     - Fallback image (ZXing decode depuis fichier)
     - Fallback saisie manuelle
 --}}
-@section('js')
-<script src="https://cdn.jsdelivr.net/npm/@undecaf/barcode-detector-polyfill@0.9.21/dist/index.js"></script>
+<script src="https://unpkg.com/@zxing/library@0.18.6/umd/index.min.js"></script>
 <script>
 
 // ── Données PHP → JS ──────────────────────────────────────
@@ -538,26 +537,14 @@ const allMarques    = {!! json_encode($marques->map(fn($m) => ['id'=>$m->id,'nom
 
 // ── State global ──────────────────────────────────────────
 let bcCounter   = 0;
-let activeRowId = null;
-let camStream   = null;
-let detector    = null;
-let rafId       = null;
-let lastCode    = null;
-let votes       = 0;
+let activeRowId = null;   // id de la ligne en cours de scan
+let camStream   = null;   // MediaStream actif
+let zxReader    = null;   // instance ZXing BrowserMultiFormatReader
 
 // ══════════════════════════════════════════════════════════
 //  DOMContentLoaded
 // ══════════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', function () {
-
-    // ── Init BarcodeDetector (natif ou polyfill WASM) ───
-    try {
-        if (typeof BarcodeDetector === 'undefined') {
-            window.BarcodeDetector = barcodeDetectorPolyfill.BarcodeDetectorPolyfill;
-        }
-    } catch(e) {
-        console.warn('BarcodeDetector polyfill non chargé :', e);
-    }
 
     // ── Init lignes barcode (old values ou 1 vide) ──────
     @if(old('barcodes'))
@@ -583,34 +570,20 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (e.target === this) closeScan();
             });
 
-    // ── Fichier image → BarcodeDetector decode ──────────
+    // ── Fichier image → ZXing decode ───────────────────
     document.getElementById('scanImageInput')
             .addEventListener('change', async function () {
         if (!this.files?.[0] || activeRowId === null) return;
         const statusEl = document.getElementById('scanFileStatus');
         statusEl.textContent = '⏳ Analyse en cours...';
-
-        const img = new Image();
-        img.src = URL.createObjectURL(this.files[0]);
-        await img.decode();
-
         try {
-            if (!detector) {
-                detector = new BarcodeDetector({
-                    formats: ['ean_13','ean_8','code_128','code_39',
-                              'qr_code','data_matrix','upc_a','upc_e','itf']
-                });
-            }
-            const results = await detector.detect(img);
-            URL.revokeObjectURL(img.src);
-
-            if (results.length > 0) {
-                applyCode(results[0].rawValue);
-            } else {
-                statusEl.textContent = '❌ Aucun code-barres détecté dans cette image.';
-            }
-        } catch(e) {
-            statusEl.textContent = '❌ Erreur : ' + e.message;
+            const reader = new ZXing.BrowserMultiFormatReader();
+            const url    = URL.createObjectURL(this.files[0]);
+            const result = await reader.decodeFromImageUrl(url);
+            URL.revokeObjectURL(url);
+            applyCode(result.getText());
+        } catch {
+            statusEl.textContent = '❌ Aucun code-barres détecté dans cette image.';
         }
         this.value = '';
     });
@@ -794,10 +767,14 @@ function ensureOnePrimary() {
 
 
 // ══════════════════════════════════════════════════════════
-//  SCANNER — BarcodeDetector (natif Chrome/Android)
-//            + Polyfill WASM (iOS Safari / Firefox)
+//  SCANNER ZXing
 // ══════════════════════════════════════════════════════════
 
+/**
+ * Ouvre la modal et démarre directement la méthode souhaitée
+ * @param {number} rowId - id de la ligne barcode
+ * @param {string} method - 'camera' | 'file' | 'manual'
+ */
 function openScanModal(rowId, method) {
     activeRowId = rowId;
     resetScanSections();
@@ -821,21 +798,28 @@ function closeScan() {
     activeRowId = null;
 }
 
+/**
+ * Arrête proprement le stream caméra et ZXing
+ */
 function stopCamStream() {
-    // Stopper la boucle RAF
-    if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
-    detector = null;
-    lastCode = null;
-    votes    = 0;
-    // Stopper le stream caméra
+    // Stopper ZXing
+    if (zxReader) {
+        try { zxReader.reset(); } catch(e) {}
+        zxReader = null;
+    }
+    // Stopper les pistes MediaStream
     if (camStream) {
         camStream.getTracks().forEach(t => t.stop());
         camStream = null;
     }
+    // Vider la vidéo
     const video = document.getElementById('scanVideo');
-    if (video) video.srcObject = null;
+    if (video) { video.srcObject = null; }
 }
 
+/**
+ * Active une méthode de scan
+ */
 function scanStart(method) {
     resetScanSections();
 
@@ -854,66 +838,67 @@ function scanStart(method) {
     }
 }
 
-// ──────────────────────────────────────────────────────────
-//  startCamera — getUserMedia + BarcodeDetector RAF loop
-// ──────────────────────────────────────────────────────────
+/**
+ * Démarre la caméra via ZXing BrowserMultiFormatReader
+ * Compatible iOS Safari (getUserMedia + decodeFromStream)
+ */
 async function startCamera() {
     const statusEl = document.getElementById('scanStatus');
     const video    = document.getElementById('scanVideo');
     statusEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Accès à la caméra...';
 
-    if (!navigator.mediaDevices?.getUserMedia) {
+    // Vérifier que getUserMedia est disponible
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         statusEl.textContent = '❌ Caméra non disponible sur ce navigateur.';
         return;
     }
 
-    // Instancier BarcodeDetector
     try {
-        if (typeof BarcodeDetector === 'undefined') {
-            window.BarcodeDetector = barcodeDetectorPolyfill.BarcodeDetectorPolyfill;
-        }
-        detector = new BarcodeDetector({
-            formats: ['ean_13','ean_8','code_128','code_39',
-                      'qr_code','data_matrix','upc_a','upc_e','itf']
-        });
-    } catch(e) {
-        statusEl.textContent = '❌ BarcodeDetector non disponible sur cet appareil.';
-        return;
-    }
-
-    try {
-        // Contraintes haute résolution + autofocus continu
+        // 1. Obtenir le stream manuellement (donne la main sur les contraintes)
         camStream = await navigator.mediaDevices.getUserMedia({
             video: {
-                facingMode : { ideal: 'environment' },
-                width      : { ideal: 1920 },
-                height     : { ideal: 1080 },
-                focusMode  : { ideal: 'continuous' }   // autofocus continu → réduit le flou
+                facingMode: { ideal: 'environment' },  // caméra arrière sur mobile
+                width:  { ideal: 1280 },
+                height: { ideal: 720 }
             },
             audio: false
         });
 
+        // 2. Affecter le stream à la vidéo
         video.srcObject = camStream;
         await video.play();
 
-        // Activer la torche LED si disponible (améliore lecture en faible lumière)
-        try {
-            const track = camStream.getVideoTracks()[0];
-            const caps  = track.getCapabilities?.() || {};
-            if (caps.torch) {
-                await track.applyConstraints({ advanced: [{ torch: true }] });
-            }
-        } catch(e) { /* torche non supportée, on ignore */ }
-
         statusEl.innerHTML = '<i class="fas fa-camera"></i> Pointez vers le code-barres...';
-        lastCode = null;
-        votes    = 0;
 
-        // Lancer la boucle RAF
-        rafLoop(video, statusEl);
+        // 3. Créer le reader ZXing et décoder en continu
+        zxReader = new ZXing.BrowserMultiFormatReader();
 
-    } catch(err) {
-        console.error('Erreur caméra :', err);
+        // Système de vote : 2 lectures identiques consécutives pour valider
+        let lastCode = null;
+        let votes    = 0;
+
+        // decodeFromStream est la méthode correcte pour un stream déjà actif
+        zxReader.decodeFromStream(camStream, video, (result, err) => {
+            if (!result) return;  // pas encore de code détecté, on attend
+
+            const code = result.getText();
+
+            if (code === lastCode) {
+                votes++;
+            } else {
+                lastCode = code;
+                votes    = 1;
+            }
+
+            statusEl.textContent = 'Vérification... (' + votes + '/2) — ' + code;
+
+            if (votes >= 2) {
+                applyCode(code);
+            }
+        });
+
+    } catch (err) {
+        console.error('Erreur caméra:', err);
         if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
             statusEl.textContent = '❌ Permission caméra refusée. Autorisez l\'accès dans les réglages.';
         } else if (err.name === 'NotFoundError') {
@@ -924,69 +909,25 @@ async function startCamera() {
     }
 }
 
-// ──────────────────────────────────────────────────────────
-//  Boucle RAF — analyse chaque frame à 60fps
-// ──────────────────────────────────────────────────────────
-async function rafLoop(video, statusEl) {
-    if (!detector || !camStream) return;
-
-    // Ignorer les frames pas encore prêtes
-    if (video.readyState < video.HAVE_ENOUGH_DATA) {
-        rafId = requestAnimationFrame(() => rafLoop(video, statusEl));
-        return;
-    }
-
-    try {
-        const results = await detector.detect(video);
-
-        if (results.length > 0) {
-            const code = results[0].rawValue;
-
-            if (code === lastCode) {
-                votes++;
-                statusEl.textContent = 'Vérification... (' + votes + '/2) — ' + code;
-            } else {
-                lastCode = code;
-                votes    = 1;
-                statusEl.textContent = 'Code détecté, confirmation... — ' + code;
-            }
-
-            if (votes >= 2) {
-                applyCode(code);
-                return; // stoppe la boucle
-            }
-        }
-    } catch(e) {
-        // frame ignorée si VideoFrame pas encore disponible (normal au démarrage)
-    }
-
-    rafId = requestAnimationFrame(() => rafLoop(video, statusEl));
-}
-
-// ──────────────────────────────────────────────────────────
-//  Applique le code dans le champ barcode actif
-// ──────────────────────────────────────────────────────────
+/**
+ * Applique le code détecté dans le champ barcode actif
+ */
 function applyCode(code) {
     if (activeRowId === null) return;
 
     const input = document.getElementById('bc-input-' + activeRowId);
     if (input) {
         input.value = code;
+        // Flash vert
         input.style.borderColor = '#27ae60';
         input.style.background  = '#f0fdf4';
-        setTimeout(() => {
-            input.style.borderColor = '';
-            input.style.background  = '';
-        }, 1500);
+        setTimeout(() => { input.style.borderColor = ''; input.style.background = ''; }, 1500);
     }
 
     showToast('✅ Code détecté : ' + code);
     closeScan();
 }
 
-// ──────────────────────────────────────────────────────────
-//  Saisie manuelle
-// ──────────────────────────────────────────────────────────
 function scanConfirmManual() {
     const val = document.getElementById('scanManualInput').value.trim();
     if (!val) {
@@ -1131,6 +1072,6 @@ function showToast(msg, type = 'success') {
     document.body.appendChild(t);
     setTimeout(() => t.remove(), 3000);
 }
-
+test 
 </script>
 @stop
