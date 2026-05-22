@@ -421,7 +421,7 @@
 #scanVideo{width:100%;max-height:280px;display:block;object-fit:cover}
 .scan-overlay{position:absolute;inset:0;display:flex;flex-direction:column;
     align-items:center;justify-content:center;pointer-events:none}
-.scan-frame{width:72%;max-width:280px;height:110px;border:3px solid #2ecc71;
+.scan-frame{width:52%;max-width:230px;height:110px;border:3px solid #2ecc71;
     border-radius:10px;position:relative;overflow:hidden;
     box-shadow:0 0 0 2000px rgba(0,0,0,.45)}
 .scan-line{position:absolute;top:0;left:0;right:0;height:3px;
