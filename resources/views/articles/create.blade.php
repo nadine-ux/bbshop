@@ -287,26 +287,28 @@
         </div>
 
         {{-- Section caméra --}}
-        <div id="scanCamSection" class="d-none">
-            <div class="scan-viewport">
-                {{-- video tag natif — ZXing le contrôle directement --}}
-                <video id="scanVideo"
-                       playsinline
-                       muted
-                       autoplay
-                       style="width:100%;max-height:300px;display:block;object-fit:cover;background:#000">
-                </video>
-                {{-- Laser guide --}}
-                <div class="scan-laser-wrap" aria-hidden="true">
-                    <div class="scan-laser-line"></div>
-                </div>
-                <canvas id="scanCanvas" style="display:none"></canvas>
-            </div>
-            <div id="scanStatus" class="scan-status">
-                <i class="fas fa-spinner fa-spin"></i> Démarrage caméra…
-            </div>
+       {{-- Section caméra --}}
+<div id="scanCamSection" class="d-none">
+    <div class="scan-viewport">
+
+        <video
+            id="scanVideo"
+            autoplay
+            muted
+            playsinline
+            style="width:100%;display:block;">
+        </video>
+
+        <div class="scan-laser-wrap" aria-hidden="true">
+            <div class="scan-laser-line"></div>
         </div>
 
+    </div>
+
+    <div id="scanStatus" class="scan-status">
+        <i class="fas fa-spinner fa-spin"></i> Démarrage caméra…
+    </div>
+</div>
         {{-- Section image --}}
         <div id="scanFileSection" class="d-none" style="padding:1.25rem;text-align:center">
             <input type="file" id="scanImageInput" accept="image/*" capture="environment" style="display:none">
@@ -465,7 +467,20 @@
 .category-selected-badge{display:flex;align-items:center;gap:.5rem;margin-top:.5rem;
     padding:.5rem .875rem;background:#f0fdf4;border:1.5px solid #27ae60;
     border-radius:8px;color:#27ae60;font-weight:600;font-size:.9rem}
-
+#scanVideo {
+    width: 100%;
+    max-height: 320px;
+    object-fit: cover;
+    display: block;
+    background: #000;
+}
+#scanVideo {
+    width: 100%;
+    max-height: 320px;
+    object-fit: cover;
+    display: block;
+    background: #000;
+}
 /* ── Upload photo ────────────────────────────── */
 .upload-area{position:relative;border:3px dashed #e9ecef;border-radius:12px;
     padding:2rem;text-align:center;cursor:pointer;transition:all .3s}
@@ -509,7 +524,9 @@
 }
 .content-wrapper{background:#f5f6fa!important;padding-bottom:100px!important}
 </style>
+
 @stop
+
 @php
     if (!function_exists('flattenCategories')) {
         function flattenCategories($cats, $depth = 0) {
@@ -525,31 +542,17 @@
     }
     $flatCategories = flattenCategories($categories);
 @endphp
-@section('js')
-{{--
-    SCANNER : ZXing-js BrowserMultiFormatReader
-    ─────────────────────────────────────────────
-    • Chargé depuis CDN jsDelivr (UMD bundle stable)
-    • Autofocus continu via contrainte avancée sur iOS/Android
-    • Hints : tous les formats 1D + QR + DataMatrix
-    • Frame rate 30 fps pour réactivité maximale
-    • Stop propre du stream à chaque fermeture
-    • Fallback fichier image + saisie manuelle
---}}
-
-{{-- ZXing UMD — fonctionne sans bundler --}}
-<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
 
 @section('js')
-<script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
-
+<script src="{{ asset('js/zxing.min.js') }}"></script>
 <script>
 const allCategories = {!! json_encode($flatCategories) !!};
 const allMarques    = {!! json_encode($marques->map(fn($m) => ['id'=>$m->id,'nom'=>$m->nom])->values()) !!};
 
-let bcCounter   = 0;
-let activeRowId = null;
-let quaggaRunning = false;
+let bcCounter    = 0;
+let activeRowId  = null;
+let zxingReader  = null;
+let cameraStream = null;
 
 document.addEventListener('DOMContentLoaded', function () {
 
@@ -568,27 +571,19 @@ document.addEventListener('DOMContentLoaded', function () {
         if (e.target === this) closeScan();
     });
 
-    document.getElementById('scanImageInput').addEventListener('change', async function() {
+    document.getElementById('scanImageInput').addEventListener('change', function() {
         if (!this.files?.[0] || activeRowId === null) return;
         const statusEl = document.getElementById('scanFileStatus');
         statusEl.textContent = '⏳ Analyse en cours…';
-        try {
-            const url = URL.createObjectURL(this.files[0]);
-            Quagga.decodeSingle({
-                decoder: { readers: ['ean_reader','ean_8_reader','upc_reader','upc_e_reader','code_128_reader','code_39_reader','i2of5_reader'] },
-                locate: true,
-                src: url
-            }, function(result) {
-                URL.revokeObjectURL(url);
-                if (result && result.codeResult) {
-                    applyCode(result.codeResult.code);
-                } else {
-                    statusEl.textContent = '❌ Aucun code-barres détecté.';
-                }
-            });
-        } catch(e) {
-            statusEl.textContent = '❌ Erreur : ' + e.message;
-        }
+        const reader = new ZXing.BrowserMultiFormatReader();
+        const url = URL.createObjectURL(this.files[0]);
+        reader.decodeFromImageUrl(url).then(result => {
+            URL.revokeObjectURL(url);
+            applyCode(result.getText());
+        }).catch(() => {
+            URL.revokeObjectURL(url);
+            statusEl.textContent = '❌ Aucun code-barres détecté.';
+        });
         this.value = '';
     });
 
@@ -639,18 +634,27 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!bcOk) { e.preventDefault(); showToast('❌ Remplissez tous les codes-barres.', 'error'); return; }
         const codes = [...bcInputs].map(i => i.value.trim().toLowerCase());
         if (new Set(codes).size !== codes.length) { e.preventDefault(); showToast('❌ Deux codes-barres identiques.', 'error'); return; }
-        const stock = parseInt(document.querySelector('input[name="stock"]').value) || 0;
+        const stock    = parseInt(document.querySelector('input[name="stock"]').value) || 0;
         const stockMin = parseInt(document.querySelector('input[name="quantite_minimale"]').value) || 0;
         if (stock < stockMin) {
             if (!confirm('⚠️ Stock initial < quantité minimale. Continuer ?')) e.preventDefault();
         }
     });
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closeScan();
+        if (e.key === 'Enter' && !document.getElementById('scanModal').classList.contains('d-none')) {
+            if (!document.getElementById('scanManualSection').classList.contains('d-none')) {
+                e.preventDefault();
+                scanConfirmManual();
+            }
+        }
+    });
 });
 
 // ══════════════════════════════════════════════
-//  SCANNER QUAGGA — ultra rapide
+//  SCANNER
 // ══════════════════════════════════════════════
-
 function openScanModal(rowId, method) {
     activeRowId = rowId;
     resetScanSections();
@@ -659,7 +663,7 @@ function openScanModal(rowId, method) {
 }
 
 function resetScanSections() {
-    stopQuagga();
+    stopCameraStream();
     ['scanCamSection','scanFileSection','scanManualSection'].forEach(id =>
         document.getElementById(id).classList.add('d-none')
     );
@@ -671,16 +675,20 @@ function resetScanSections() {
 }
 
 function closeScan() {
-    stopQuagga();
+    stopCameraStream();
     document.getElementById('scanModal').classList.add('d-none');
     activeRowId = null;
 }
 
-function stopQuagga() {
-    if (quaggaRunning) {
-        try { Quagga.stop(); } catch(e) {}
-        quaggaRunning = false;
-    }
+function stopCameraStream() {
+    if (zxingReader)  { try { zxingReader.reset(); } catch(e) {} zxingReader = null; }
+    if (cameraStream) { cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null; }
+    const videoEl = document.getElementById('scanVideo');
+
+if (videoEl) {
+    videoEl.pause();
+    videoEl.srcObject = null;
+}
 }
 
 function scanStart(method) {
@@ -691,7 +699,7 @@ function scanStart(method) {
 
     if (method === 'camera') {
         document.getElementById('scanCamSection').classList.remove('d-none');
-        startQuagga();
+        startCamera();
     } else if (method === 'file') {
         document.getElementById('scanFileSection').classList.remove('d-none');
     } else {
@@ -700,87 +708,47 @@ function scanStart(method) {
     }
 }
 
-function startQuagga() {
+async function startCamera() {
     const statusEl = document.getElementById('scanStatus');
 
-    if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
-        statusEl.innerHTML = '❌ <strong>HTTPS requis</strong> pour la caméra. Utilisez <strong>Image</strong> ou <strong>Manuel</strong>.';
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        statusEl.innerHTML = '❌ <strong>HTTPS requis</strong> pour la caméra.<br>Utilisez <strong>Image</strong> ou <strong>Manuel</strong>.';
         return;
     }
 
     statusEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Accès à la caméra…';
 
-    Quagga.init({
-        inputStream: {
-            name: 'Live',
-            type: 'LiveStream',
-            target: document.getElementById('scanVideo'),
-            constraints: {
-                facingMode: 'environment',  // caméra arrière
-                width:  { min: 640, ideal: 1280 },
-                height: { min: 480, ideal: 720 },
+    try {
+        cameraStream = await navigator.mediaDevices.getUserMedia({
+            video: {
+                facingMode: { ideal: 'environment' },
+                width:  { ideal: 1280 },
+                height: { ideal: 720 }
             },
-        },
-        locator: {
-            patchSize: 'medium',   // 'small' plus rapide mais moins précis
-            halfSample: true       // 2× plus rapide
-        },
-        numOfWorkers: navigator.hardwareConcurrency || 2,
-        frequency: 20,             // 20 analyses/seconde — très réactif
-        decoder: {
-            readers: [
-                'ean_reader',       // EAN-13 (le plus courant supermarché)
-                'ean_8_reader',
-                'upc_reader',
-                'upc_e_reader',
-                'code_128_reader',
-                'code_39_reader',
-                'i2of5_reader',
-            ],
-            multiple: false
-        },
-        locate: true
-    }, function(err) {
-        if (err) {
-            if (err.name === 'NotAllowedError') {
-                statusEl.textContent = '❌ Permission caméra refusée.';
-            } else if (err.name === 'NotFoundError') {
-                statusEl.textContent = '❌ Aucune caméra détectée.';
-            } else {
-                statusEl.textContent = '❌ ' + (err.message || err);
-            }
-            return;
-        }
+            audio: false
+        });
 
-        Quagga.start();
-        quaggaRunning = true;
+        const videoEl = document.getElementById('scanVideo');
+        videoEl.srcObject = cameraStream;
+        await videoEl.play();
+
         statusEl.innerHTML = '<i class="fas fa-camera"></i> Pointez le code-barres…';
 
-        // Feedback visuel sur le canvas quand un code est détecté partiellement
-        Quagga.onProcessed(function(result) {
-            const canvas = Quagga.canvas.dom.overlay;
-            const ctx = Quagga.canvas.ctx.overlay;
-            if (result) {
-                if (result.boxes) {
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    result.boxes.filter(b => b !== result.box).forEach(box => {
-                        Quagga.ImageDebug.drawPath(box, {x:0,y:1}, ctx, {color:'rgba(255,255,0,0.3)', lineWidth:1});
-                    });
-                }
-                if (result.box) {
-                    Quagga.ImageDebug.drawPath(result.box, {x:0,y:1}, ctx, {color:'#00ff00', lineWidth:2});
-                }
-            }
+        zxingReader = new ZXing.BrowserMultiFormatReader();
+        zxingReader.decodeFromStream(cameraStream, videoEl, (result, err) => {
+            if (!result) return;
+            applyCode(result.getText());
         });
 
-        // Détection confirmée
-        Quagga.onDetected(function(result) {
-            const code = result.codeResult.code;
-            // Validation basique : au moins 6 chiffres
-            if (!code || code.length < 4) return;
-            applyCode(code);
-        });
-    });
+    } catch (err) {
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+            statusEl.textContent = '❌ Permission caméra refusée.';
+        } else if (err.name === 'NotFoundError') {
+            statusEl.textContent = '❌ Aucune caméra détectée.';
+        } else {
+            statusEl.textContent = '❌ ' + (err.message || err.name);
+        }
+    }
 }
 
 function applyCode(code) {
@@ -801,13 +769,6 @@ function scanConfirmManual() {
     if (!val) { showToast('❌ Veuillez saisir un code.', 'error'); return; }
     applyCode(val);
 }
-
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter' && !document.getElementById('scanModal').classList.contains('d-none')) {
-        const section = document.getElementById('scanManualSection');
-        if (!section.classList.contains('d-none')) { e.preventDefault(); scanConfirmManual(); }
-    }
-});
 
 // ══════════════════════════════════════════════
 //  BARCODE ROWS
