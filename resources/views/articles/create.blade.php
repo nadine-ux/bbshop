@@ -510,24 +510,6 @@
 .content-wrapper{background:#f5f6fa!important;padding-bottom:100px!important}
 </style>
 @stop
-
-@section('js')
-{{--
-    SCANNER : ZXing-js BrowserMultiFormatReader
-    ─────────────────────────────────────────────
-    • Chargé depuis CDN jsDelivr (UMD bundle stable)
-    • Autofocus continu via contrainte avancée sur iOS/Android
-    • Hints : tous les formats 1D + QR + DataMatrix
-    • Frame rate 30 fps pour réactivité maximale
-    • Stop propre du stream à chaque fermeture
-    • Fallback fichier image + saisie manuelle
---}}
-
-{{-- ZXing UMD — fonctionne sans bundler --}}
-<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
-
-<script>
-// ── Données PHP → JS ──────────────────────────────────────
 @php
     if (!function_exists('flattenCategories')) {
         function flattenCategories($cats, $depth = 0) {
@@ -543,21 +525,34 @@
     }
     $flatCategories = flattenCategories($categories);
 @endphp
+@section('js')
+{{--
+    SCANNER : ZXing-js BrowserMultiFormatReader
+    ─────────────────────────────────────────────
+    • Chargé depuis CDN jsDelivr (UMD bundle stable)
+    • Autofocus continu via contrainte avancée sur iOS/Android
+    • Hints : tous les formats 1D + QR + DataMatrix
+    • Frame rate 30 fps pour réactivité maximale
+    • Stop propre du stream à chaque fermeture
+    • Fallback fichier image + saisie manuelle
+--}}
+
+{{-- ZXing UMD — fonctionne sans bundler --}}
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
+
+@section('js')
+<script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
+
+<script>
 const allCategories = {!! json_encode($flatCategories) !!};
 const allMarques    = {!! json_encode($marques->map(fn($m) => ['id'=>$m->id,'nom'=>$m->nom])->values()) !!};
 
-// ── State global ──────────────────────────────────────────
-let bcCounter    = 0;
-let activeRowId  = null;
-let zxingReader  = null;   // instance ZXing BrowserMultiFormatReader
-let cameraStream = null;   // MediaStream natif (pour stop propre iOS)
+let bcCounter   = 0;
+let activeRowId = null;
+let quaggaRunning = false;
 
-// ══════════════════════════════════════════════════════════
-//  DOMContentLoaded
-// ══════════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', function () {
 
-    // ── Init lignes barcode ─────────────────────────────
     @if(old('barcodes'))
         const oldBarcodes = Object.values({!! json_encode(old('barcodes')) !!});
         oldBarcodes.forEach((b, i) => addBarcodeRow(i === 0, b));
@@ -567,40 +562,38 @@ document.addEventListener('DOMContentLoaded', function () {
         addBarcodeRow(true);
     @endif
 
-    document.getElementById('btnAddBarcode')
-            .addEventListener('click', () => addBarcodeRow(false));
+    document.getElementById('btnAddBarcode').addEventListener('click', () => addBarcodeRow(false));
+    document.getElementById('btnCloseScan').addEventListener('click', closeScan);
+    document.getElementById('scanModal').addEventListener('click', function(e) {
+        if (e.target === this) closeScan();
+    });
 
-    document.getElementById('btnCloseScan')
-            .addEventListener('click', closeScan);
-
-    document.getElementById('scanModal')
-            .addEventListener('click', function (e) {
-                if (e.target === this) closeScan();
-            });
-
-    // ── Fichier image → ZXing decode ───────────────────
-    document.getElementById('scanImageInput')
-            .addEventListener('change', async function () {
+    document.getElementById('scanImageInput').addEventListener('change', async function() {
         if (!this.files?.[0] || activeRowId === null) return;
         const statusEl = document.getElementById('scanFileStatus');
         statusEl.textContent = '⏳ Analyse en cours…';
         try {
-            const reader = new ZXing.BrowserMultiFormatReader();
-            const url    = URL.createObjectURL(this.files[0]);
-            const result = await reader.decodeFromImageUrl(url);
-            URL.revokeObjectURL(url);
-            applyCode(result.getText());
-        } catch {
-            statusEl.textContent = '❌ Aucun code-barres détecté dans cette image.';
+            const url = URL.createObjectURL(this.files[0]);
+            Quagga.decodeSingle({
+                decoder: { readers: ['ean_reader','ean_8_reader','upc_reader','upc_e_reader','code_128_reader','code_39_reader','i2of5_reader'] },
+                locate: true,
+                src: url
+            }, function(result) {
+                URL.revokeObjectURL(url);
+                if (result && result.codeResult) {
+                    applyCode(result.codeResult.code);
+                } else {
+                    statusEl.textContent = '❌ Aucun code-barres détecté.';
+                }
+            });
+        } catch(e) {
+            statusEl.textContent = '❌ Erreur : ' + e.message;
         }
         this.value = '';
     });
 
-    // ── Photo upload ────────────────────────────────────
-    document.getElementById('uploadArea')
-            .addEventListener('click', () => document.getElementById('photoInput').click());
+    document.getElementById('uploadArea').addEventListener('click', () => document.getElementById('photoInput').click());
 
-    // ── Widget catégorie ────────────────────────────────
     const catWidget = makeSearchWidget({
         searchInputId:'categorieSearch', dropdownId:'categoryDropdown',
         listId:'categoryList', emptyId:'categoryEmpty',
@@ -609,9 +602,7 @@ document.addEventListener('DOMContentLoaded', function () {
         data: allCategories,
         renderItem: (cat) => ({
             className: 'category-item depth-' + cat.depth,
-            icon: cat.depth === 0
-                ? '<i class="fas fa-folder cat-icon"></i>'
-                : '<i class="fas fa-folder-open cat-icon"></i>',
+            icon: cat.depth === 0 ? '<i class="fas fa-folder cat-icon"></i>' : '<i class="fas fa-folder-open cat-icon"></i>',
             prefix: cat.depth > 0 ? '└─ ' : ''
         })
     });
@@ -621,18 +612,13 @@ document.addEventListener('DOMContentLoaded', function () {
     if (preSelCat) catWidget.selectItem(preSelCat);
     @endif
 
-    // ── Widget marque ───────────────────────────────────
     const marqueWidget = makeSearchWidget({
         searchInputId:'marqueSearch', dropdownId:'marqueDropdown',
         listId:'marqueList', emptyId:'marqueEmpty',
         hiddenInputId:'marque_id', selectedBadgeId:'marqueSelected',
         selectedNameId:'marqueSelectedName', clearBtnId:'btnClearMarque',
         data: allMarques,
-        renderItem: () => ({
-            className: 'category-item',
-            icon: '<i class="fas fa-certificate cat-icon"></i>',
-            prefix: ''
-        })
+        renderItem: () => ({ className: 'category-item', icon: '<i class="fas fa-certificate cat-icon"></i>', prefix: '' })
     });
 
     @if(old('marque_id'))
@@ -640,153 +626,30 @@ document.addEventListener('DOMContentLoaded', function () {
     if (preSelMarque) marqueWidget.selectItem(preSelMarque);
     @endif
 
-    // ── Validation formulaire ───────────────────────────
-    document.querySelector('form').addEventListener('submit', function (e) {
-
+    document.querySelector('form').addEventListener('submit', function(e) {
         if (!document.getElementById('categorie_id').value) {
             e.preventDefault();
             document.getElementById('categorieSearch').focus();
             showToast('❌ Veuillez sélectionner une catégorie.', 'error');
             return;
         }
-
         const bcInputs = document.querySelectorAll('[id^="bc-input-"]');
         let bcOk = true;
-        bcInputs.forEach(inp => {
-            if (!inp.value.trim()) { inp.style.borderColor = '#e74c3c'; bcOk = false; }
-        });
-        if (!bcOk) {
-            e.preventDefault();
-            showToast('❌ Remplissez tous les codes-barres ou supprimez les lignes vides.', 'error');
-            return;
-        }
-
+        bcInputs.forEach(inp => { if (!inp.value.trim()) { inp.style.borderColor='#e74c3c'; bcOk=false; } });
+        if (!bcOk) { e.preventDefault(); showToast('❌ Remplissez tous les codes-barres.', 'error'); return; }
         const codes = [...bcInputs].map(i => i.value.trim().toLowerCase());
-        if (new Set(codes).size !== codes.length) {
-            e.preventDefault();
-            showToast('❌ Deux codes-barres identiques détectés.', 'error');
-            return;
-        }
-
-        const stock    = parseInt(document.querySelector('input[name="stock"]').value)             || 0;
+        if (new Set(codes).size !== codes.length) { e.preventDefault(); showToast('❌ Deux codes-barres identiques.', 'error'); return; }
+        const stock = parseInt(document.querySelector('input[name="stock"]').value) || 0;
         const stockMin = parseInt(document.querySelector('input[name="quantite_minimale"]').value) || 0;
         if (stock < stockMin) {
-            if (!confirm('⚠️ Le stock initial est inférieur à la quantité minimale.\nContinuer ?')) {
-                e.preventDefault();
-            }
+            if (!confirm('⚠️ Stock initial < quantité minimale. Continuer ?')) e.preventDefault();
         }
     });
+});
 
-}); // fin DOMContentLoaded
-
-
-// ══════════════════════════════════════════════════════════
-//  GESTION LIGNES BARCODE
-// ══════════════════════════════════════════════════════════
-
-function addBarcodeRow(isPrimary = false, data = {}) {
-    const id  = ++bcCounter;
-    const row = document.createElement('div');
-    row.className = 'barcode-row' + (isPrimary ? ' is-primary' : '');
-    row.id = 'bc-row-' + id;
-
-    row.innerHTML =
-        '<input type="hidden" name="barcodes[' + id + '][id]" value="' + escHtml(data.id || '') + '">' +
-
-        '<input type="text"' +
-               ' name="barcodes[' + id + '][code]"' +
-               ' id="bc-input-' + id + '"' +
-               ' class="bc-input"' +
-               ' placeholder="Code-barres…"' +
-               ' value="' + escHtml(data.code || '') + '"' +
-               ' required>' +
-
-        '<input type="text"' +
-               ' name="barcodes[' + id + '][label]"' +
-               ' class="bc-label-input"' +
-               ' placeholder="Libellé (optionnel)"' +
-               ' value="' + escHtml(data.label || '') + '">' +
-
-        '<div class="bc-actions">' +
-            '<button type="button"' +
-                    ' class="btn-primary-badge' + (isPrimary ? ' active' : '') + '"' +
-                    ' id="bc-primary-btn-' + id + '"' +
-                    ' onclick="setPrimary(' + id + ')">' +
-                '<i class="fas fa-star"></i> Principal' +
-            '</button>' +
-
-            '<button type="button" class="btn-bc btn-bc-cam"' +
-                    ' onclick="openScanModal(' + id + ', \'camera\')"' +
-                    ' title="Scanner avec caméra">' +
-                '<i class="fas fa-camera"></i>' +
-            '</button>' +
-
-            '<button type="button" class="btn-bc btn-bc-file"' +
-                    ' onclick="openScanModal(' + id + ', \'file\')"' +
-                    ' title="Scanner depuis image">' +
-                '<i class="fas fa-file-image"></i>' +
-            '</button>' +
-
-            '<button type="button" class="btn-bc btn-bc-remove"' +
-                    ' onclick="removeRow(' + id + ')"' +
-                    ' title="Supprimer">' +
-                '<i class="fas fa-trash"></i>' +
-            '</button>' +
-        '</div>' +
-
-        '<input type="hidden"' +
-               ' name="barcodes[' + id + '][primary]"' +
-               ' id="bc-primary-val-' + id + '"' +
-               ' value="' + (isPrimary ? '1' : '') + '">';
-
-    document.getElementById('barcodeList').appendChild(row);
-    ensureOnePrimary();
-}
-
-function setPrimary(id) {
-    document.querySelectorAll('#barcodeList .barcode-row').forEach(r => r.classList.remove('is-primary'));
-    document.querySelectorAll('#barcodeList .btn-primary-badge').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('[id^="bc-primary-val-"]').forEach(i => i.value = '');
-
-    document.getElementById('bc-row-' + id).classList.add('is-primary');
-    document.getElementById('bc-primary-btn-' + id).classList.add('active');
-    document.getElementById('bc-primary-val-' + id).value = '1';
-}
-
-function removeRow(id) {
-    const list = document.getElementById('barcodeList');
-    if (list.children.length <= 1) {
-        showToast('⚠️ Il faut au minimum un code-barres.', 'error');
-        return;
-    }
-    const wasPrimary = document.getElementById('bc-primary-val-' + id).value === '1';
-    document.getElementById('bc-row-' + id).remove();
-    if (wasPrimary) ensureOnePrimary();
-}
-
-function ensureOnePrimary() {
-    if (!document.querySelector('#barcodeList .btn-primary-badge.active')) {
-        const firstBtn = document.querySelector('#barcodeList .btn-primary-badge');
-        if (firstBtn) {
-            const m = firstBtn.id.match(/bc-primary-btn-(\d+)/);
-            if (m) setPrimary(parseInt(m[1]));
-        }
-    }
-}
-
-
-// ══════════════════════════════════════════════════════════
-//  SCANNER — ZXing BrowserMultiFormatReader
-//  Stratégie :
-//   1. getUserMedia avec contraintes avancées (focusMode=continuous,
-//      width/height élevés) pour forcer l'autofocus continu sur mobile.
-//   2. On passe le MediaStream directement à ZXing decodeFromStream
-//      → pas de latence d'initialisation, pas de re-négociation caméra.
-//   3. Hints ZXing : uniquement les formats courants supermarché
-//      (EAN-8/13, UPC-A/E, Code128, Code39, ITF, QR, DataMatrix)
-//      → moteur plus rapide car moins de formats à tester.
-//   4. Fréquence d'analyse : tryHarder = false (vitesse > exhaustivité)
-// ══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════
+//  SCANNER QUAGGA — ultra rapide
+// ══════════════════════════════════════════════
 
 function openScanModal(rowId, method) {
     activeRowId = rowId;
@@ -796,8 +659,8 @@ function openScanModal(rowId, method) {
 }
 
 function resetScanSections() {
-    stopCamStream();
-    ['scanCamSection', 'scanFileSection', 'scanManualSection'].forEach(id =>
+    stopQuagga();
+    ['scanCamSection','scanFileSection','scanManualSection'].forEach(id =>
         document.getElementById(id).classList.add('d-none')
     );
     document.querySelectorAll('.btn-method').forEach(b => b.classList.remove('active'));
@@ -808,27 +671,16 @@ function resetScanSections() {
 }
 
 function closeScan() {
-    stopCamStream();
+    stopQuagga();
     document.getElementById('scanModal').classList.add('d-none');
     activeRowId = null;
 }
 
-/**
- * Arrête proprement ZXing + MediaStream caméra.
- * Important sur iOS : ne pas oublier d'appeler stream.getTracks()[0].stop()
- * sinon l'indicateur caméra reste allumé.
- */
-function stopCamStream() {
-    if (zxingReader) {
-        try { zxingReader.reset(); } catch(e) {}
-        zxingReader = null;
+function stopQuagga() {
+    if (quaggaRunning) {
+        try { Quagga.stop(); } catch(e) {}
+        quaggaRunning = false;
     }
-    if (cameraStream) {
-        cameraStream.getTracks().forEach(t => t.stop());
-        cameraStream = null;
-    }
-    const vid = document.getElementById('scanVideo');
-    if (vid) { vid.srcObject = null; }
 }
 
 function scanStart(method) {
@@ -839,7 +691,7 @@ function scanStart(method) {
 
     if (method === 'camera') {
         document.getElementById('scanCamSection').classList.remove('d-none');
-        startCamera();
+        startQuagga();
     } else if (method === 'file') {
         document.getElementById('scanFileSection').classList.remove('d-none');
     } else {
@@ -848,127 +700,99 @@ function scanStart(method) {
     }
 }
 
-/**
- * Démarre la caméra avec autofocus continu et ZXing en flux continu.
- *
- * Contraintes getUserMedia :
- *  - facingMode: environment  → caméra arrière
- *  - focusMode: continuous    → autofocus permanent (Android Chrome, Safari 15.4+)
- *  - width/height idéal 1280×720 → assez de résolution sans être trop lourd
- *  - frameRate: 30            → analyse fluide
- *
- * Hints ZXing :
- *  - Formats limités aux codes supermarché → moteur 3-4× plus rapide
- *  - TryHarder = false → priorité vitesse
- */
-async function startCamera() {
+function startQuagga() {
     const statusEl = document.getElementById('scanStatus');
+
+    if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+        statusEl.innerHTML = '❌ <strong>HTTPS requis</strong> pour la caméra. Utilisez <strong>Image</strong> ou <strong>Manuel</strong>.';
+        return;
+    }
+
     statusEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Accès à la caméra…';
 
-    // ── 1. Obtenir le stream natif avec autofocus ───────
-    const constraints = {
-        video: {
-            facingMode: { ideal: 'environment' },
-            width:     { ideal: 1280 },
-            height:    { ideal: 720 },
-            frameRate: { ideal: 30 },
-            // Autofocus continu — supporté Chrome Android, Safari 15.4+
-            advanced: [{ focusMode: 'continuous' }]
-        }
-    };
-
-    let stream;
-    try {
-        stream = await navigator.mediaDevices.getUserMedia(constraints);
-    } catch (firstErr) {
-        // Fallback sans contraintes avancées (vieux appareils)
-        try {
-            stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: { ideal: 'environment' } }
-            });
-        } catch (err) {
+    Quagga.init({
+        inputStream: {
+            name: 'Live',
+            type: 'LiveStream',
+            target: document.getElementById('scanVideo'),
+            constraints: {
+                facingMode: 'environment',  // caméra arrière
+                width:  { min: 640, ideal: 1280 },
+                height: { min: 480, ideal: 720 },
+            },
+        },
+        locator: {
+            patchSize: 'medium',   // 'small' plus rapide mais moins précis
+            halfSample: true       // 2× plus rapide
+        },
+        numOfWorkers: navigator.hardwareConcurrency || 2,
+        frequency: 20,             // 20 analyses/seconde — très réactif
+        decoder: {
+            readers: [
+                'ean_reader',       // EAN-13 (le plus courant supermarché)
+                'ean_8_reader',
+                'upc_reader',
+                'upc_e_reader',
+                'code_128_reader',
+                'code_39_reader',
+                'i2of5_reader',
+            ],
+            multiple: false
+        },
+        locate: true
+    }, function(err) {
+        if (err) {
             if (err.name === 'NotAllowedError') {
-                statusEl.textContent = '❌ Permission caméra refusée. Autorisez l\'accès dans les réglages.';
+                statusEl.textContent = '❌ Permission caméra refusée.';
             } else if (err.name === 'NotFoundError') {
-                statusEl.textContent = '❌ Aucune caméra détectée sur cet appareil.';
+                statusEl.textContent = '❌ Aucune caméra détectée.';
             } else {
-                statusEl.textContent = '❌ Erreur caméra : ' + (err.message || err);
+                statusEl.textContent = '❌ ' + (err.message || err);
             }
             return;
         }
-    }
 
-    cameraStream = stream;
+        Quagga.start();
+        quaggaRunning = true;
+        statusEl.innerHTML = '<i class="fas fa-camera"></i> Pointez le code-barres…';
 
-    // ── 2. Attacher le stream au <video> ────────────────
-    const videoEl = document.getElementById('scanVideo');
-    videoEl.srcObject = stream;
-
-    // Sur iOS le play() doit être déclenché après interaction utilisateur
-    // (c'est le cas ici — l'utilisateur a cliqué). On attend loadedmetadata.
-    await new Promise(resolve => {
-        videoEl.onloadedmetadata = resolve;
-        videoEl.play().catch(() => {});
-    });
-
-    statusEl.innerHTML = '<i class="fas fa-camera"></i> Pointez le code-barres face à la caméra…';
-
-    // ── 3. Configurer ZXing avec hints optimisés ────────
-    const hints = new Map();
-
-    // Formats courants en supermarché — omettre les autres accélère le décodage
-    const formats = [
-        ZXing.BarcodeFormat.EAN_13,
-        ZXing.BarcodeFormat.EAN_8,
-        ZXing.BarcodeFormat.UPC_A,
-        ZXing.BarcodeFormat.UPC_E,
-        ZXing.BarcodeFormat.CODE_128,
-        ZXing.BarcodeFormat.CODE_39,
-        ZXing.BarcodeFormat.ITF,
-        ZXing.BarcodeFormat.QR_CODE,
-        ZXing.BarcodeFormat.DATA_MATRIX
-    ];
-    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
-    // TryHarder = false → vitesse maximale (pas d'exhaustivité supplémentaire)
-    hints.set(ZXing.DecodeHintType.TRY_HARDER, false);
-    // Pré-binarisation douce — réduit les faux négatifs sans coût CPU excessif
-    hints.set(ZXing.DecodeHintType.PURE_BARCODE, false);
-
-    zxingReader = new ZXing.BrowserMultiFormatReader(hints, {
-        delayBetweenScanAttempts: 80  // ms entre deux tentatives — réactif
-    });
-
-    // ── 4. Démarrer le décodage en flux continu ─────────
-    try {
-        await zxingReader.decodeFromStream(stream, videoEl, (result, err) => {
+        // Feedback visuel sur le canvas quand un code est détecté partiellement
+        Quagga.onProcessed(function(result) {
+            const canvas = Quagga.canvas.dom.overlay;
+            const ctx = Quagga.canvas.ctx.overlay;
             if (result) {
-                applyCode(result.getText());
+                if (result.boxes) {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    result.boxes.filter(b => b !== result.box).forEach(box => {
+                        Quagga.ImageDebug.drawPath(box, {x:0,y:1}, ctx, {color:'rgba(255,255,0,0.3)', lineWidth:1});
+                    });
+                }
+                if (result.box) {
+                    Quagga.ImageDebug.drawPath(result.box, {x:0,y:1}, ctx, {color:'#00ff00', lineWidth:2});
+                }
             }
-            // err === NotFoundException est silencieux (frame normale sans code)
         });
-    } catch (e) {
-        // Ignore les erreurs de stop propre
-        if (!String(e).includes('stop') && !String(e).includes('reset')) {
-            statusEl.textContent = '❌ Erreur : ' + (e.message || e);
-        }
-    }
+
+        // Détection confirmée
+        Quagga.onDetected(function(result) {
+            const code = result.codeResult.code;
+            // Validation basique : au moins 6 chiffres
+            if (!code || code.length < 4) return;
+            applyCode(code);
+        });
+    });
 }
 
-/**
- * Injecte le code détecté dans le champ actif et ferme la modal.
- */
 function applyCode(code) {
     if (activeRowId === null) return;
-
     const input = document.getElementById('bc-input-' + activeRowId);
     if (input) {
         input.value = code;
         input.style.borderColor = '#27ae60';
         input.style.background  = '#f0fdf4';
-        setTimeout(() => { input.style.borderColor = ''; input.style.background = ''; }, 1500);
+        setTimeout(() => { input.style.borderColor=''; input.style.background=''; }, 1500);
     }
-
-    showToast('✅ Code détecté : ' + code);
+    showToast('✅ ' + code);
     closeScan();
 }
 
@@ -978,106 +802,63 @@ function scanConfirmManual() {
     applyCode(val);
 }
 
-// Entrée clavier dans saisie manuelle
-document.addEventListener('keydown', function (e) {
+document.addEventListener('keydown', function(e) {
     if (e.key === 'Enter' && !document.getElementById('scanModal').classList.contains('d-none')) {
         const section = document.getElementById('scanManualSection');
-        if (!section.classList.contains('d-none')) {
-            e.preventDefault();
-            scanConfirmManual();
-        }
+        if (!section.classList.contains('d-none')) { e.preventDefault(); scanConfirmManual(); }
     }
 });
 
-
-// ══════════════════════════════════════════════════════════
-//  WIDGET RECHERCHE (catégorie & marque)
-// ══════════════════════════════════════════════════════════
-function makeSearchWidget(config) {
-    const {
-        searchInputId, dropdownId, listId, emptyId,
-        hiddenInputId, selectedBadgeId, selectedNameId, clearBtnId,
-        data, renderItem
-    } = config;
-
-    const searchInput   = document.getElementById(searchInputId);
-    const dropdown      = document.getElementById(dropdownId);
-    const list          = document.getElementById(listId);
-    const empty         = document.getElementById(emptyId);
-    const hiddenInput   = document.getElementById(hiddenInputId);
-    const selectedBadge = document.getElementById(selectedBadgeId);
-    const selectedName  = document.getElementById(selectedNameId);
-    const clearBtn      = document.getElementById(clearBtnId);
-
-    if (!searchInput || !dropdown || !hiddenInput) {
-        console.warn('makeSearchWidget: élément introuvable pour', searchInputId);
-        return { selectItem: () => {} };
-    }
-
-    function selectItem(item) {
-        hiddenInput.value = item.id;
-        searchInput.value = item.nom;
-        dropdown.classList.add('d-none');
-        selectedBadge.classList.remove('d-none');
-        selectedName.textContent = item.nom;
-        clearBtn.classList.remove('d-none');
-    }
-
-    searchInput.addEventListener('input', function () {
-        const q = this.value.trim().toLowerCase();
-        clearBtn.classList.toggle('d-none', q === '');
-        if (q.length < 1) { dropdown.classList.add('d-none'); return; }
-
-        const filtered = data.filter(item => item.nom.toLowerCase().includes(q));
-        list.innerHTML = '';
-
-        if (filtered.length === 0) {
-            empty.classList.remove('d-none');
-        } else {
-            empty.classList.add('d-none');
-            filtered.forEach(item => {
-                const div = document.createElement('div');
-                const ri  = renderItem ? renderItem(item) : {};
-                div.className = ri.className || 'category-item';
-                const highlighted = item.nom.replace(
-                    new RegExp('(' + q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + ')', 'gi'),
-                    '<span class="cat-match">$1</span>'
-                );
-                div.innerHTML = (ri.icon || '') + ' ' + (ri.prefix || '') + highlighted;
-                div.addEventListener('click', () => selectItem(item));
-                list.appendChild(div);
-            });
-        }
-        dropdown.classList.remove('d-none');
-    });
-
-    clearBtn.addEventListener('click', function () {
-        hiddenInput.value = '';
-        searchInput.value = '';
-        selectedBadge.classList.add('d-none');
-        clearBtn.classList.add('d-none');
-        searchInput.focus();
-    });
-
-    searchInput.addEventListener('keydown', e => {
-        if (e.key === 'Escape') dropdown.classList.add('d-none');
-    });
-
-    document.addEventListener('click', e => {
-        if (!e.target.closest('#' + searchInputId) &&
-            !e.target.closest('#' + dropdownId) &&
-            !e.target.closest('#' + clearBtnId)) {
-            dropdown.classList.add('d-none');
-        }
-    });
-
-    return { selectItem };
+// ══════════════════════════════════════════════
+//  BARCODE ROWS
+// ══════════════════════════════════════════════
+function addBarcodeRow(isPrimary = false, data = {}) {
+    const id  = ++bcCounter;
+    const row = document.createElement('div');
+    row.className = 'barcode-row' + (isPrimary ? ' is-primary' : '');
+    row.id = 'bc-row-' + id;
+    row.innerHTML =
+        '<input type="hidden" name="barcodes['+id+'][id]" value="'+escHtml(data.id||'')+'">'+
+        '<input type="text" name="barcodes['+id+'][code]" id="bc-input-'+id+'" class="bc-input" placeholder="Code-barres…" value="'+escHtml(data.code||'')+'" required>'+
+        '<input type="text" name="barcodes['+id+'][label]" class="bc-label-input" placeholder="Libellé (optionnel)" value="'+escHtml(data.label||'')+'">'+
+        '<div class="bc-actions">'+
+            '<button type="button" class="btn-primary-badge'+(isPrimary?' active':'')+'" id="bc-primary-btn-'+id+'" onclick="setPrimary('+id+')"><i class="fas fa-star"></i> Principal</button>'+
+            '<button type="button" class="btn-bc btn-bc-cam" onclick="openScanModal('+id+',\'camera\')" title="Caméra"><i class="fas fa-camera"></i></button>'+
+            '<button type="button" class="btn-bc btn-bc-file" onclick="openScanModal('+id+',\'file\')" title="Image"><i class="fas fa-file-image"></i></button>'+
+            '<button type="button" class="btn-bc btn-bc-remove" onclick="removeRow('+id+')" title="Supprimer"><i class="fas fa-trash"></i></button>'+
+        '</div>'+
+        '<input type="hidden" name="barcodes['+id+'][primary]" id="bc-primary-val-'+id+'" value="'+(isPrimary?'1':'')+'">';
+    document.getElementById('barcodeList').appendChild(row);
+    ensureOnePrimary();
 }
 
+function setPrimary(id) {
+    document.querySelectorAll('#barcodeList .barcode-row').forEach(r => r.classList.remove('is-primary'));
+    document.querySelectorAll('#barcodeList .btn-primary-badge').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('[id^="bc-primary-val-"]').forEach(i => i.value = '');
+    document.getElementById('bc-row-'+id).classList.add('is-primary');
+    document.getElementById('bc-primary-btn-'+id).classList.add('active');
+    document.getElementById('bc-primary-val-'+id).value = '1';
+}
 
-// ══════════════════════════════════════════════════════════
+function removeRow(id) {
+    const list = document.getElementById('barcodeList');
+    if (list.children.length <= 1) { showToast('⚠️ Minimum un code-barres.', 'error'); return; }
+    const wasPrimary = document.getElementById('bc-primary-val-'+id).value === '1';
+    document.getElementById('bc-row-'+id).remove();
+    if (wasPrimary) ensureOnePrimary();
+}
+
+function ensureOnePrimary() {
+    if (!document.querySelector('#barcodeList .btn-primary-badge.active')) {
+        const firstBtn = document.querySelector('#barcodeList .btn-primary-badge');
+        if (firstBtn) { const m = firstBtn.id.match(/bc-primary-btn-(\d+)/); if (m) setPrimary(parseInt(m[1])); }
+    }
+}
+
+// ══════════════════════════════════════════════
 //  PHOTO
-// ══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════
 function previewImage(input) {
     if (input.files && input.files[0]) {
         const reader = new FileReader();
@@ -1092,20 +873,74 @@ function previewImage(input) {
 
 function removeImage() {
     document.getElementById('photoInput').value = '';
-    document.getElementById('previewImg').src   = '';
+    document.getElementById('previewImg').src = '';
     document.getElementById('uploadPlaceholder').classList.remove('d-none');
     document.getElementById('uploadPreview').classList.add('d-none');
 }
 
+// ══════════════════════════════════════════════
+//  SEARCH WIDGET
+// ══════════════════════════════════════════════
+function makeSearchWidget(config) {
+    const { searchInputId, dropdownId, listId, emptyId, hiddenInputId, selectedBadgeId, selectedNameId, clearBtnId, data, renderItem } = config;
+    const searchInput   = document.getElementById(searchInputId);
+    const dropdown      = document.getElementById(dropdownId);
+    const list          = document.getElementById(listId);
+    const empty         = document.getElementById(emptyId);
+    const hiddenInput   = document.getElementById(hiddenInputId);
+    const selectedBadge = document.getElementById(selectedBadgeId);
+    const selectedName  = document.getElementById(selectedNameId);
+    const clearBtn      = document.getElementById(clearBtnId);
+    if (!searchInput || !dropdown || !hiddenInput) return { selectItem: () => {} };
 
-// ══════════════════════════════════════════════════════════
-//  HELPERS
-// ══════════════════════════════════════════════════════════
-function escHtml(str) {
-    return String(str).replace(/[&<>"']/g,
-        c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    function selectItem(item) {
+        hiddenInput.value = item.id;
+        searchInput.value = item.nom;
+        dropdown.classList.add('d-none');
+        selectedBadge.classList.remove('d-none');
+        selectedName.textContent = item.nom;
+        clearBtn.classList.remove('d-none');
+    }
+    searchInput.addEventListener('input', function() {
+        const q = this.value.trim().toLowerCase();
+        clearBtn.classList.toggle('d-none', q === '');
+        if (q.length < 1) { dropdown.classList.add('d-none'); return; }
+        const filtered = data.filter(item => item.nom.toLowerCase().includes(q));
+        list.innerHTML = '';
+        if (filtered.length === 0) { empty.classList.remove('d-none'); }
+        else {
+            empty.classList.add('d-none');
+            filtered.forEach(item => {
+                const div = document.createElement('div');
+                const ri = renderItem ? renderItem(item) : {};
+                div.className = ri.className || 'category-item';
+                const highlighted = item.nom.replace(new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi'),'<span class="cat-match">$1</span>');
+                div.innerHTML = (ri.icon||'') + ' ' + (ri.prefix||'') + highlighted;
+                div.addEventListener('click', () => selectItem(item));
+                list.appendChild(div);
+            });
+        }
+        dropdown.classList.remove('d-none');
+    });
+    clearBtn.addEventListener('click', function() {
+        hiddenInput.value = ''; searchInput.value = '';
+        selectedBadge.classList.add('d-none'); clearBtn.classList.add('d-none');
+        searchInput.focus();
+    });
+    searchInput.addEventListener('keydown', e => { if (e.key === 'Escape') dropdown.classList.add('d-none'); });
+    document.addEventListener('click', e => {
+        if (!e.target.closest('#'+searchInputId) && !e.target.closest('#'+dropdownId) && !e.target.closest('#'+clearBtnId))
+            dropdown.classList.add('d-none');
+    });
+    return { selectItem };
 }
 
+// ══════════════════════════════════════════════
+//  HELPERS
+// ══════════════════════════════════════════════
+function escHtml(str) {
+    return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
 function showToast(msg, type = 'success') {
     const t = document.createElement('div');
     t.className = 'toast-notif ' + type;
