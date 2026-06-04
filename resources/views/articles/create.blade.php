@@ -1,913 +1,1488 @@
 @extends('adminlte::page')
 
-@section('title', 'Créer un article')
+@section('title', 'Nouvel Article')
 
 @section('content_header')
-    <div class="header-modern">
-        <div class="header-left">
-            <a href="{{ route('articles.index') }}" class="btn-back">
-                <i class="fas fa-arrow-left"></i>
-            </a>
-            <div class="header-info">
-                <h1 class="page-title">
-                    <i class="fas fa-box"></i>
-                    Créer un nouvel article
-                </h1>
-                <p class="page-subtitle">Ajouter un article au stock</p>
-            </div>
-        </div>
+<div class="art-header">
+    <a href="{{ route('articles.index') }}" class="art-back">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+    </a>
+    <div>
+        <h1 class="art-title">Nouvel article</h1>
+        <p class="art-sub">Ajout au stock • {{ now()->format('d M Y') }}</p>
     </div>
+    <div class="art-header-badge">
+        <span class="pulse-dot"></span> Stock
+    </div>
+</div>
 @stop
 
 @section('content')
 
-<form action="{{ route('articles.store') }}" method="POST" enctype="multipart/form-data">
-    @csrf
+<form action="{{ route('articles.store') }}" method="POST" enctype="multipart/form-data" id="mainForm" novalidate>
+@csrf
 
-    <div class="row">
-        {{-- Colonne gauche --}}
-        <div class="col-md-6">
+<div class="art-grid">
 
-            {{-- Informations de base --}}
-            <div class="form-card-modern">
-                <h5 class="card-section-title">
-                    <i class="fas fa-info-circle"></i>
-                    Informations de base
-                </h5>
+    {{-- ╔══════════════════════════════╗ --}}
+    {{-- ║        COLONNE GAUCHE        ║ --}}
+    {{-- ╚══════════════════════════════╝ --}}
+    <div class="art-col">
 
-                {{-- Nom --}}
-                <div class="form-group-modern">
-                    <label>
-                        <i class="fas fa-tag"></i> Nom de l'article <span class="text-danger">*</span>
-                    </label>
-                    <input type="text"
-                           name="nom"
-                           class="form-control-modern @error('nom') is-invalid @enderror"
-                           placeholder="Ex: Coca-Cola 1.5L, Samsung Galaxy A54..."
-                           value="{{ old('nom') }}"
-                           required>
-                    @error('nom')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
+        {{-- ░ INFOS DE BASE ░ --}}
+        <div class="art-card" data-section="info">
+            <div class="art-card-label">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                Informations de base
+            </div>
+
+            {{-- NOM --}}
+            <div class="fld">
+                <label class="fld-label">Nom de l'article <span class="req">*</span></label>
+                <div class="fld-wrap">
+                    <input type="text" name="nom"
+                           class="fld-input @error('nom') has-err @enderror"
+                           placeholder="Ex: Coca‑Cola 1.5L, Samsung A54…"
+                           value="{{ old('nom') }}" required autocomplete="off">
+                    <span class="fld-ico">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+                    </span>
                 </div>
+                @error('nom')<p class="err-msg">{{ $message }}</p>@enderror
+            </div>
 
-                {{-- Codes-barres --}}
-                <div class="form-group-modern">
-                    <label>
-                        <i class="fas fa-barcode"></i> Codes-barres <span class="text-danger">*</span>
-                    </label>
+            {{-- CODES-BARRES --}}
+            <div class="fld">
+                <label class="fld-label">Codes-barres <span class="req">*</span></label>
+                <div id="barcodeList"></div>
+                <button type="button" class="btn-add-bc" id="btnAddBarcode">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    Ajouter un code-barres
+                </button>
+                <p class="fld-hint">Le code <strong>Principal</strong> est utilisé par défaut lors des ventes.</p>
+            </div>
 
-                    <div id="barcodeList"></div>
+            {{-- CATÉGORIE --}}
+            <div class="fld">
+                <label class="fld-label">Catégorie <span class="req">*</span></label>
+                <input type="hidden" name="categorie_id" id="categorie_id" value="{{ old('categorie_id') }}">
+                <div class="combo-wrap" id="comboWrap_cat">
+                    <div class="combo-trigger" id="comboTrigger_cat">
+                        <svg class="combo-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+                        <input type="text" id="catSearch" class="combo-input" placeholder="Rechercher une catégorie…" autocomplete="off">
+                        <button type="button" class="combo-clear d-none" id="catClear">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        </button>
+                        <svg class="combo-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                    </div>
+                    <div class="combo-dropdown d-none" id="catDropdown">
+                        <div class="combo-list" id="catList"></div>
+                        <div class="combo-empty d-none" id="catEmpty">
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                            Aucun résultat
+                        </div>
+                    </div>
+                    <div class="combo-badge d-none" id="catBadge">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                        <span id="catBadgeName"></span>
+                    </div>
+                </div>
+                @error('categorie_id')<p class="err-msg">{{ $message }}</p>@enderror
+            </div>
 
-                    <button type="button" class="btn-add-barcode" id="btnAddBarcode">
-                        <i class="fas fa-plus"></i> Ajouter un code-barres
+            {{-- MARQUE --}}
+            <div class="fld">
+                <label class="fld-label">Marque <span class="opt">optionnel</span></label>
+                <input type="hidden" name="marque_id" id="marque_id" value="{{ old('marque_id') }}">
+                <div class="combo-wrap" id="comboWrap_mar">
+                    <div class="combo-trigger" id="comboTrigger_mar">
+                        <svg class="combo-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg>
+                        <input type="text" id="marSearch" class="combo-input" placeholder="Rechercher une marque…" autocomplete="off">
+                        <button type="button" class="combo-clear d-none" id="marClear">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        </button>
+                        <svg class="combo-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                    </div>
+                    <div class="combo-dropdown d-none" id="marDropdown">
+                        <div class="combo-list" id="marList"></div>
+                        <div class="combo-empty d-none" id="marEmpty">
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                            Aucun résultat
+                        </div>
+                    </div>
+                    <div class="combo-badge d-none" id="marBadge">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                        <span id="marBadgeName"></span>
+                    </div>
+                </div>
+                @error('marque_id')<p class="err-msg">{{ $message }}</p>@enderror
+            </div>
+
+            {{-- DESCRIPTION --}}
+            <div class="fld">
+                <label class="fld-label">Description <span class="opt">optionnel</span></label>
+                <textarea name="description"
+                          class="fld-textarea @error('description') has-err @enderror"
+                          placeholder="Décrivez l'article, ses spécifications, ses variantes…"
+                          rows="3">{{ old('description') }}</textarea>
+                @error('description')<p class="err-msg">{{ $message }}</p>@enderror
+            </div>
+        </div>
+
+        {{-- ░ PHOTO ░ --}}
+        <div class="art-card">
+            <div class="art-card-label">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                Photo de l'article
+            </div>
+            <div class="upload-zone" id="uploadZone">
+                <input type="file" name="photo" id="photoInput" class="d-none"
+                       accept="image/*" onchange="handlePhotoChange(this)">
+                <div class="upload-idle" id="uploadIdle">
+                    <div class="upload-icon-wrap">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/></svg>
+                    </div>
+                    <p class="upload-text">Glissez une image ou <span>cliquez</span></p>
+                    <p class="upload-hint">JPG · PNG · GIF — max 2 Mo</p>
+                </div>
+                <div class="upload-preview d-none" id="uploadPreview">
+                    <img id="previewImg" src="" alt="">
+                    <button type="button" class="upload-remove" onclick="removePhoto()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                     </button>
-
-                    <small class="form-text text-muted mt-1">
-                        <i class="fas fa-info-circle"></i>
-                        Le code marqué <strong>Principal</strong> sera utilisé par défaut.
-                    </small>
                 </div>
+            </div>
+        </div>
+    </div>
 
-                {{-- Catégorie --}}
-                <div class="form-group-modern">
-                    <label>
-                        <i class="fas fa-tags"></i> Catégorie <span class="text-danger">*</span>
-                    </label>
-                    <input type="hidden" name="categorie_id" id="categorie_id" value="{{ old('categorie_id') }}" required>
-                    <div class="category-search-wrapper">
-                        <div class="category-search-input-row">
-                            <i class="fas fa-search category-search-icon"></i>
-                            <input type="text" id="categorieSearch"
-                                   class="form-control-modern category-search-input @error('categorie_id') is-invalid @enderror"
-                                   placeholder="Rechercher une catégorie..."
-                                   autocomplete="off">
-                            <button type="button" class="btn-clear-category d-none" id="btnClearCategory" title="Effacer">
-                                <i class="fas fa-times"></i>
-                            </button>
-                        </div>
-                        <div id="categoryDropdown" class="category-dropdown d-none">
-                            <div id="categoryList"></div>
-                            <div id="categoryEmpty" class="category-empty d-none">
-                                <i class="fas fa-search"></i> Aucune catégorie trouvée
-                            </div>
-                        </div>
-                        <div id="categorySelected" class="category-selected-badge d-none">
-                            <i class="fas fa-check-circle"></i>
-                            <span id="categorySelectedName"></span>
-                        </div>
+    {{-- ╔══════════════════════════════╗ --}}
+    {{-- ║        COLONNE DROITE        ║ --}}
+    {{-- ╚══════════════════════════════╝ --}}
+    <div class="art-col">
+
+        {{-- ░ STOCK ░ --}}
+        <div class="art-card">
+            <div class="art-card-label">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
+                Stock &amp; quantités
+            </div>
+            <div class="fld-row-3">
+                <div class="fld">
+                    <label class="fld-label">Stock initial <span class="req">*</span></label>
+                    <div class="num-wrap">
+                        <button type="button" class="num-btn" onclick="nudge('stock',-1)">−</button>
+                        <input type="number" name="stock" id="stock"
+                               class="num-input @error('stock') has-err @enderror"
+                               min="0" value="{{ old('stock', 0) }}" required>
+                        <button type="button" class="num-btn" onclick="nudge('stock',1)">+</button>
                     </div>
-                    @error('categorie_id')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
+                    <p class="fld-hint">pièces</p>
+                    @error('stock')<p class="err-msg">{{ $message }}</p>@enderror
                 </div>
-
-                {{-- Marque --}}
-                <div class="form-group-modern">
-                    <label>
-                        <i class="fas fa-certificate"></i> Marque <span class="text-muted">(Optionnel)</span>
-                    </label>
-                    <input type="hidden" name="marque_id" id="marque_id" value="{{ old('marque_id') }}">
-                    <div class="category-search-wrapper">
-                        <div class="category-search-input-row">
-                            <i class="fas fa-search category-search-icon"></i>
-                            <input type="text" id="marqueSearch"
-                                   class="form-control-modern category-search-input @error('marque_id') is-invalid @enderror"
-                                   placeholder="Rechercher une marque..."
-                                   autocomplete="off">
-                            <button type="button" class="btn-clear-category d-none" id="btnClearMarque" title="Effacer">
-                                <i class="fas fa-times"></i>
-                            </button>
-                        </div>
-                        <div id="marqueDropdown" class="category-dropdown d-none">
-                            <div id="marqueList"></div>
-                            <div id="marqueEmpty" class="category-empty d-none">
-                                <i class="fas fa-search"></i> Aucune marque trouvée
-                            </div>
-                        </div>
-                        <div id="marqueSelected" class="category-selected-badge d-none">
-                            <i class="fas fa-check-circle"></i>
-                            <span id="marqueSelectedName"></span>
-                        </div>
+                <div class="fld">
+                    <label class="fld-label">Qté minimale <span class="req">*</span></label>
+                    <div class="num-wrap">
+                        <button type="button" class="num-btn" onclick="nudge('quantite_minimale',-1)">−</button>
+                        <input type="number" name="quantite_minimale" id="quantite_minimale"
+                               class="num-input @error('quantite_minimale') has-err @enderror"
+                               min="0" value="{{ old('quantite_minimale', 0) }}" required>
+                        <button type="button" class="num-btn" onclick="nudge('quantite_minimale',1)">+</button>
                     </div>
-                    @error('marque_id')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
+                    <p class="fld-hint">seuil d'alerte</p>
+                    @error('quantite_minimale')<p class="err-msg">{{ $message }}</p>@enderror
                 </div>
-
-                {{-- Description --}}
-                <div class="form-group-modern">
-                    <label>
-                        <i class="fas fa-align-left"></i> Description <span class="text-muted">(Optionnel)</span>
-                    </label>
-                    <textarea name="description"
-                              class="form-control-modern @error('description') is-invalid @enderror"
-                              rows="3"
-                              placeholder="Décrivez l'article...">{{ old('description') }}</textarea>
-                    @error('description')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
+                <div class="fld">
+                    <label class="fld-label">Carton</label>
+                    <div class="num-wrap">
+                        <button type="button" class="num-btn" onclick="nudge('contenance_carton',-1)">−</button>
+                        <input type="number" name="contenance_carton" id="contenance_carton"
+                               class="num-input @error('contenance_carton') has-err @enderror"
+                               min="1" value="{{ old('contenance_carton', 1) }}">
+                        <button type="button" class="num-btn" onclick="nudge('contenance_carton',1)">+</button>
+                    </div>
+                    <p class="fld-hint">pièces/carton</p>
+                    @error('contenance_carton')<p class="err-msg">{{ $message }}</p>@enderror
                 </div>
             </div>
 
-            {{-- Photo --}}
-            <div class="form-card-modern">
-                <h5 class="card-section-title">
-                    <i class="fas fa-image"></i>
-                    Photo de l'article
-                </h5>
-                <div class="upload-area" id="uploadArea">
-                    <input type="file" name="photo" id="photoInput" class="d-none"
-                           accept="image/*" onchange="previewImage(this)">
-                    <div class="upload-placeholder" id="uploadPlaceholder">
-                        <i class="fas fa-cloud-upload-alt"></i>
-                        <p>Cliquez pour télécharger une photo</p>
-                        <small>JPG, PNG, GIF - Max 2MB</small>
-                    </div>
-                    <div class="upload-preview d-none" id="uploadPreview">
-                        <img id="previewImg" src="" alt="Preview">
-                        <button type="button" class="btn-remove-img" onclick="removeImage()">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
+            {{-- Barre stock visuelle --}}
+            <div class="stock-bar-wrap" id="stockBarWrap">
+                <div class="stock-bar-track">
+                    <div class="stock-bar-fill" id="stockBarFill"></div>
+                    <div class="stock-bar-min"  id="stockBarMin"></div>
+                </div>
+                <div class="stock-bar-legend">
+                    <span id="stockBarLabel">Stock: 0 pcs</span>
+                    <span id="stockBarMinLabel">Min: 0</span>
                 </div>
             </div>
         </div>
 
-        {{-- Colonne droite --}}
-        <div class="col-md-6">
-
-            {{-- Stock --}}
-            <div class="form-card-modern">
-                <h5 class="card-section-title">
-                    <i class="fas fa-warehouse"></i>
-                    Stock et quantités
-                </h5>
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="form-group-modern">
-                            <label><i class="fas fa-boxes"></i> Stock initial (pièces) <span class="text-danger">*</span></label>
-                            <input type="number" name="stock"
-                                   class="form-control-modern @error('stock') is-invalid @enderror"
-                                   min="0" value="{{ old('stock', 0) }}" required>
-                            @error('stock')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="form-group-modern">
-                            <label><i class="fas fa-exclamation-triangle"></i> Quantité minimale <span class="text-danger">*</span></label>
-                            <input type="number" name="quantite_minimale"
-                                   class="form-control-modern @error('quantite_minimale') is-invalid @enderror"
-                                   min="0" value="{{ old('quantite_minimale') }}" required>
-                            @error('quantite_minimale')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                            <small class="form-text text-muted">Seuil d'alerte</small>
-                        </div>
-                    </div>
-                    <div class="col-md-12">
-                        <div class="form-group-modern">
-                            <label><i class="fas fa-box-open"></i> Contenance carton (pièces)</label>
-                            <input type="number" name="contenance_carton"
-                                   class="form-control-modern @error('contenance_carton') is-invalid @enderror"
-                                   min="1" value="{{ old('contenance_carton', 1) }}">
-                            @error('contenance_carton')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                            <small class="form-text text-muted"><i class="fas fa-info-circle"></i> Nombre de pièces par carton</small>
-                        </div>
-                    </div>
-                </div>
+        {{-- ░ PRIX ░ --}}
+        <div class="art-card">
+            <div class="art-card-label">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+                Prix &amp; dates
             </div>
-
-            {{-- Prix --}}
-            <div class="form-card-modern">
-                <h5 class="card-section-title">
-                    <i class="fas fa-dollar-sign"></i>
-                    Prix et dates
-                </h5>
-                <div class="form-group-modern">
-                    <label><i class="fas fa-money-bill-wave"></i> Prix d'achat (DZD) <span class="text-muted">(Optionnel)</span></label>
+            <div class="fld">
+                <label class="fld-label">Prix d'achat (DZD) <span class="opt">optionnel</span></label>
+                <div class="fld-wrap">
                     <input type="number" step="0.01" name="prix_achat"
-                           class="form-control-modern @error('prix_achat') is-invalid @enderror"
+                           class="fld-input has-prefix @error('prix_achat') has-err @enderror"
                            placeholder="0.00" value="{{ old('prix_achat') }}">
-                    @error('prix_achat')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                    <span class="fld-prefix">DA</span>
                 </div>
-                <div class="form-group-modern">
-                    <label><i class="fas fa-calendar-times"></i> Date de péremption <span class="text-muted">(Optionnel)</span></label>
+                @error('prix_achat')<p class="err-msg">{{ $message }}</p>@enderror
+            </div>
+            <div class="fld">
+                <label class="fld-label">Date de péremption <span class="opt">optionnel</span></label>
+                <div class="fld-wrap">
                     <input type="date" name="date_peremption"
-                           class="form-control-modern @error('date_peremption') is-invalid @enderror"
+                           class="fld-input @error('date_peremption') has-err @enderror"
                            value="{{ old('date_peremption') }}">
-                    @error('date_peremption')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                    <span class="fld-ico">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    </span>
                 </div>
+                @error('date_peremption')<p class="err-msg">{{ $message }}</p>@enderror
             </div>
         </div>
-    </div>
 
-    {{-- Actions --}}
-    <div class="form-actions-fixed">
-        <div class="container">
-            <div class="row">
-                <div class="col-12">
-                    <div class="actions-wrapper">
-                        <a href="{{ route('articles.index') }}" class="btn-cancel">
-                            <i class="fas fa-times"></i> Annuler
-                        </a>
-                        <button type="submit" class="btn-submit">
-                            <i class="fas fa-save"></i> Enregistrer l'article
-                        </button>
-                    </div>
-                </div>
+        {{-- ░ RÉCAP RAPIDE ░ --}}
+        <div class="art-card recap-card" id="recapCard">
+            <div class="art-card-label">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+                Récapitulatif
+            </div>
+            <div class="recap-rows">
+                <div class="recap-row"><span>Nom</span><strong id="r-nom">—</strong></div>
+                <div class="recap-row"><span>Catégorie</span><strong id="r-cat">—</strong></div>
+                <div class="recap-row"><span>Stock</span><strong id="r-stock">0 pcs</strong></div>
+                <div class="recap-row"><span>Codes</span><strong id="r-codes">0</strong></div>
+                <div class="recap-row"><span>Prix achat</span><strong id="r-prix">—</strong></div>
             </div>
         </div>
     </div>
+</div>
+
+{{-- ░ BARRE D'ACTIONS ░ --}}
+<div class="art-actions">
+    <a href="{{ route('articles.index') }}" class="btn-art-cancel">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        Annuler
+    </a>
+    <button type="submit" class="btn-art-save" id="btnSave">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        Enregistrer
+    </button>
+</div>
+
 </form>
 
-{{-- ═══════════════════════════════════════════════
-     MODAL SCANNER — en dehors du form
-════════════════════════════════════════════════ --}}
-<div id="scanModal" class="scan-modal d-none">
-    <div class="scan-box">
+{{-- ═══════════════════════════════════════════
+     SCANNER MODAL
+════════════════════════════════════════════ --}}
+<div id="scanOverlay" class="scan-overlay" aria-hidden="true">
+    <div class="scan-sheet" role="dialog" aria-modal="true" aria-label="Scanner un code-barres">
 
-        {{-- Header --}}
-        <div class="scan-header">
-            <span><i class="fas fa-barcode"></i> Scanner un code-barres</span>
-            <button type="button" id="btnCloseScan" class="btn-scan-close">
-                <i class="fas fa-times"></i> Fermer
+        <div class="scan-top">
+            <div class="scan-top-left">
+                <div class="scan-dot"></div>
+                <span>Scanner un code-barres</span>
+            </div>
+            <button type="button" class="scan-close" id="btnCloseScan" aria-label="Fermer">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
         </div>
 
-        {{-- Choix méthode --}}
-        <div class="scan-methods" id="scanMethods">
-            <button type="button" class="btn-method" id="btnMethodCamera" onclick="scanStart('camera')">
-                <i class="fas fa-camera"></i><br>Caméra
+        {{-- TABS --}}
+        <div class="scan-tabs">
+            <button type="button" class="scan-tab active" data-tab="camera" onclick="switchScanTab('camera')">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                Caméra
             </button>
-            <button type="button" class="btn-method" id="btnMethodFile" onclick="scanStart('file')">
-                <i class="fas fa-file-image"></i><br>Image
+            <button type="button" class="scan-tab" data-tab="image" onclick="switchScanTab('image')">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                Image
             </button>
-            <button type="button" class="btn-method" id="btnMethodManual" onclick="scanStart('manual')">
-                <i class="fas fa-keyboard"></i><br>Manuel
+            <button type="button" class="scan-tab" data-tab="manual" onclick="switchScanTab('manual')">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                Manuel
             </button>
+            <div class="scan-tab-indicator" id="scanTabIndicator"></div>
         </div>
 
-        {{-- Section caméra --}}
-       {{-- Section caméra --}}
-<div id="scanCamSection" class="d-none">
-    <div class="scan-viewport">
-
-        <video
-            id="scanVideo"
-            autoplay
-            muted
-            playsinline
-            style="width:100%;display:block;">
-        </video>
-
-        <div class="scan-laser-wrap" aria-hidden="true">
-            <div class="scan-laser-line"></div>
-        </div>
-
-    </div>
-
-    <div id="scanStatus" class="scan-status">
-        <i class="fas fa-spinner fa-spin"></i> Démarrage caméra…
-    </div>
-</div>
-        {{-- Section image --}}
-        <div id="scanFileSection" class="d-none" style="padding:1.25rem;text-align:center">
-            <input type="file" id="scanImageInput" accept="image/*" capture="environment" style="display:none">
-            <button type="button" class="btn-pick-image" onclick="document.getElementById('scanImageInput').click()">
-                <i class="fas fa-upload"></i> Choisir une image
-            </button>
-            <p id="scanFileStatus" style="margin-top:.75rem;color:#aaa;font-size:.85rem"></p>
-        </div>
-
-        {{-- Section manuelle --}}
-        <div id="scanManualSection" class="d-none" style="padding:1.25rem">
-            <label style="font-size:.85rem;color:#aaa;display:block;margin-bottom:.4rem">
-                Saisir le code manuellement :
-            </label>
-            <div style="display:flex;gap:.5rem">
-                <input type="text" id="scanManualInput" inputmode="numeric"
-                       placeholder="Ex: 3760091721367"
-                       style="flex:1;height:42px;border-radius:8px;border:1.5px solid #444;
-                              background:#1a1a1a;color:white;padding:0 .75rem;font-size:1rem">
-                <button type="button" onclick="scanConfirmManual()"
-                        style="background:#27ae60;color:white;border:none;border-radius:8px;
-                               padding:0 1.1rem;font-weight:600;cursor:pointer">
-                    OK
-                </button>
+        {{-- CAMÉRA --}}
+        <div class="scan-panel" id="panelCamera">
+            <div class="scan-viewport" id="scanViewport">
+                <video id="scanVideo" autoplay muted playsinline></video>
+                <div class="scan-overlay-frame">
+                    <div class="scan-corner tl"></div>
+                    <div class="scan-corner tr"></div>
+                    <div class="scan-corner bl"></div>
+                    <div class="scan-corner br"></div>
+                    <div class="scan-beam" id="scanBeam"></div>
+                </div>
+                <canvas id="scanCanvas" style="display:none"></canvas>
+            </div>
+            <div class="scan-status-bar" id="scanStatus">
+                <div class="scan-spinner"></div>
+                <span id="scanStatusText">Initialisation…</span>
             </div>
         </div>
 
+        {{-- IMAGE --}}
+        <div class="scan-panel d-none" id="panelImage">
+            <div class="img-drop-zone" id="imgDropZone">
+                <input type="file" id="scanImageInput" accept="image/*" capture="environment" style="display:none">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                <p>Glissez une image ici</p>
+                <span>ou</span>
+                <button type="button" class="btn-pick-img" onclick="document.getElementById('scanImageInput').click()">Choisir un fichier</button>
+                <p class="img-status" id="imgStatus"></p>
+            </div>
+        </div>
+
+        {{-- MANUEL --}}
+        <div class="scan-panel d-none" id="panelManual">
+            <div class="manual-zone">
+                <label>Saisissez le code-barres</label>
+                <div class="manual-input-row">
+                    <input type="text" id="manualInput" inputmode="numeric"
+                           placeholder="Ex: 3760091721367"
+                           onkeydown="if(event.key==='Enter'){event.preventDefault();confirmManual();}">
+                    <button type="button" class="btn-manual-ok" onclick="confirmManual()">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                    </button>
+                </div>
+                <p class="manual-hint">Appuyez sur <kbd>Entrée</kbd> pour valider</p>
+            </div>
+        </div>
+
+        {{-- SUCCESS FLASH --}}
+        <div class="scan-success d-none" id="scanSuccess">
+            <div class="scan-success-icon">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <div class="scan-success-code" id="scanSuccessCode"></div>
+        </div>
+
     </div>
 </div>
+
+{{-- TOAST --}}
+<div class="art-toast-wrap" id="toastWrap"></div>
 
 @stop
 
 @section('css')
 <style>
-/* ── Header ────────────────────────────────── */
-.header-modern{display:flex;justify-content:space-between;align-items:center;
-    margin-bottom:2rem;background:white;padding:1.5rem;border-radius:16px;
-    box-shadow:0 2px 12px rgba(0,0,0,.06)}
-.header-left{display:flex;align-items:center;gap:1rem}
-.btn-back{width:48px;height:48px;display:flex;align-items:center;justify-content:center;
-    background:linear-gradient(135deg,#E60000,#FF3333);color:white;border-radius:12px;
-    text-decoration:none;transition:all .3s;box-shadow:0 4px 12px rgba(230,0,0,.3)}
-.btn-back:hover{transform:translateX(-4px);color:white;text-decoration:none}
-.page-title{font-size:1.75rem;font-weight:800;color:#2c3e50;margin:0;
-    display:flex;align-items:center;gap:.75rem}
-.page-title i{color:#FF6B35}
-.page-subtitle{color:#7f8c8d;font-size:.95rem;margin:.25rem 0 0}
+/* ─── IMPORT FONT ─────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap');
 
-/* ── Cards ─────────────────────────────────── */
-.form-card-modern{background:white;padding:1.75rem;border-radius:16px;
-    box-shadow:0 2px 12px rgba(0,0,0,.06);margin-bottom:1.5rem}
-.card-section-title{font-size:1.1rem;font-weight:700;color:#2c3e50;
-    margin-bottom:1.5rem;padding-bottom:.75rem;border-bottom:2px solid #f0f0f0;
-    display:flex;align-items:center;gap:.5rem}
-.card-section-title i{color:#FF6B35}
+/* ─── TOKENS ──────────────────────────────── */
+:root {
+    --bg:        #0d0f14;
+    --surface:   #13161d;
+    --surface2:  #1a1e28;
+    --surface3:  #21263300;
+    --border:    rgba(255,255,255,.07);
+    --border2:   rgba(255,255,255,.12);
+    --accent:    #6c63ff;
+    --accent2:   #8b83ff;
+    --green:     #22d37a;
+    --red:       #ff5252;
+    --yellow:    #ffc94a;
+    --text:      #e8eaf0;
+    --text2:     #8890a4;
+    --text3:     #555e72;
+    --radius:    14px;
+    --radius-sm: 9px;
+    --shadow:    0 8px 32px rgba(0,0,0,.4);
+    --font:      'DM Sans', system-ui, sans-serif;
+    --font-h:    'Syne', sans-serif;
+    --transition: .2s cubic-bezier(.4,0,.2,1);
+}
 
-/* ── Form controls ──────────────────────────── */
-.form-group-modern{margin-bottom:1.5rem}
-.form-group-modern label{font-weight:600;color:#2c3e50;margin-bottom:.5rem;display:block}
-.form-group-modern label i{color:#FF6B35;margin-right:.25rem}
-.form-control-modern{width:100%;border:2px solid #e9ecef;border-radius:10px;
-    padding:.875rem 1rem;font-size:1rem;transition:all .3s}
-.form-control-modern:focus{border-color:#FF6B35;box-shadow:0 0 0 .2rem rgba(255,107,53,.1);outline:none}
-.form-control-modern.is-invalid{border-color:#e74c3c}
-.invalid-feedback{display:block;color:#e74c3c;font-size:.875rem;margin-top:.25rem}
+/* ─── RESET GLOBAL ────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; }
+body, .content-wrapper { background: var(--bg) !important; font-family: var(--font); color: var(--text); }
+.content-wrapper { padding-bottom: 110px !important; }
+a { color: inherit; }
 
-/* ── Lignes barcode ─────────────────────────── */
-.barcode-row{display:flex;gap:.5rem;align-items:center;margin-bottom:.75rem;
-    padding:.65rem;border-radius:10px;background:#f8f9fa;border:1.5px solid #e9ecef;
-    transition:border-color .2s}
-.barcode-row.is-primary{border-color:#27ae60;background:#f0fdf4}
-.bc-input{flex:2;min-width:0;border:1.5px solid #e9ecef;border-radius:8px;
-    padding:.55rem .75rem;font-size:.95rem;background:white;transition:border-color .2s}
-.bc-input:focus{outline:none;border-color:#FF6B35}
-.bc-label-input{flex:1;min-width:0;border:1.5px solid #e9ecef;border-radius:8px;
-    padding:.55rem .75rem;font-size:.85rem;background:white}
-.bc-actions{display:flex;gap:.3rem;align-items:center;flex-shrink:0}
-.btn-bc{width:38px;height:38px;border:none;border-radius:8px;cursor:pointer;
-    display:flex;align-items:center;justify-content:center;font-size:.9rem;
-    color:white;transition:opacity .2s}
-.btn-bc:hover{opacity:.85}
-.btn-bc-cam{background:#27ae60}
-.btn-bc-file{background:#8e44ad}
-.btn-bc-remove{background:#e74c3c}
-.btn-primary-badge{height:36px;padding:0 .65rem;border-radius:8px;
-    border:1.5px solid #ccc;background:white;color:#888;cursor:pointer;
-    font-size:.75rem;font-weight:600;white-space:nowrap;transition:all .2s}
-.btn-primary-badge.active{background:#27ae60;border-color:#27ae60;color:white}
-.btn-primary-badge:hover:not(.active){border-color:#27ae60;color:#27ae60}
-.btn-add-barcode{display:inline-flex;align-items:center;gap:.5rem;padding:.6rem 1.1rem;
-    border-radius:10px;background:linear-gradient(135deg,#3498db,#2980b9);color:white;
-    border:none;font-weight:600;cursor:pointer;font-size:.9rem;transition:all .2s;margin-top:.25rem}
-.btn-add-barcode:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(52,152,219,.35)}
+/* ─── HEADER ──────────────────────────────── */
+.art-header {
+    display: flex; align-items: center; gap: 1rem;
+    padding: 1.25rem 1.5rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 1.5rem;
+}
+.art-back {
+    width: 40px; height: 40px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--surface2); border: 1px solid var(--border2);
+    border-radius: var(--radius-sm); color: var(--text2);
+    text-decoration: none; transition: var(--transition);
+}
+.art-back:hover { background: var(--accent); border-color: var(--accent); color: white; }
+.art-title { font-family: var(--font-h); font-size: 1.35rem; font-weight: 700; color: var(--text); line-height: 1; }
+.art-sub   { font-size: .78rem; color: var(--text3); margin-top: .25rem; }
+.art-header-badge {
+    margin-left: auto; display: flex; align-items: center; gap: .5rem;
+    padding: .35rem .9rem; border-radius: 20px;
+    background: rgba(108,99,255,.12); border: 1px solid rgba(108,99,255,.3);
+    font-size: .78rem; font-weight: 600; color: var(--accent2);
+}
+.pulse-dot {
+    width: 7px; height: 7px; border-radius: 50%; background: var(--green);
+    box-shadow: 0 0 0 0 rgba(34,211,122,.4);
+    animation: pulse 1.8s infinite;
+}
+@keyframes pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(34,211,122,.4); }
+    70%  { box-shadow: 0 0 0 7px rgba(34,211,122,0); }
+    100% { box-shadow: 0 0 0 0 rgba(34,211,122,0); }
+}
 
-/* ── Modal scanner ──────────────────────────── */
-.scan-modal{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:9999;
-    display:flex;align-items:center;justify-content:center}
-.scan-box{background:#111;border-radius:18px;overflow:hidden;
-    width:min(95vw,430px);box-shadow:0 24px 64px rgba(0,0,0,.6)}
-.scan-header{display:flex;justify-content:space-between;align-items:center;
-    padding:.75rem 1rem;background:#27ae60;color:white;font-weight:600}
-.btn-scan-close{background:rgba(255,255,255,.2);color:white;border:none;
-    border-radius:8px;padding:.35rem .85rem;cursor:pointer;font-size:.85rem}
-.btn-scan-close:hover{background:rgba(255,255,255,.35)}
+/* ─── GRID ────────────────────────────────── */
+.art-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+.art-col  { display: flex; flex-direction: column; gap: 1.25rem; }
 
-.scan-methods{display:flex;gap:.75rem;padding:1rem;background:#0d0d0d}
-.btn-method{flex:1;padding:.75rem .5rem;border:2px solid #333;border-radius:12px;
-    background:transparent;color:#ccc;cursor:pointer;font-size:.82rem;font-weight:600;
-    transition:all .2s;text-align:center;line-height:1.6}
-.btn-method i{font-size:1.3rem;display:block;margin-bottom:.2rem}
-.btn-method:hover,.btn-method.active{border-color:#27ae60;color:#27ae60;background:rgba(39,174,96,.1)}
+/* ─── CARDS ───────────────────────────────── */
+.art-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    transition: border-color var(--transition);
+}
+.art-card:hover { border-color: var(--border2); }
+.art-card-label {
+    display: flex; align-items: center; gap: .5rem;
+    font-family: var(--font-h); font-size: .7rem; font-weight: 700;
+    color: var(--text3); text-transform: uppercase; letter-spacing: .08em;
+    margin-bottom: 1.25rem; padding-bottom: .75rem;
+    border-bottom: 1px solid var(--border);
+}
+.art-card-label svg { color: var(--accent); }
 
-/* ── Scanner viewport ───────────────────────── */
-.scan-viewport{position:relative;width:100%;background:#000;overflow:hidden}
+/* ─── FORM FIELDS ─────────────────────────── */
+.fld { margin-bottom: 1.1rem; }
+.fld:last-child { margin-bottom: 0; }
+.fld-label {
+    display: block; font-size: .8rem; font-weight: 600;
+    color: var(--text2); margin-bottom: .45rem;
+}
+.req { color: var(--red); margin-left: .15rem; }
+.opt { color: var(--text3); font-weight: 400; font-size: .75rem; margin-left: .3rem; }
 
-/* Laser rouge animé — repère visuel net */
-.scan-laser-wrap{
-    position:absolute;inset:0;pointer-events:none;
-    display:flex;align-items:center;justify-content:center}
-.scan-laser-line{
-    width:80%;height:2px;
-    background:linear-gradient(90deg,transparent,#ff3333 20%,#ff3333 80%,transparent);
-    box-shadow:0 0 6px 1px rgba(255,50,50,.7);
-    animation:laserPulse .9s ease-in-out infinite alternate}
-@keyframes laserPulse{
-    from{opacity:.6;transform:scaleX(.9)}
-    to  {opacity:1;transform:scaleX(1)}}
+.fld-wrap { position: relative; }
+.fld-input {
+    width: 100%; height: 44px;
+    background: var(--surface2); border: 1px solid var(--border2);
+    border-radius: var(--radius-sm); padding: 0 2.6rem 0 .9rem;
+    font-family: var(--font); font-size: .92rem; color: var(--text);
+    outline: none; transition: border-color var(--transition), box-shadow var(--transition);
+    -webkit-appearance: none;
+}
+.fld-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(108,99,255,.18);
+}
+.fld-input.has-err { border-color: var(--red); }
+.fld-input::placeholder { color: var(--text3); }
+.fld-ico {
+    position: absolute; right: .75rem; top: 50%; transform: translateY(-50%);
+    color: var(--text3); pointer-events: none;
+}
+.fld-input.has-prefix { padding-left: 3rem; }
+.fld-prefix {
+    position: absolute; left: .9rem; top: 50%; transform: translateY(-50%);
+    font-size: .8rem; font-weight: 700; color: var(--accent); pointer-events: none;
+}
+.fld-textarea {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border2);
+    border-radius: var(--radius-sm); padding: .7rem .9rem;
+    font-family: var(--font); font-size: .92rem; color: var(--text);
+    resize: vertical; min-height: 80px; outline: none;
+    transition: border-color var(--transition), box-shadow var(--transition);
+}
+.fld-textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(108,99,255,.18); }
+.fld-textarea::placeholder { color: var(--text3); }
+.fld-hint { font-size: .74rem; color: var(--text3); margin-top: .35rem; }
+.err-msg  { font-size: .77rem; color: var(--red); margin-top: .35rem; }
 
-.scan-status{padding:.6rem 1rem;background:#0a0a0a;color:#9ca3af;
-    font-size:.82rem;text-align:center;min-height:36px}
+/* ─── BARCODE ROWS ────────────────────────── */
+#barcodeList { display: flex; flex-direction: column; gap: .55rem; margin-bottom: .75rem; }
+.bc-row {
+    display: flex; gap: .45rem; align-items: center;
+    background: var(--surface2); border: 1px solid var(--border2);
+    border-radius: var(--radius-sm); padding: .55rem .65rem;
+    transition: border-color var(--transition);
+    animation: rowIn .2s ease;
+}
+@keyframes rowIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:none; } }
+.bc-row.is-primary { border-color: var(--green); }
+.bc-code {
+    flex: 2; min-width: 0; height: 36px;
+    background: var(--surface); border: 1px solid var(--border2);
+    border-radius: 7px; padding: 0 .7rem;
+    font-family: 'Courier New', monospace; font-size: .88rem;
+    color: var(--text); outline: none;
+    transition: border-color var(--transition);
+}
+.bc-code:focus { border-color: var(--accent); }
+.bc-code.ok { border-color: var(--green); background: rgba(34,211,122,.05); }
+.bc-lbl {
+    flex: 1; min-width: 0; height: 36px;
+    background: var(--surface); border: 1px solid var(--border2);
+    border-radius: 7px; padding: 0 .7rem;
+    font-family: var(--font); font-size: .82rem;
+    color: var(--text2); outline: none;
+}
+.bc-lbl:focus { border-color: var(--accent); outline: none; }
+.bc-lbl::placeholder { color: var(--text3); }
+.bc-btn {
+    width: 34px; height: 34px; flex-shrink: 0;
+    border: none; border-radius: 7px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: opacity var(--transition), transform var(--transition);
+    color: white;
+}
+.bc-btn:hover { opacity: .85; transform: scale(1.07); }
+.bc-btn-cam  { background: var(--green); }
+.bc-btn-img  { background: var(--accent); }
+.bc-btn-del  { background: rgba(255,82,82,.2); color: var(--red); border: 1px solid rgba(255,82,82,.3); }
+.bc-btn-del:hover { background: var(--red); color: white; }
+.bc-primary-btn {
+    height: 34px; padding: 0 .6rem; border-radius: 7px;
+    border: 1px solid var(--border2); background: transparent;
+    color: var(--text3); font-size: .7rem; font-weight: 700;
+    font-family: var(--font); cursor: pointer; white-space: nowrap;
+    transition: all var(--transition); flex-shrink: 0;
+}
+.bc-primary-btn.on { background: var(--green); border-color: var(--green); color: #0d1f14; }
+.bc-primary-btn:hover:not(.on) { border-color: var(--green); color: var(--green); }
 
-.btn-pick-image{display:inline-flex;align-items:center;gap:.5rem;
-    padding:.7rem 1.4rem;border-radius:10px;background:#8e44ad;color:white;
-    border:none;font-weight:600;cursor:pointer;font-size:.9rem}
+.btn-add-bc {
+    display: inline-flex; align-items: center; gap: .45rem;
+    padding: .55rem 1rem; border-radius: var(--radius-sm);
+    background: rgba(108,99,255,.12); border: 1px dashed rgba(108,99,255,.4);
+    color: var(--accent2); font-size: .82rem; font-weight: 600;
+    font-family: var(--font); cursor: pointer;
+    transition: all var(--transition);
+}
+.btn-add-bc:hover { background: rgba(108,99,255,.22); border-style: solid; }
 
-/* ── Catégorie / Marque ──────────────────────── */
-.category-search-wrapper{position:relative}
-.category-search-input-row{display:flex;align-items:center;position:relative}
-.category-search-icon{position:absolute;left:14px;color:#FF6B35;z-index:2;pointer-events:none}
-.category-search-input{padding-left:2.5rem!important;padding-right:2.5rem!important}
-.btn-clear-category{position:absolute;right:10px;background:none;border:none;
-    color:#aaa;cursor:pointer;padding:4px 8px;font-size:.9rem;transition:color .2s;z-index:2}
-.btn-clear-category:hover{color:#e74c3c}
-.category-dropdown{position:absolute;top:calc(100% + 4px);left:0;right:0;
-    background:white;border:2px solid #FF6B35;border-radius:12px;
-    box-shadow:0 8px 30px rgba(0,0,0,.12);z-index:1000;max-height:260px;overflow-y:auto}
-.category-item{display:flex;align-items:center;gap:.5rem;padding:.75rem 1rem;
-    cursor:pointer;transition:background .15s;border-bottom:1px solid #f5f5f5;font-size:.95rem}
-.category-item:last-child{border-bottom:none}
-.category-item:hover{background:#fff5f2}
-.category-item.depth-1{padding-left:1.5rem;font-size:.92rem;color:#555}
-.category-item.depth-2{padding-left:2.25rem;font-size:.88rem;color:#777}
-.cat-icon{color:#FF6B35;font-size:.8rem}
-.cat-match{font-weight:700;color:#FF6B35}
-.category-empty{padding:1.25rem;text-align:center;color:#aaa;font-size:.9rem}
-.category-selected-badge{display:flex;align-items:center;gap:.5rem;margin-top:.5rem;
-    padding:.5rem .875rem;background:#f0fdf4;border:1.5px solid #27ae60;
-    border-radius:8px;color:#27ae60;font-weight:600;font-size:.9rem}
-#scanVideo {
-    width: 100%;
-    max-height: 320px;
-    object-fit: cover;
-    display: block;
-    background: #000;
+/* ─── COMBO (catégorie / marque) ─────────── */
+.combo-wrap { position: relative; }
+.combo-trigger {
+    display: flex; align-items: center; gap: .5rem;
+    height: 44px; padding: 0 .9rem;
+    background: var(--surface2); border: 1px solid var(--border2);
+    border-radius: var(--radius-sm); cursor: text;
+    transition: border-color var(--transition), box-shadow var(--transition);
+}
+.combo-trigger:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(108,99,255,.18);
+}
+.combo-ico { color: var(--accent); flex-shrink: 0; }
+.combo-input {
+    flex: 1; background: none; border: none; outline: none;
+    font-family: var(--font); font-size: .92rem; color: var(--text);
+    min-width: 0;
+}
+.combo-input::placeholder { color: var(--text3); }
+.combo-clear {
+    background: none; border: none; cursor: pointer;
+    color: var(--text3); padding: 4px; display: flex;
+    border-radius: 4px; transition: color var(--transition);
+}
+.combo-clear:hover { color: var(--red); }
+.combo-chevron { color: var(--text3); flex-shrink: 0; transition: transform var(--transition); }
+.combo-trigger:focus-within .combo-chevron { transform: rotate(180deg); }
+.combo-dropdown {
+    position: absolute; top: calc(100% + 5px); left: 0; right: 0;
+    background: var(--surface2); border: 1px solid var(--accent);
+    border-radius: var(--radius-sm);
+    box-shadow: 0 16px 40px rgba(0,0,0,.5), 0 0 0 1px rgba(108,99,255,.1);
+    z-index: 1000; max-height: 240px; overflow-y: auto;
+    animation: dropIn .15s ease;
+}
+@keyframes dropIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:none; } }
+.combo-dropdown::-webkit-scrollbar { width: 4px; }
+.combo-dropdown::-webkit-scrollbar-track { background: transparent; }
+.combo-dropdown::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+.combo-item {
+    display: flex; align-items: center; gap: .5rem;
+    padding: .65rem .9rem; cursor: pointer; font-size: .88rem;
+    border-bottom: 1px solid var(--border); transition: background var(--transition);
+}
+.combo-item:last-child { border-bottom: none; }
+.combo-item:hover { background: rgba(108,99,255,.1); }
+.combo-item.depth-1 { padding-left: 1.8rem; color: var(--text2); font-size: .84rem; }
+.combo-item.depth-2 { padding-left: 2.6rem; color: var(--text3); font-size: .8rem; }
+.combo-item svg { color: var(--accent); flex-shrink: 0; }
+.cmatch { color: var(--accent2); font-weight: 700; }
+.combo-empty {
+    padding: 1.5rem; text-align: center; color: var(--text3);
+    font-size: .85rem; display: flex; flex-direction: column; align-items: center; gap: .5rem;
+}
+.combo-badge {
+    display: inline-flex; align-items: center; gap: .4rem;
+    margin-top: .45rem; padding: .35rem .75rem;
+    background: rgba(34,211,122,.1); border: 1px solid rgba(34,211,122,.3);
+    border-radius: 20px; font-size: .8rem; font-weight: 600; color: var(--green);
+}
+
+/* ─── UPLOAD ──────────────────────────────── */
+.upload-zone {
+    border: 2px dashed var(--border2); border-radius: var(--radius);
+    overflow: hidden; transition: border-color var(--transition);
+    cursor: pointer;
+}
+.upload-zone:hover, .upload-zone.dragover {
+    border-color: var(--accent); background: rgba(108,99,255,.04);
+}
+.upload-idle {
+    padding: 2rem; text-align: center;
+    display: flex; flex-direction: column; align-items: center; gap: .5rem;
+}
+.upload-icon-wrap {
+    width: 64px; height: 64px; border-radius: 50%;
+    background: var(--surface2); border: 1px solid var(--border2);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--accent); margin-bottom: .5rem;
+}
+.upload-text { font-size: .9rem; color: var(--text2); }
+.upload-text span { color: var(--accent); font-weight: 600; text-decoration: underline; }
+.upload-hint { font-size: .75rem; color: var(--text3); }
+.upload-preview { position: relative; }
+.upload-preview img { width: 100%; max-height: 260px; object-fit: cover; display: block; }
+.upload-remove {
+    position: absolute; top: .6rem; right: .6rem;
+    width: 32px; height: 32px; border-radius: 50%;
+    background: rgba(0,0,0,.7); border: 1px solid rgba(255,255,255,.2);
+    color: white; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: background var(--transition);
+}
+.upload-remove:hover { background: var(--red); }
+
+/* ─── NUM INPUTS ──────────────────────────── */
+.fld-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: .75rem; }
+.num-wrap {
+    display: flex; align-items: center; height: 44px;
+    background: var(--surface2); border: 1px solid var(--border2);
+    border-radius: var(--radius-sm); overflow: hidden;
+}
+.num-btn {
+    width: 38px; flex-shrink: 0; height: 100%; border: none;
+    background: var(--surface); color: var(--text2); font-size: 1.1rem;
+    cursor: pointer; transition: all var(--transition);
+}
+.num-btn:hover { background: var(--accent); color: white; }
+.num-input {
+    flex: 1; min-width: 0; height: 100%; border: none; outline: none;
+    background: none; text-align: center;
+    font-family: var(--font-h); font-size: 1rem; font-weight: 700;
+    color: var(--text); -moz-appearance: textfield;
+}
+.num-input::-webkit-outer-spin-button,
+.num-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+/* ─── STOCK BAR ───────────────────────────── */
+.stock-bar-wrap { margin-top: 1rem; }
+.stock-bar-track {
+    position: relative; height: 8px; border-radius: 4px;
+    background: var(--surface2); border: 1px solid var(--border);
+    overflow: visible;
+}
+.stock-bar-fill {
+    height: 100%; border-radius: 4px;
+    background: linear-gradient(90deg, var(--green), #6ef7a7);
+    transition: width .5s cubic-bezier(.4,0,.2,1);
+    width: 0;
+}
+.stock-bar-min {
+    position: absolute; top: -4px; width: 3px; height: 16px;
+    background: var(--yellow); border-radius: 2px;
+    transition: left .5s cubic-bezier(.4,0,.2,1);
+    left: 0;
+}
+.stock-bar-legend {
+    display: flex; justify-content: space-between;
+    font-size: .72rem; color: var(--text3); margin-top: .5rem;
+}
+
+/* ─── RECAP CARD ──────────────────────────── */
+.recap-card { border-color: rgba(108,99,255,.2); }
+.recap-rows { display: flex; flex-direction: column; gap: .55rem; }
+.recap-row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-size: .83rem; color: var(--text2);
+    padding-bottom: .45rem; border-bottom: 1px solid var(--border);
+}
+.recap-row:last-child { border-bottom: none; padding-bottom: 0; }
+.recap-row strong { color: var(--text); font-weight: 600; max-width: 60%; text-align: right; }
+
+/* ─── ACTIONS BAR ─────────────────────────── */
+.art-actions {
+    position: sticky; bottom: 0; z-index: 800;
+    display: flex; justify-content: flex-end; gap: .75rem;
+    padding: 1rem 1.5rem;
+    background: rgba(13,15,20,.92);
+    backdrop-filter: blur(12px);
+    border-top: 1px solid var(--border);
+    margin-top: 1.5rem;
+}
+.btn-art-cancel {
+    display: inline-flex; align-items: center; gap: .5rem;
+    height: 44px; padding: 0 1.4rem; border-radius: var(--radius-sm);
+    background: var(--surface2); border: 1px solid var(--border2);
+    color: var(--text2); font-size: .88rem; font-weight: 600;
+    text-decoration: none; transition: all var(--transition);
+}
+.btn-art-cancel:hover { border-color: var(--red); color: var(--red); text-decoration: none; }
+.btn-art-save {
+    display: inline-flex; align-items: center; gap: .5rem;
+    height: 44px; padding: 0 1.75rem; border-radius: var(--radius-sm);
+    background: var(--accent); border: none;
+    color: white; font-family: var(--font); font-size: .88rem; font-weight: 700;
+    cursor: pointer; transition: all var(--transition);
+    box-shadow: 0 4px 20px rgba(108,99,255,.4);
+}
+.btn-art-save:hover { background: var(--accent2); transform: translateY(-2px); box-shadow: 0 8px 28px rgba(108,99,255,.5); }
+.btn-art-save:active { transform: translateY(0); }
+
+/* ─── SCAN OVERLAY ────────────────────────── */
+.scan-overlay {
+    position: fixed; inset: 0; z-index: 9000;
+    background: rgba(0,0,0,.8); backdrop-filter: blur(8px);
+    display: flex; align-items: flex-end; justify-content: center;
+    opacity: 0; pointer-events: none;
+    transition: opacity .25s;
+}
+.scan-overlay.open {
+    opacity: 1; pointer-events: all;
+}
+.scan-sheet {
+    width: min(100%, 460px); max-height: 90vh;
+    background: var(--surface); border-radius: var(--radius) var(--radius) 0 0;
+    overflow: hidden; display: flex; flex-direction: column;
+    transform: translateY(40px);
+    transition: transform .3s cubic-bezier(.34,1.56,.64,1);
+}
+.scan-overlay.open .scan-sheet { transform: translateY(0); }
+
+.scan-top {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: .9rem 1.1rem; border-bottom: 1px solid var(--border);
+    font-family: var(--font-h); font-size: .85rem; font-weight: 700; color: var(--text);
+}
+.scan-top-left { display: flex; align-items: center; gap: .6rem; }
+.scan-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); animation: pulse 1.8s infinite; }
+.scan-close {
+    width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border2);
+    background: var(--surface2); color: var(--text2); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all var(--transition);
+}
+.scan-close:hover { background: var(--red); border-color: var(--red); color: white; }
+
+.scan-tabs {
+    display: flex; position: relative;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+}
+.scan-tab {
+    flex: 1; display: flex; align-items: center; justify-content: center; gap: .4rem;
+    height: 42px; background: none; border: none; cursor: pointer;
+    font-family: var(--font); font-size: .8rem; font-weight: 600;
+    color: var(--text3); transition: color var(--transition); position: relative; z-index: 1;
+}
+.scan-tab.active { color: var(--accent2); }
+.scan-tab-indicator {
+    position: absolute; bottom: 0; height: 2px; background: var(--accent);
+    border-radius: 2px 2px 0 0; transition: left .2s ease, width .2s ease;
+}
+
+.scan-panel { padding: 0; }
+
+/* ─── VIEWPORT ────────────────────────────── */
+.scan-viewport {
+    position: relative; width: 100%;
+    background: #000; overflow: hidden;
+    max-height: 340px;
 }
 #scanVideo {
-    width: 100%;
-    max-height: 320px;
-    object-fit: cover;
-    display: block;
-    background: #000;
+    width: 100%; display: block;
+    max-height: 340px; object-fit: cover;
 }
-/* ── Upload photo ────────────────────────────── */
-.upload-area{position:relative;border:3px dashed #e9ecef;border-radius:12px;
-    padding:2rem;text-align:center;cursor:pointer;transition:all .3s}
-.upload-area:hover{border-color:#FF6B35;background:#fff5f2}
-.upload-placeholder i{font-size:3rem;color:#FF6B35;margin-bottom:1rem}
-.upload-placeholder p{font-weight:600;color:#2c3e50;margin-bottom:.5rem}
-.upload-placeholder small{color:#7f8c8d}
-.upload-preview{position:relative}
-.upload-preview img{max-width:100%;max-height:300px;border-radius:12px;
-    box-shadow:0 4px 12px rgba(0,0,0,.1)}
-.btn-remove-img{position:absolute;top:10px;right:10px;width:36px;height:36px;
-    background:#e74c3c;color:white;border:none;border-radius:50%;cursor:pointer;
-    display:flex;align-items:center;justify-content:center;transition:all .3s}
-.btn-remove-img:hover{background:#c0392b;transform:scale(1.1)}
+#scanCanvas { display: none; }
 
-/* ── Actions fixes ───────────────────────────── */
-.form-actions-fixed{position:sticky;bottom:0;background:white;padding:1.5rem 0;
-    box-shadow:0 -4px 20px rgba(0,0,0,.1);z-index:1000;margin-top:2rem}
-.actions-wrapper{display:flex;gap:1rem;justify-content:flex-end}
-.btn-cancel{background:#6c757d;color:white;padding:.875rem 2rem;border-radius:12px;
-    border:none;font-weight:600;display:inline-flex;align-items:center;gap:.5rem;
-    text-decoration:none;transition:all .3s}
-.btn-cancel:hover{background:#5a6268;transform:translateY(-2px);color:white;text-decoration:none}
-.btn-submit{background:linear-gradient(135deg,#E60000,#FF3333);color:white;
-    padding:.875rem 2rem;border-radius:12px;border:none;font-weight:600;
-    display:inline-flex;align-items:center;gap:.5rem;cursor:pointer;
-    transition:all .3s;box-shadow:0 4px 15px rgba(230,0,0,.3)}
-.btn-submit:hover{transform:translateY(-2px);box-shadow:0 6px 25px rgba(230,0,0,.4)}
-
-/* ── Toast ──────────────────────────────────── */
-.toast-notif{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);
-    padding:.7rem 1.5rem;border-radius:10px;color:white;font-weight:600;
-    font-size:.9rem;z-index:99999;pointer-events:none;
-    box-shadow:0 4px 20px rgba(0,0,0,.2)}
-.toast-notif.success{background:#27ae60}
-.toast-notif.error{background:#e74c3c}
-
-@media(max-width:768px){
-    .actions-wrapper{flex-direction:column}
-    .btn-cancel,.btn-submit{width:100%;justify-content:center}
+.scan-overlay-frame {
+    position: absolute; inset: 0;
+    pointer-events: none;
 }
-.content-wrapper{background:#f5f6fa!important;padding-bottom:100px!important}
+.scan-corner {
+    position: absolute; width: 24px; height: 24px;
+    border-color: var(--accent2); border-style: solid;
+}
+.scan-corner.tl { top: 20px; left: 20px; border-width: 3px 0 0 3px; border-radius: 4px 0 0 0; }
+.scan-corner.tr { top: 20px; right: 20px; border-width: 3px 3px 0 0; border-radius: 0 4px 0 0; }
+.scan-corner.bl { bottom: 20px; left: 20px; border-width: 0 0 3px 3px; border-radius: 0 0 0 4px; }
+.scan-corner.br { bottom: 20px; right: 20px; border-width: 0 3px 3px 0; border-radius: 0 0 4px 0; }
+
+.scan-beam {
+    position: absolute; left: 20px; right: 20px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), var(--accent2), var(--accent), transparent);
+    box-shadow: 0 0 10px 2px rgba(108,99,255,.6);
+    animation: beamSweep 2s ease-in-out infinite;
+    top: 20px;
+}
+@keyframes beamSweep {
+    0%   { top: 20px;  opacity: 1; }
+    50%  { top: calc(100% - 20px); opacity: 1; }
+    100% { top: 20px;  opacity: 1; }
+}
+
+.scan-status-bar {
+    display: flex; align-items: center; gap: .6rem;
+    padding: .65rem 1rem;
+    background: var(--surface2); border-top: 1px solid var(--border);
+    font-size: .8rem; color: var(--text2);
+}
+.scan-spinner {
+    width: 14px; height: 14px; border: 2px solid var(--border2);
+    border-top-color: var(--accent); border-radius: 50%;
+    animation: spin .7s linear infinite; flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ─── IMAGE DROP ──────────────────────────── */
+.img-drop-zone {
+    display: flex; flex-direction: column; align-items: center; gap: .6rem;
+    padding: 2rem 1.5rem; text-align: center;
+}
+.img-drop-zone svg { color: var(--text3); }
+.img-drop-zone p { font-size: .88rem; color: var(--text2); }
+.img-drop-zone span { font-size: .8rem; color: var(--text3); }
+.btn-pick-img {
+    padding: .55rem 1.4rem; border-radius: var(--radius-sm);
+    background: var(--accent); border: none; color: white;
+    font-family: var(--font); font-size: .85rem; font-weight: 600;
+    cursor: pointer; transition: all var(--transition);
+}
+.btn-pick-img:hover { background: var(--accent2); }
+.img-status { font-size: .8rem; color: var(--text3); }
+
+/* ─── MANUAL ──────────────────────────────── */
+.manual-zone { padding: 1.5rem; }
+.manual-zone label { display: block; font-size: .8rem; color: var(--text2); font-weight: 600; margin-bottom: .6rem; }
+.manual-input-row { display: flex; gap: .5rem; }
+.manual-input-row input {
+    flex: 1; height: 46px; background: var(--surface2); border: 1.5px solid var(--border2);
+    border-radius: var(--radius-sm); padding: 0 .9rem;
+    font-family: 'Courier New', monospace; font-size: 1rem; color: var(--text);
+    outline: none; transition: border-color var(--transition);
+}
+.manual-input-row input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(108,99,255,.18); }
+.manual-input-row input::placeholder { color: var(--text3); font-family: var(--font); font-size: .88rem; }
+.btn-manual-ok {
+    width: 46px; height: 46px; border-radius: var(--radius-sm);
+    background: var(--green); border: none; color: white;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: all var(--transition);
+}
+.btn-manual-ok:hover { background: #1db368; transform: scale(1.05); }
+.manual-hint { font-size: .74rem; color: var(--text3); margin-top: .6rem; }
+.manual-hint kbd {
+    display: inline-block; padding: .1rem .4rem; border-radius: 4px;
+    background: var(--surface2); border: 1px solid var(--border2);
+    font-size: .7rem; font-family: var(--font);
+}
+
+/* ─── SUCCESS FLASH ───────────────────────── */
+.scan-success {
+    position: absolute; inset: 0; z-index: 10;
+    background: rgba(13,15,20,.92);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: .75rem; animation: fadeIn .2s ease;
+}
+@keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+.scan-success-icon {
+    width: 64px; height: 64px; border-radius: 50%;
+    background: rgba(34,211,122,.15); border: 2px solid var(--green);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--green); animation: popIn .3s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes popIn { from { transform:scale(.5); opacity:0; } to { transform:scale(1); opacity:1; } }
+.scan-success-code {
+    font-family: 'Courier New', monospace; font-size: 1.1rem;
+    color: var(--text); background: var(--surface2);
+    padding: .5rem 1.2rem; border-radius: var(--radius-sm);
+    border: 1px solid var(--green);
+}
+
+/* ─── TOAST ───────────────────────────────── */
+.art-toast-wrap {
+    position: fixed; bottom: 80px; right: 1.5rem;
+    display: flex; flex-direction: column; gap: .5rem;
+    z-index: 99999; pointer-events: none;
+}
+.art-toast {
+    display: flex; align-items: center; gap: .6rem;
+    padding: .65rem 1rem; border-radius: var(--radius-sm);
+    font-size: .82rem; font-weight: 600; color: white;
+    box-shadow: 0 8px 24px rgba(0,0,0,.4);
+    animation: toastIn .25s cubic-bezier(.34,1.56,.64,1);
+    backdrop-filter: blur(8px);
+}
+.art-toast.ok  { background: rgba(34,211,122,.92); }
+.art-toast.err { background: rgba(255,82,82,.92); }
+.art-toast.warn{ background: rgba(255,201,74,.92); color: #1a1200; }
+@keyframes toastIn { from { opacity:0; transform:translateX(24px); } to { opacity:1; transform:none; } }
+
+/* ─── MISC ────────────────────────────────── */
+.d-none { display: none !important; }
+.content-header { background: transparent !important; box-shadow: none !important; }
+
+/* ─── RESPONSIVE ──────────────────────────── */
+@media (max-width: 900px) {
+    .art-grid { grid-template-columns: 1fr; }
+    .fld-row-3 { grid-template-columns: 1fr 1fr 1fr; }
+}
+@media (max-width: 520px) {
+    .fld-row-3 { grid-template-columns: 1fr 1fr; }
+    .art-actions { flex-direction: column; }
+    .btn-art-cancel, .btn-art-save { width: 100%; justify-content: center; }
+}
 </style>
-
 @stop
 
 @php
-    if (!function_exists('flattenCategories')) {
-        function flattenCategories($cats, $depth = 0) {
-            $result = [];
-            foreach ($cats as $cat) {
-                $result[] = ['id' => $cat->id, 'nom' => $cat->nom, 'depth' => $depth];
-                if ($cat->children && count($cat->children)) {
-                    $result = array_merge($result, flattenCategories($cat->children, $depth + 1));
-                }
+    if (!function_exists('flattenCats')) {
+        function flattenCats($cats, $depth = 0) {
+            $out = [];
+            foreach ($cats as $c) {
+                $out[] = ['id' => $c->id, 'nom' => $c->nom, 'depth' => $depth];
+                if (!empty($c->children)) $out = array_merge($out, flattenCats($c->children, $depth + 1));
             }
-            return $result;
+            return $out;
         }
     }
-    $flatCategories = flattenCategories($categories);
+    $flatCats = flattenCats($categories);
 @endphp
 
 @section('js')
 <script src="{{ asset('js/zxing.min.js') }}"></script>
 <script>
-const allCategories = {!! json_encode($flatCategories) !!};
-const allMarques    = {!! json_encode($marques->map(fn($m) => ['id'=>$m->id,'nom'=>$m->nom])->values()) !!};
+'use strict';
 
+/* ══ DATA ══════════════════════════════════════ */
+const CATS   = {!! json_encode($flatCats) !!};
+const MARQS  = {!! json_encode($marques->map(fn($m)=>['id'=>$m->id,'nom'=>$m->nom])->values()) !!};
+
+/* ══ STATE ═════════════════════════════════════ */
 let bcCounter    = 0;
-let activeRowId  = null;
-let zxingReader  = null;
-let cameraStream = null;
+let activeRow    = null;   // id du barcode row cible du scan
+let zxReader     = null;
+let camStream    = null;
+let currentTab   = 'camera';
+let scanActive   = false;
 
-document.addEventListener('DOMContentLoaded', function () {
-
+/* ══ INIT ══════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', () => {
+    /* barcodes */
     @if(old('barcodes'))
-        const oldBarcodes = Object.values({!! json_encode(old('barcodes')) !!});
-        oldBarcodes.forEach((b, i) => addBarcodeRow(i === 0, b));
-        const primaryIdx = oldBarcodes.findIndex(b => b.primary === '1' || b.primary === 1);
-        if (primaryIdx > 0) setPrimary(primaryIdx + 1);
+        const ob = Object.values({!! json_encode(old('barcodes')) !!});
+        ob.forEach((b,i) => addRow(i===0, b));
+        const pi = ob.findIndex(b => b.primary==='1'||b.primary===1);
+        if (pi > 0) setPrimary(pi+1);
     @else
-        addBarcodeRow(true);
+        addRow(true);
     @endif
 
-    document.getElementById('btnAddBarcode').addEventListener('click', () => addBarcodeRow(false));
-    document.getElementById('btnCloseScan').addEventListener('click', closeScan);
-    document.getElementById('scanModal').addEventListener('click', function(e) {
-        if (e.target === this) closeScan();
+    document.getElementById('btnAddBarcode').onclick = () => addRow(false);
+    document.getElementById('btnCloseScan').onclick  = closeScan;
+
+    /* overlay click outside */
+    document.getElementById('scanOverlay').addEventListener('click', e => {
+        if (e.target.id === 'scanOverlay') closeScan();
     });
 
-    document.getElementById('scanImageInput').addEventListener('change', function() {
-        if (!this.files?.[0] || activeRowId === null) return;
-        const statusEl = document.getElementById('scanFileStatus');
-        statusEl.textContent = '⏳ Analyse en cours…';
-        const reader = new ZXing.BrowserMultiFormatReader();
-        const url = URL.createObjectURL(this.files[0]);
-        reader.decodeFromImageUrl(url).then(result => {
-            URL.revokeObjectURL(url);
-            applyCode(result.getText());
-        }).catch(() => {
-            URL.revokeObjectURL(url);
-            statusEl.textContent = '❌ Aucun code-barres détecté.';
-        });
-        this.value = '';
+    /* image scan */
+    document.getElementById('scanImageInput').addEventListener('change', handleScanImage);
+
+    /* photo upload drag */
+    const uz = document.getElementById('uploadZone');
+    uz.addEventListener('click', () => document.getElementById('photoInput').click());
+    uz.addEventListener('dragover', e => { e.preventDefault(); uz.classList.add('dragover'); });
+    uz.addEventListener('dragleave', () => uz.classList.remove('dragover'));
+    uz.addEventListener('drop', e => {
+        e.preventDefault(); uz.classList.remove('dragover');
+        const f = e.dataTransfer.files[0];
+        if (f && f.type.startsWith('image/')) {
+            const dt = new DataTransfer(); dt.items.add(f);
+            document.getElementById('photoInput').files = dt.files;
+            handlePhotoChange(document.getElementById('photoInput'));
+        }
     });
 
-    document.getElementById('uploadArea').addEventListener('click', () => document.getElementById('photoInput').click());
-
-    const catWidget = makeSearchWidget({
-        searchInputId:'categorieSearch', dropdownId:'categoryDropdown',
-        listId:'categoryList', emptyId:'categoryEmpty',
-        hiddenInputId:'categorie_id', selectedBadgeId:'categorySelected',
-        selectedNameId:'categorySelectedName', clearBtnId:'btnClearCategory',
-        data: allCategories,
-        renderItem: (cat) => ({
-            className: 'category-item depth-' + cat.depth,
-            icon: cat.depth === 0 ? '<i class="fas fa-folder cat-icon"></i>' : '<i class="fas fa-folder-open cat-icon"></i>',
-            prefix: cat.depth > 0 ? '└─ ' : ''
-        })
+    /* combos */
+    buildCombo({
+        searchId:'catSearch', dropdownId:'catDropdown', listId:'catList',
+        emptyId:'catEmpty', hiddenId:'categorie_id', badgeId:'catBadge',
+        badgeNameId:'catBadgeName', clearId:'catClear', data: CATS,
+        depthClass: true
+    });
+    buildCombo({
+        searchId:'marSearch', dropdownId:'marDropdown', listId:'marList',
+        emptyId:'marEmpty', hiddenId:'marque_id', badgeId:'marBadge',
+        badgeNameId:'marBadgeName', clearId:'marClear', data: MARQS,
+        depthClass: false
     });
 
+    /* old values */
     @if(old('categorie_id'))
-    const preSelCat = allCategories.find(c => c.id == {{ old('categorie_id') }});
-    if (preSelCat) catWidget.selectItem(preSelCat);
+    const pc = CATS.find(c => c.id == {{ old('categorie_id') }});
+    if (pc) preSelect('catSearch','categorie_id','catBadge','catBadgeName','catClear', pc);
     @endif
-
-    const marqueWidget = makeSearchWidget({
-        searchInputId:'marqueSearch', dropdownId:'marqueDropdown',
-        listId:'marqueList', emptyId:'marqueEmpty',
-        hiddenInputId:'marque_id', selectedBadgeId:'marqueSelected',
-        selectedNameId:'marqueSelectedName', clearBtnId:'btnClearMarque',
-        data: allMarques,
-        renderItem: () => ({ className: 'category-item', icon: '<i class="fas fa-certificate cat-icon"></i>', prefix: '' })
-    });
-
     @if(old('marque_id'))
-    const preSelMarque = allMarques.find(m => m.id == {{ old('marque_id') }});
-    if (preSelMarque) marqueWidget.selectItem(preSelMarque);
+    const pm = MARQS.find(m => m.id == {{ old('marque_id') }});
+    if (pm) preSelect('marSearch','marque_id','marBadge','marBadgeName','marClear', pm);
     @endif
 
-    document.querySelector('form').addEventListener('submit', function(e) {
-        if (!document.getElementById('categorie_id').value) {
-            e.preventDefault();
-            document.getElementById('categorieSearch').focus();
-            showToast('❌ Veuillez sélectionner une catégorie.', 'error');
-            return;
-        }
-        const bcInputs = document.querySelectorAll('[id^="bc-input-"]');
-        let bcOk = true;
-        bcInputs.forEach(inp => { if (!inp.value.trim()) { inp.style.borderColor='#e74c3c'; bcOk=false; } });
-        if (!bcOk) { e.preventDefault(); showToast('❌ Remplissez tous les codes-barres.', 'error'); return; }
-        const codes = [...bcInputs].map(i => i.value.trim().toLowerCase());
-        if (new Set(codes).size !== codes.length) { e.preventDefault(); showToast('❌ Deux codes-barres identiques.', 'error'); return; }
-        const stock    = parseInt(document.querySelector('input[name="stock"]').value) || 0;
-        const stockMin = parseInt(document.querySelector('input[name="quantite_minimale"]').value) || 0;
-        if (stock < stockMin) {
-            if (!confirm('⚠️ Stock initial < quantité minimale. Continuer ?')) e.preventDefault();
-        }
+    /* stock bar live */
+    ['stock','quantite_minimale'].forEach(id => {
+        document.getElementById(id).addEventListener('input', updateStockBar);
+    });
+    updateStockBar();
+
+    /* recap live */
+    document.querySelector('input[name="nom"]').addEventListener('input', updateRecap);
+    document.querySelector('input[name="prix_achat"]').addEventListener('input', updateRecap);
+    document.getElementById('stock').addEventListener('input', updateRecap);
+    updateRecap();
+
+    /* form submit */
+    document.getElementById('mainForm').addEventListener('submit', onSubmit);
+
+    /* ESC key */
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') closeScan();
     });
 
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') closeScan();
-        if (e.key === 'Enter' && !document.getElementById('scanModal').classList.contains('d-none')) {
-            if (!document.getElementById('scanManualSection').classList.contains('d-none')) {
-                e.preventDefault();
-                scanConfirmManual();
-            }
-        }
-    });
+    /* scan tab indicator init */
+    updateTabIndicator('camera');
 });
 
-// ══════════════════════════════════════════════
-//  SCANNER
-// ══════════════════════════════════════════════
-function openScanModal(rowId, method) {
-    activeRowId = rowId;
-    resetScanSections();
-    document.getElementById('scanModal').classList.remove('d-none');
-    if (method) scanStart(method);
-}
-
-function resetScanSections() {
-    stopCameraStream();
-    ['scanCamSection','scanFileSection','scanManualSection'].forEach(id =>
-        document.getElementById(id).classList.add('d-none')
-    );
-    document.querySelectorAll('.btn-method').forEach(b => b.classList.remove('active'));
-    const fs = document.getElementById('scanFileStatus');
-    if (fs) fs.textContent = '';
-    const mi = document.getElementById('scanManualInput');
-    if (mi) mi.value = '';
-}
-
-function closeScan() {
-    stopCameraStream();
-    document.getElementById('scanModal').classList.add('d-none');
-    activeRowId = null;
-}
-
-function stopCameraStream() {
-    if (zxingReader)  { try { zxingReader.reset(); } catch(e) {} zxingReader = null; }
-    if (cameraStream) { cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null; }
-    const videoEl = document.getElementById('scanVideo');
-
-if (videoEl) {
-    videoEl.pause();
-    videoEl.srcObject = null;
-}
-}
-
-function scanStart(method) {
-    resetScanSections();
-    const btnMap = { camera:'btnMethodCamera', file:'btnMethodFile', manual:'btnMethodManual' };
-    const el = document.getElementById(btnMap[method]);
-    if (el) el.classList.add('active');
-
-    if (method === 'camera') {
-        document.getElementById('scanCamSection').classList.remove('d-none');
-        startCamera();
-    } else if (method === 'file') {
-        document.getElementById('scanFileSection').classList.remove('d-none');
-    } else {
-        document.getElementById('scanManualSection').classList.remove('d-none');
-        setTimeout(() => document.getElementById('scanManualInput').focus(), 100);
-    }
-}
-
-async function startCamera() {
-    const statusEl = document.getElementById('scanStatus');
-
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        statusEl.innerHTML = '❌ <strong>HTTPS requis</strong> pour la caméra.<br>Utilisez <strong>Image</strong> ou <strong>Manuel</strong>.';
-        return;
-    }
-
-    statusEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Accès à la caméra…';
-
-    try {
-        cameraStream = await navigator.mediaDevices.getUserMedia({
-            video: {
-                facingMode: { ideal: 'environment' },
-                width:  { ideal: 1280 },
-                height: { ideal: 720 }
-            },
-            audio: false
-        });
-
-        const videoEl = document.getElementById('scanVideo');
-        videoEl.srcObject = cameraStream;
-        await videoEl.play();
-
-        statusEl.innerHTML = '<i class="fas fa-camera"></i> Pointez le code-barres…';
-
-        zxingReader = new ZXing.BrowserMultiFormatReader();
-        zxingReader.decodeFromStream(cameraStream, videoEl, (result, err) => {
-            if (!result) return;
-            applyCode(result.getText());
-        });
-
-    } catch (err) {
-        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-            statusEl.textContent = '❌ Permission caméra refusée.';
-        } else if (err.name === 'NotFoundError') {
-            statusEl.textContent = '❌ Aucune caméra détectée.';
-        } else {
-            statusEl.textContent = '❌ ' + (err.message || err.name);
-        }
-    }
-}
-
-function applyCode(code) {
-    if (activeRowId === null) return;
-    const input = document.getElementById('bc-input-' + activeRowId);
-    if (input) {
-        input.value = code;
-        input.style.borderColor = '#27ae60';
-        input.style.background  = '#f0fdf4';
-        setTimeout(() => { input.style.borderColor=''; input.style.background=''; }, 1500);
-    }
-    showToast('✅ ' + code);
-    closeScan();
-}
-
-function scanConfirmManual() {
-    const val = document.getElementById('scanManualInput').value.trim();
-    if (!val) { showToast('❌ Veuillez saisir un code.', 'error'); return; }
-    applyCode(val);
-}
-
-// ══════════════════════════════════════════════
-//  BARCODE ROWS
-// ══════════════════════════════════════════════
-function addBarcodeRow(isPrimary = false, data = {}) {
+/* ══ BARCODE ROWS ══════════════════════════════ */
+function addRow(primary=false, data={}) {
     const id  = ++bcCounter;
-    const row = document.createElement('div');
-    row.className = 'barcode-row' + (isPrimary ? ' is-primary' : '');
-    row.id = 'bc-row-' + id;
-    row.innerHTML =
-        '<input type="hidden" name="barcodes['+id+'][id]" value="'+escHtml(data.id||'')+'">'+
-        '<input type="text" name="barcodes['+id+'][code]" id="bc-input-'+id+'" class="bc-input" placeholder="Code-barres…" value="'+escHtml(data.code||'')+'" required>'+
-        '<input type="text" name="barcodes['+id+'][label]" class="bc-label-input" placeholder="Libellé (optionnel)" value="'+escHtml(data.label||'')+'">'+
-        '<div class="bc-actions">'+
-            '<button type="button" class="btn-primary-badge'+(isPrimary?' active':'')+'" id="bc-primary-btn-'+id+'" onclick="setPrimary('+id+')"><i class="fas fa-star"></i> Principal</button>'+
-            '<button type="button" class="btn-bc btn-bc-cam" onclick="openScanModal('+id+',\'camera\')" title="Caméra"><i class="fas fa-camera"></i></button>'+
-            '<button type="button" class="btn-bc btn-bc-file" onclick="openScanModal('+id+',\'file\')" title="Image"><i class="fas fa-file-image"></i></button>'+
-            '<button type="button" class="btn-bc btn-bc-remove" onclick="removeRow('+id+')" title="Supprimer"><i class="fas fa-trash"></i></button>'+
-        '</div>'+
-        '<input type="hidden" name="barcodes['+id+'][primary]" id="bc-primary-val-'+id+'" value="'+(isPrimary?'1':'')+'">';
-    document.getElementById('barcodeList').appendChild(row);
-    ensureOnePrimary();
+    const div = document.createElement('div');
+    div.className = 'bc-row' + (primary?' is-primary':'');
+    div.id = 'bcr-'+id;
+    div.innerHTML = `
+        <input type="hidden" name="barcodes[${id}][id]" value="${esc(data.id||'')}">
+        <input type="text"   name="barcodes[${id}][code]" id="bci-${id}"
+               class="bc-code" placeholder="Code-barres…"
+               value="${esc(data.code||'')}" required autocomplete="off"
+               oninput="onBcInput(${id})">
+        <input type="text"   name="barcodes[${id}][label]" class="bc-lbl"
+               placeholder="Libellé…" value="${esc(data.label||'')}">
+        <button type="button" class="bc-primary-btn${primary?' on':''}" id="bcp-${id}"
+                onclick="setPrimary(${id})" title="Définir comme principal">
+            ★ Principal
+        </button>
+        <button type="button" class="bc-btn bc-btn-cam"
+                onclick="openScan(${id},'camera')" title="Scanner via caméra">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
+                <circle cx="12" cy="13" r="4"/>
+            </svg>
+        </button>
+        <button type="button" class="bc-btn bc-btn-img"
+                onclick="openScan(${id},'image')" title="Depuis une image">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                <circle cx="8.5" cy="8.5" r="1.5"/>
+                <polyline points="21 15 16 10 5 21"/>
+            </svg>
+        </button>
+        <button type="button" class="bc-btn bc-btn-del"
+                onclick="delRow(${id})" title="Supprimer">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+                <path d="M10 11v6M14 11v6"/>
+            </svg>
+        </button>
+        <input type="hidden" name="barcodes[${id}][primary]" id="bcpv-${id}" value="${primary?'1':''}">
+    `;
+    document.getElementById('barcodeList').appendChild(div);
+    ensurePrimary();
+    updateRecap();
+}
+
+function onBcInput(id) {
+    const inp = document.getElementById('bci-'+id);
+    inp.classList.toggle('ok', inp.value.trim().length > 0);
+    updateRecap();
 }
 
 function setPrimary(id) {
-    document.querySelectorAll('#barcodeList .barcode-row').forEach(r => r.classList.remove('is-primary'));
-    document.querySelectorAll('#barcodeList .btn-primary-badge').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('[id^="bc-primary-val-"]').forEach(i => i.value = '');
-    document.getElementById('bc-row-'+id).classList.add('is-primary');
-    document.getElementById('bc-primary-btn-'+id).classList.add('active');
-    document.getElementById('bc-primary-val-'+id).value = '1';
+    document.querySelectorAll('#barcodeList .bc-row').forEach(r => r.classList.remove('is-primary'));
+    document.querySelectorAll('#barcodeList .bc-primary-btn').forEach(b => b.classList.remove('on'));
+    document.querySelectorAll('[id^="bcpv-"]').forEach(i => i.value='');
+    document.getElementById('bcr-'+id).classList.add('is-primary');
+    document.getElementById('bcp-'+id).classList.add('on');
+    document.getElementById('bcpv-'+id).value='1';
 }
 
-function removeRow(id) {
+function delRow(id) {
     const list = document.getElementById('barcodeList');
-    if (list.children.length <= 1) { showToast('⚠️ Minimum un code-barres.', 'error'); return; }
-    const wasPrimary = document.getElementById('bc-primary-val-'+id).value === '1';
-    document.getElementById('bc-row-'+id).remove();
-    if (wasPrimary) ensureOnePrimary();
+    if (list.children.length <= 1) { toast('⚠️ Minimum un code-barres requis','warn'); return; }
+    const wasPrimary = document.getElementById('bcpv-'+id).value==='1';
+    document.getElementById('bcr-'+id).remove();
+    if (wasPrimary) ensurePrimary();
+    updateRecap();
 }
 
-function ensureOnePrimary() {
-    if (!document.querySelector('#barcodeList .btn-primary-badge.active')) {
-        const firstBtn = document.querySelector('#barcodeList .btn-primary-badge');
-        if (firstBtn) { const m = firstBtn.id.match(/bc-primary-btn-(\d+)/); if (m) setPrimary(parseInt(m[1])); }
+function ensurePrimary() {
+    if (!document.querySelector('#barcodeList .bc-primary-btn.on')) {
+        const first = document.querySelector('#barcodeList .bc-primary-btn');
+        if (first) { const m = first.id.match(/bcp-(\d+)/); if(m) setPrimary(+m[1]); }
     }
 }
 
-// ══════════════════════════════════════════════
-//  PHOTO
-// ══════════════════════════════════════════════
-function previewImage(input) {
-    if (input.files && input.files[0]) {
-        const reader = new FileReader();
-        reader.onload = e => {
-            document.getElementById('previewImg').src = e.target.result;
-            document.getElementById('uploadPlaceholder').classList.add('d-none');
-            document.getElementById('uploadPreview').classList.remove('d-none');
+/* ══ SCANNER ════════════════════════════════════ */
+function openScan(rowId, tab='camera') {
+    activeRow = rowId;
+    const overlay = document.getElementById('scanOverlay');
+    overlay.classList.add('open');
+    overlay.removeAttribute('aria-hidden');
+    // reset success
+    document.getElementById('scanSuccess').classList.add('d-none');
+    switchScanTab(tab);
+}
+
+function closeScan() {
+    stopCam();
+    const overlay = document.getElementById('scanOverlay');
+    overlay.classList.remove('open');
+    overlay.setAttribute('aria-hidden','true');
+    activeRow = null;
+    scanActive = false;
+}
+
+function switchScanTab(tab) {
+    currentTab = tab;
+    ['camera','image','manual'].forEach(t => {
+        const panel = document.getElementById('panel'+cap(t));
+        const btn   = document.querySelector(`.scan-tab[data-tab="${t}"]`);
+        if (panel) panel.classList.toggle('d-none', t !== tab);
+        if (btn)   btn.classList.toggle('active', t === tab);
+    });
+    updateTabIndicator(tab);
+    if (tab === 'camera') {
+        startCam();
+    } else {
+        stopCam();
+        if (tab === 'manual') {
+            setTimeout(() => document.getElementById('manualInput').focus(), 80);
+        }
+    }
+}
+
+function updateTabIndicator(tab) {
+    const btn = document.querySelector(`.scan-tab[data-tab="${tab}"]`);
+    const ind = document.getElementById('scanTabIndicator');
+    if (!btn || !ind) return;
+    const parent = btn.parentElement.getBoundingClientRect();
+    const rect   = btn.getBoundingClientRect();
+    ind.style.left  = (rect.left - parent.left)+'px';
+    ind.style.width = rect.width+'px';
+}
+
+async function startCam() {
+    if (scanActive) return;
+    const statusTxt = document.getElementById('scanStatusText');
+    const spinner   = document.querySelector('.scan-spinner');
+    statusTxt.textContent = 'Accès à la caméra…';
+    spinner.style.display = 'block';
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+        statusTxt.textContent = 'HTTPS requis pour la caméra. Utilisez Image ou Manuel.';
+        spinner.style.display = 'none'; return;
+    }
+    try {
+        camStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode:{ ideal:'environment' }, width:{ ideal:1280 }, height:{ ideal:720 } },
+            audio: false
+        });
+        const video = document.getElementById('scanVideo');
+        video.srcObject = camStream;
+        await video.play();
+        statusTxt.textContent = 'Pointez le code-barres dans le cadre…';
+        spinner.style.display = 'none';
+        scanActive = true;
+
+        /* ZXing — décoder en boucle sur requestAnimationFrame pour la vitesse max */
+        zxReader = new ZXing.BrowserMultiFormatReader();
+        const hints = new Map();
+        hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+
+        const canvas  = document.getElementById('scanCanvas');
+        const ctx     = canvas.getContext('2d');
+        let running   = true;
+
+        const decode = async () => {
+            if (!running || !scanActive) return;
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                canvas.width  = video.videoWidth;
+                canvas.height = video.videoHeight;
+                ctx.drawImage(video, 0, 0);
+                try {
+                    const imgData = ctx.getImageData(0,0,canvas.width,canvas.height);
+                    const lum     = new ZXing.RGBLuminanceSource(imgData.data, canvas.width, canvas.height);
+                    const bmp     = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(lum));
+                    const result  = new ZXing.MultiFormatReader().decode(bmp);
+                    running = false;
+                    applyCode(result.getText());
+                    return;
+                } catch (_) { /* pas encore trouvé */ }
+            }
+            requestAnimationFrame(decode);
         };
-        reader.readAsDataURL(input.files[0]);
+        requestAnimationFrame(decode);
+
+    } catch (err) {
+        scanActive = false;
+        spinner.style.display = 'none';
+        const msgs = {
+            NotAllowedError:     '❌ Permission caméra refusée.',
+            PermissionDeniedError:'❌ Permission caméra refusée.',
+            NotFoundError:       '❌ Aucune caméra détectée.'
+        };
+        statusTxt.textContent = msgs[err.name] || '❌ Erreur: '+err.message;
     }
 }
 
-function removeImage() {
-    document.getElementById('photoInput').value = '';
-    document.getElementById('previewImg').src = '';
-    document.getElementById('uploadPlaceholder').classList.remove('d-none');
+function stopCam() {
+    scanActive = false;
+    if (zxReader)   { try { zxReader.reset(); } catch(_){} zxReader=null; }
+    if (camStream)  { camStream.getTracks().forEach(t=>t.stop()); camStream=null; }
+    const v = document.getElementById('scanVideo');
+    if (v) { v.pause(); v.srcObject=null; }
+}
+
+async function handleScanImage() {
+    const file = this.files?.[0];
+    if (!file || activeRow===null) return;
+    document.getElementById('imgStatus').textContent = '⏳ Analyse…';
+    const url = URL.createObjectURL(file);
+    try {
+        const reader = new ZXing.BrowserMultiFormatReader();
+        const result = await reader.decodeFromImageUrl(url);
+        URL.revokeObjectURL(url);
+        applyCode(result.getText());
+    } catch(_) {
+        URL.revokeObjectURL(url);
+        document.getElementById('imgStatus').textContent = '❌ Aucun code-barres détecté dans cette image.';
+    }
+    this.value='';
+}
+
+function confirmManual() {
+    const val = document.getElementById('manualInput').value.trim();
+    if (!val) { toast('Saisissez un code-barres','warn'); return; }
+    applyCode(val);
+}
+
+function applyCode(code) {
+    if (activeRow===null) return;
+    stopCam();
+
+    /* flash succès */
+    const suc = document.getElementById('scanSuccess');
+    document.getElementById('scanSuccessCode').textContent = code;
+    suc.classList.remove('d-none');
+
+    /* appliquer au champ */
+    const inp = document.getElementById('bci-'+activeRow);
+    if (inp) {
+        inp.value = code;
+        inp.classList.add('ok');
+        updateRecap();
+    }
+    toast('✓ Code appliqué : '+code, 'ok');
+
+    setTimeout(() => { closeScan(); }, 900);
+}
+
+/* ══ PHOTO ══════════════════════════════════════ */
+function handlePhotoChange(input) {
+    if (!input.files?.[0]) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+        document.getElementById('previewImg').src = e.target.result;
+        document.getElementById('uploadIdle').classList.add('d-none');
+        document.getElementById('uploadPreview').classList.remove('d-none');
+    };
+    reader.readAsDataURL(input.files[0]);
+}
+
+function removePhoto() {
+    document.getElementById('photoInput').value='';
+    document.getElementById('previewImg').src='';
+    document.getElementById('uploadIdle').classList.remove('d-none');
     document.getElementById('uploadPreview').classList.add('d-none');
 }
 
-// ══════════════════════════════════════════════
-//  SEARCH WIDGET
-// ══════════════════════════════════════════════
-function makeSearchWidget(config) {
-    const { searchInputId, dropdownId, listId, emptyId, hiddenInputId, selectedBadgeId, selectedNameId, clearBtnId, data, renderItem } = config;
-    const searchInput   = document.getElementById(searchInputId);
-    const dropdown      = document.getElementById(dropdownId);
-    const list          = document.getElementById(listId);
-    const empty         = document.getElementById(emptyId);
-    const hiddenInput   = document.getElementById(hiddenInputId);
-    const selectedBadge = document.getElementById(selectedBadgeId);
-    const selectedName  = document.getElementById(selectedNameId);
-    const clearBtn      = document.getElementById(clearBtnId);
-    if (!searchInput || !dropdown || !hiddenInput) return { selectItem: () => {} };
+/* ══ COMBOS ═════════════════════════════════════ */
+function buildCombo({ searchId, dropdownId, listId, emptyId, hiddenId, badgeId, badgeNameId, clearId, data, depthClass }) {
+    const search   = document.getElementById(searchId);
+    const dropdown = document.getElementById(dropdownId);
+    const list     = document.getElementById(listId);
+    const empty    = document.getElementById(emptyId);
+    const hidden   = document.getElementById(hiddenId);
+    const badge    = document.getElementById(badgeId);
+    const badgeName= document.getElementById(badgeNameId);
+    const clear    = document.getElementById(clearId);
+    if (!search) return;
 
-    function selectItem(item) {
-        hiddenInput.value = item.id;
-        searchInput.value = item.nom;
+    const select = item => {
+        hidden.value    = item.id;
+        search.value    = item.nom;
+        badgeName.textContent = item.nom;
+        badge.classList.remove('d-none');
+        clear.classList.remove('d-none');
         dropdown.classList.add('d-none');
-        selectedBadge.classList.remove('d-none');
-        selectedName.textContent = item.nom;
-        clearBtn.classList.remove('d-none');
-    }
-    searchInput.addEventListener('input', function() {
-        const q = this.value.trim().toLowerCase();
-        clearBtn.classList.toggle('d-none', q === '');
-        if (q.length < 1) { dropdown.classList.add('d-none'); return; }
-        const filtered = data.filter(item => item.nom.toLowerCase().includes(q));
-        list.innerHTML = '';
-        if (filtered.length === 0) { empty.classList.remove('d-none'); }
-        else {
-            empty.classList.add('d-none');
-            filtered.forEach(item => {
-                const div = document.createElement('div');
-                const ri = renderItem ? renderItem(item) : {};
-                div.className = ri.className || 'category-item';
-                const highlighted = item.nom.replace(new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi'),'<span class="cat-match">$1</span>');
-                div.innerHTML = (ri.icon||'') + ' ' + (ri.prefix||'') + highlighted;
-                div.addEventListener('click', () => selectItem(item));
-                list.appendChild(div);
-            });
-        }
+        if(badgeId==='catBadge') document.getElementById('r-cat').textContent = item.nom;
+        updateRecap();
+    };
+
+    search.addEventListener('input', () => {
+        const q = search.value.trim().toLowerCase();
+        clear.classList.toggle('d-none', !q);
+        if (!q) { dropdown.classList.add('d-none'); return; }
+        const filtered = data.filter(i => i.nom.toLowerCase().includes(q));
+        list.innerHTML='';
+        empty.classList.toggle('d-none', filtered.length>0);
+        filtered.forEach(item => {
+            const div = document.createElement('div');
+            div.className = 'combo-item'+(depthClass&&item.depth?' depth-'+item.depth:'');
+            const hi = item.nom.replace(new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi'),'<span class="cmatch">$1</span>');
+            div.innerHTML = depthClass
+                ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>${hi}`
+                : `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg>${hi}`;
+            div.addEventListener('click', () => select(item));
+            list.appendChild(div);
+        });
         dropdown.classList.remove('d-none');
     });
-    clearBtn.addEventListener('click', function() {
-        hiddenInput.value = ''; searchInput.value = '';
-        selectedBadge.classList.add('d-none'); clearBtn.classList.add('d-none');
-        searchInput.focus();
+
+    clear.addEventListener('click', () => {
+        hidden.value=''; search.value='';
+        badge.classList.add('d-none'); clear.classList.add('d-none');
+        dropdown.classList.add('d-none'); search.focus();
     });
-    searchInput.addEventListener('keydown', e => { if (e.key === 'Escape') dropdown.classList.add('d-none'); });
+
+    search.addEventListener('keydown', e => { if(e.key==='Escape') dropdown.classList.add('d-none'); });
     document.addEventListener('click', e => {
-        if (!e.target.closest('#'+searchInputId) && !e.target.closest('#'+dropdownId) && !e.target.closest('#'+clearBtnId))
+        if(!e.target.closest('#'+searchId)&&!e.target.closest('#'+dropdownId)&&!e.target.closest('#'+clearId))
             dropdown.classList.add('d-none');
     });
-    return { selectItem };
 }
 
-// ══════════════════════════════════════════════
-//  HELPERS
-// ══════════════════════════════════════════════
-function escHtml(str) {
-    return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function preSelect(searchId, hiddenId, badgeId, badgeNameId, clearId, item) {
+    document.getElementById(hiddenId).value = item.id;
+    document.getElementById(searchId).value = item.nom;
+    document.getElementById(badgeNameId).textContent = item.nom;
+    document.getElementById(badgeId).classList.remove('d-none');
+    document.getElementById(clearId).classList.remove('d-none');
 }
-function showToast(msg, type = 'success') {
-    const t = document.createElement('div');
-    t.className = 'toast-notif ' + type;
-    t.textContent = msg;
-    document.body.appendChild(t);
-    setTimeout(() => t.remove(), 3000);
+
+/* ══ STOCK BAR ══════════════════════════════════ */
+function updateStockBar() {
+    const stock = Math.max(0, parseInt(document.getElementById('stock').value)||0);
+    const min   = Math.max(0, parseInt(document.getElementById('quantite_minimale').value)||0);
+    const max   = Math.max(stock, min, 1);
+    const pct   = Math.min(100, (stock/max)*100);
+    const minPct= Math.min(99, (min/max)*100);
+    document.getElementById('stockBarFill').style.width   = pct+'%';
+    document.getElementById('stockBarMin').style.left     = minPct+'%';
+    document.getElementById('stockBarLabel').textContent  = 'Stock: '+stock+' pcs';
+    document.getElementById('stockBarMinLabel').textContent='Min: '+min;
+    const fill = document.getElementById('stockBarFill');
+    fill.style.background = stock < min
+        ? 'linear-gradient(90deg,var(--red),#ff8a8a)'
+        : 'linear-gradient(90deg,var(--green),#6ef7a7)';
+    updateRecap();
+}
+
+/* ══ RECAP ══════════════════════════════════════ */
+function updateRecap() {
+    const nom   = document.querySelector('input[name="nom"]').value.trim();
+    const stock = document.getElementById('stock').value;
+    const prix  = document.querySelector('input[name="prix_achat"]').value;
+    const codes = document.querySelectorAll('#barcodeList .bc-code').length;
+    document.getElementById('r-nom').textContent   = nom  || '—';
+    document.getElementById('r-stock').textContent = stock+' pcs';
+    document.getElementById('r-codes').textContent = codes;
+    document.getElementById('r-prix').textContent  = prix ? prix+' DA' : '—';
+}
+
+/* ══ NUDGE ══════════════════════════════════════ */
+function nudge(id, delta) {
+    const inp = document.getElementById(id);
+    const val = parseInt(inp.value)||0;
+    inp.value = Math.max(parseInt(inp.min)||0, val+delta);
+    inp.dispatchEvent(new Event('input'));
+}
+
+/* ══ SUBMIT ═════════════════════════════════════ */
+function onSubmit(e) {
+    let ok = true;
+
+    if (!document.getElementById('categorie_id').value) {
+        e.preventDefault(); ok=false;
+        document.getElementById('catSearch').focus();
+        toast('Sélectionnez une catégorie','err');
+    }
+
+    const bcs = document.querySelectorAll('#barcodeList .bc-code');
+    let bcOk = true;
+    bcs.forEach(b => { if(!b.value.trim()){b.style.borderColor='var(--red)';bcOk=false;} });
+    if (!bcOk) { e.preventDefault(); ok=false; toast('Remplissez tous les codes-barres','err'); }
+
+    const codes = [...bcs].map(b=>b.value.trim().toLowerCase());
+    if (new Set(codes).size!==codes.length) { e.preventDefault(); ok=false; toast('Codes-barres en double','err'); }
+
+    if (!ok) return;
+
+    const stock  = parseInt(document.getElementById('stock').value)||0;
+    const minQ   = parseInt(document.getElementById('quantite_minimale').value)||0;
+    if (stock < minQ && !confirm('⚠️ Stock initial inférieur à la quantité minimale. Continuer quand même ?'))
+        e.preventDefault();
+}
+
+/* ══ HELPERS ════════════════════════════════════ */
+function esc(s) {
+    return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function cap(s) { return s.charAt(0).toUpperCase()+s.slice(1); }
+function toast(msg, type='ok') {
+    const d = document.createElement('div');
+    d.className='art-toast '+type;
+    d.textContent=msg;
+    document.getElementById('toastWrap').appendChild(d);
+    setTimeout(()=>{d.style.opacity='0';d.style.transition='opacity .3s';setTimeout(()=>d.remove(),300);},3000);
 }
 </script>
 @stop
