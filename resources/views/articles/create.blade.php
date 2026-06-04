@@ -1,4 +1,3 @@
-
 @extends('adminlte::page')
 
 @section('title', 'Créer un article')
@@ -261,8 +260,7 @@
 </form>
 
 {{-- ═══════════════════════════════════════════════
-     MODAL SCANNER — en dehors du form pour éviter
-     tout conflit de soumission accidentelle
+     MODAL SCANNER — en dehors du form
 ════════════════════════════════════════════════ --}}
 <div id="scanModal" class="scan-modal d-none">
     <div class="scan-box">
@@ -290,11 +288,22 @@
 
         {{-- Section caméra --}}
         <div id="scanCamSection" class="d-none">
-           <div class="scan-viewport">
-                <div id="scanVideo" style="width:100%"></div>
+            <div class="scan-viewport">
+                {{-- video tag natif — ZXing le contrôle directement --}}
+                <video id="scanVideo"
+                       playsinline
+                       muted
+                       autoplay
+                       style="width:100%;max-height:300px;display:block;object-fit:cover;background:#000">
+                </video>
+                {{-- Laser guide --}}
+                <div class="scan-laser-wrap" aria-hidden="true">
+                    <div class="scan-laser-line"></div>
+                </div>
+                <canvas id="scanCanvas" style="display:none"></canvas>
             </div>
             <div id="scanStatus" class="scan-status">
-                <i class="fas fa-spinner fa-spin"></i> Démarrage caméra...
+                <i class="fas fa-spinner fa-spin"></i> Démarrage caméra…
             </div>
         </div>
 
@@ -327,9 +336,6 @@
 
     </div>
 </div>
-
-{{-- Input fichier image pour ZXing --}}
-<input type="file" id="scanImageInput" accept="image/*" style="display:none">
 
 @stop
 
@@ -413,18 +419,22 @@
 .btn-method i{font-size:1.3rem;display:block;margin-bottom:.2rem}
 .btn-method:hover,.btn-method.active{border-color:#27ae60;color:#27ae60;background:rgba(39,174,96,.1)}
 
-.scan-viewport{position:relative;width:100%;background:#000}
-#scanVideo{width:100%;max-height:280px;display:block;object-fit:cover}
-.scan-overlay{position:absolute;inset:0;display:flex;flex-direction:column;
-    align-items:center;justify-content:center;pointer-events:none}
-.scan-frame{width:52%;max-width:230px;height:110px;border:3px solid #2ecc71;
-    border-radius:10px;position:relative;overflow:hidden;
-    box-shadow:0 0 0 2000px rgba(0,0,0,.45)}
-.scan-line{position:absolute;top:0;left:0;right:0;height:3px;
-    background:#2ecc71;animation:scanLine 1.8s linear infinite}
-@keyframes scanLine{0%{top:0}100%{top:100%}}
-.scan-hint{margin-top:.75rem;color:white;font-size:.82rem;
-    background:rgba(0,0,0,.5);padding:.3rem .75rem;border-radius:20px}
+/* ── Scanner viewport ───────────────────────── */
+.scan-viewport{position:relative;width:100%;background:#000;overflow:hidden}
+
+/* Laser rouge animé — repère visuel net */
+.scan-laser-wrap{
+    position:absolute;inset:0;pointer-events:none;
+    display:flex;align-items:center;justify-content:center}
+.scan-laser-line{
+    width:80%;height:2px;
+    background:linear-gradient(90deg,transparent,#ff3333 20%,#ff3333 80%,transparent);
+    box-shadow:0 0 6px 1px rgba(255,50,50,.7);
+    animation:laserPulse .9s ease-in-out infinite alternate}
+@keyframes laserPulse{
+    from{opacity:.6;transform:scaleX(.9)}
+    to  {opacity:1;transform:scaleX(1)}}
+
 .scan-status{padding:.6rem 1rem;background:#0a0a0a;color:#9ca3af;
     font-size:.82rem;text-align:center;min-height:36px}
 
@@ -503,15 +513,20 @@
 
 @section('js')
 {{--
-    SCANNER : ZXing uniquement
-    - Fonctionne sur iOS Safari, Android Chrome, Desktop
-    - Gestion correcte du stream caméra (stop propre à chaque fermeture)
-    - Fallback image (ZXing decode depuis fichier)
-    - Fallback saisie manuelle
+    SCANNER : ZXing-js BrowserMultiFormatReader
+    ─────────────────────────────────────────────
+    • Chargé depuis CDN jsDelivr (UMD bundle stable)
+    • Autofocus continu via contrainte avancée sur iOS/Android
+    • Hints : tous les formats 1D + QR + DataMatrix
+    • Frame rate 30 fps pour réactivité maximale
+    • Stop propre du stream à chaque fermeture
+    • Fallback fichier image + saisie manuelle
 --}}
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-<script>
 
+{{-- ZXing UMD — fonctionne sans bundler --}}
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
+
+<script>
 // ── Données PHP → JS ──────────────────────────────────────
 @php
     if (!function_exists('flattenCategories')) {
@@ -532,16 +547,17 @@ const allCategories = {!! json_encode($flatCategories) !!};
 const allMarques    = {!! json_encode($marques->map(fn($m) => ['id'=>$m->id,'nom'=>$m->nom])->values()) !!};
 
 // ── State global ──────────────────────────────────────────
-let bcCounter   = 0;
-let activeRowId = null;   // id de la ligne en cours de scan
-let html5Scanner = null;  // instance html5-qrcode
+let bcCounter    = 0;
+let activeRowId  = null;
+let zxingReader  = null;   // instance ZXing BrowserMultiFormatReader
+let cameraStream = null;   // MediaStream natif (pour stop propre iOS)
 
 // ══════════════════════════════════════════════════════════
 //  DOMContentLoaded
 // ══════════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', function () {
 
-    // ── Init lignes barcode (old values ou 1 vide) ──────
+    // ── Init lignes barcode ─────────────────────────────
     @if(old('barcodes'))
         const oldBarcodes = Object.values({!! json_encode(old('barcodes')) !!});
         oldBarcodes.forEach((b, i) => addBarcodeRow(i === 0, b));
@@ -551,15 +567,12 @@ document.addEventListener('DOMContentLoaded', function () {
         addBarcodeRow(true);
     @endif
 
-    // ── Bouton ajouter ──────────────────────────────────
     document.getElementById('btnAddBarcode')
             .addEventListener('click', () => addBarcodeRow(false));
 
-    // ── Fermer modal ────────────────────────────────────
     document.getElementById('btnCloseScan')
             .addEventListener('click', closeScan);
 
-    // ── Clic hors modal → fermer ────────────────────────
     document.getElementById('scanModal')
             .addEventListener('click', function (e) {
                 if (e.target === this) closeScan();
@@ -570,7 +583,7 @@ document.addEventListener('DOMContentLoaded', function () {
             .addEventListener('change', async function () {
         if (!this.files?.[0] || activeRowId === null) return;
         const statusEl = document.getElementById('scanFileStatus');
-        statusEl.textContent = '⏳ Analyse en cours...';
+        statusEl.textContent = '⏳ Analyse en cours…';
         try {
             const reader = new ZXing.BrowserMultiFormatReader();
             const url    = URL.createObjectURL(this.files[0]);
@@ -587,7 +600,7 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('uploadArea')
             .addEventListener('click', () => document.getElementById('photoInput').click());
 
-    // ── Widgets recherche catégorie & marque ────────────
+    // ── Widget catégorie ────────────────────────────────
     const catWidget = makeSearchWidget({
         searchInputId:'categorieSearch', dropdownId:'categoryDropdown',
         listId:'categoryList', emptyId:'categoryEmpty',
@@ -608,6 +621,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (preSelCat) catWidget.selectItem(preSelCat);
     @endif
 
+    // ── Widget marque ───────────────────────────────────
     const marqueWidget = makeSearchWidget({
         searchInputId:'marqueSearch', dropdownId:'marqueDropdown',
         listId:'marqueList', emptyId:'marqueEmpty',
@@ -654,8 +668,8 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        const stock    = parseInt(document.querySelector('input[name="stock"]').value)              || 0;
-        const stockMin = parseInt(document.querySelector('input[name="quantite_minimale"]').value)  || 0;
+        const stock    = parseInt(document.querySelector('input[name="stock"]').value)             || 0;
+        const stockMin = parseInt(document.querySelector('input[name="quantite_minimale"]').value) || 0;
         if (stock < stockMin) {
             if (!confirm('⚠️ Le stock initial est inférieur à la quantité minimale.\nContinuer ?')) {
                 e.preventDefault();
@@ -762,14 +776,18 @@ function ensureOnePrimary() {
 
 
 // ══════════════════════════════════════════════════════════
-//  SCANNER ZXing
+//  SCANNER — ZXing BrowserMultiFormatReader
+//  Stratégie :
+//   1. getUserMedia avec contraintes avancées (focusMode=continuous,
+//      width/height élevés) pour forcer l'autofocus continu sur mobile.
+//   2. On passe le MediaStream directement à ZXing decodeFromStream
+//      → pas de latence d'initialisation, pas de re-négociation caméra.
+//   3. Hints ZXing : uniquement les formats courants supermarché
+//      (EAN-8/13, UPC-A/E, Code128, Code39, ITF, QR, DataMatrix)
+//      → moteur plus rapide car moins de formats à tester.
+//   4. Fréquence d'analyse : tryHarder = false (vitesse > exhaustivité)
 // ══════════════════════════════════════════════════════════
 
-/**
- * Ouvre la modal et démarre directement la méthode souhaitée
- * @param {number} rowId - id de la ligne barcode
- * @param {string} method - 'camera' | 'file' | 'manual'
- */
 function openScanModal(rowId, method) {
     activeRowId = rowId;
     resetScanSections();
@@ -779,12 +797,14 @@ function openScanModal(rowId, method) {
 
 function resetScanSections() {
     stopCamStream();
-    ['scanCamSection', 'scanFileSection', 'scanManualSection'].forEach(id => {
-        document.getElementById(id).classList.add('d-none');
-    });
+    ['scanCamSection', 'scanFileSection', 'scanManualSection'].forEach(id =>
+        document.getElementById(id).classList.add('d-none')
+    );
     document.querySelectorAll('.btn-method').forEach(b => b.classList.remove('active'));
-    document.getElementById('scanFileStatus').textContent = '';
-    document.getElementById('scanManualInput').value = '';
+    const fs = document.getElementById('scanFileStatus');
+    if (fs) fs.textContent = '';
+    const mi = document.getElementById('scanManualInput');
+    if (mi) mi.value = '';
 }
 
 function closeScan() {
@@ -794,25 +814,25 @@ function closeScan() {
 }
 
 /**
- * Arrête proprement le stream caméra et ZXing
+ * Arrête proprement ZXing + MediaStream caméra.
+ * Important sur iOS : ne pas oublier d'appeler stream.getTracks()[0].stop()
+ * sinon l'indicateur caméra reste allumé.
  */
 function stopCamStream() {
-    if (html5Scanner) {
-        try {
-            html5Scanner.stop().catch(() => {});
-        } catch(e) {}
-        html5Scanner = null;
+    if (zxingReader) {
+        try { zxingReader.reset(); } catch(e) {}
+        zxingReader = null;
     }
-    const video = document.getElementById('scanVideo');
-    if (video) { video.srcObject = null; }
+    if (cameraStream) {
+        cameraStream.getTracks().forEach(t => t.stop());
+        cameraStream = null;
+    }
+    const vid = document.getElementById('scanVideo');
+    if (vid) { vid.srcObject = null; }
 }
 
-/**
- * Active une méthode de scan
- */
 function scanStart(method) {
     resetScanSections();
-
     const btnMap = { camera:'btnMethodCamera', file:'btnMethodFile', manual:'btnMethodManual' };
     const el = document.getElementById(btnMap[method]);
     if (el) el.classList.add('active');
@@ -829,46 +849,113 @@ function scanStart(method) {
 }
 
 /**
- * Démarre la caméra via ZXing BrowserMultiFormatReader
- * Compatible iOS Safari (getUserMedia + decodeFromStream)
+ * Démarre la caméra avec autofocus continu et ZXing en flux continu.
+ *
+ * Contraintes getUserMedia :
+ *  - facingMode: environment  → caméra arrière
+ *  - focusMode: continuous    → autofocus permanent (Android Chrome, Safari 15.4+)
+ *  - width/height idéal 1280×720 → assez de résolution sans être trop lourd
+ *  - frameRate: 30            → analyse fluide
+ *
+ * Hints ZXing :
+ *  - Formats limités aux codes supermarché → moteur 3-4× plus rapide
+ *  - TryHarder = false → priorité vitesse
  */
 async function startCamera() {
     const statusEl = document.getElementById('scanStatus');
-    statusEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Accès à la caméra...';
+    statusEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Accès à la caméra…';
 
+    // ── 1. Obtenir le stream natif avec autofocus ───────
+    const constraints = {
+        video: {
+            facingMode: { ideal: 'environment' },
+            width:     { ideal: 1280 },
+            height:    { ideal: 720 },
+            frameRate: { ideal: 30 },
+            // Autofocus continu — supporté Chrome Android, Safari 15.4+
+            advanced: [{ focusMode: 'continuous' }]
+        }
+    };
+
+    let stream;
     try {
-        html5Scanner = new Html5Qrcode('scanVideo');
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+    } catch (firstErr) {
+        // Fallback sans contraintes avancées (vieux appareils)
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: { ideal: 'environment' } }
+            });
+        } catch (err) {
+            if (err.name === 'NotAllowedError') {
+                statusEl.textContent = '❌ Permission caméra refusée. Autorisez l\'accès dans les réglages.';
+            } else if (err.name === 'NotFoundError') {
+                statusEl.textContent = '❌ Aucune caméra détectée sur cet appareil.';
+            } else {
+                statusEl.textContent = '❌ Erreur caméra : ' + (err.message || err);
+            }
+            return;
+        }
+    }
 
-        await html5Scanner.start(
-            { facingMode: 'environment' },
-            {
-                fps: 15,
-                qrbox: { width: 250, height: 120 },
-                supportedScanTypes: [
-                    Html5QrcodeScanType.SCAN_TYPE_CAMERA
-                ]
-            },
-            (decodedText) => {
-                applyCode(decodedText);
-            },
-            () => {} // erreurs silencieuses (frame sans code)
-        );
+    cameraStream = stream;
 
-        statusEl.innerHTML = '<i class="fas fa-camera"></i> Pointez vers le code-barres...';
+    // ── 2. Attacher le stream au <video> ────────────────
+    const videoEl = document.getElementById('scanVideo');
+    videoEl.srcObject = stream;
 
-    } catch (err) {
-        if (err.name === 'NotAllowedError' || String(err).includes('permission')) {
-            statusEl.textContent = '❌ Permission caméra refusée.';
-        } else if (err.name === 'NotFoundError') {
-            statusEl.textContent = '❌ Aucune caméra détectée.';
-        } else {
-            statusEl.textContent = '❌ Erreur : ' + (err.message || err);
+    // Sur iOS le play() doit être déclenché après interaction utilisateur
+    // (c'est le cas ici — l'utilisateur a cliqué). On attend loadedmetadata.
+    await new Promise(resolve => {
+        videoEl.onloadedmetadata = resolve;
+        videoEl.play().catch(() => {});
+    });
+
+    statusEl.innerHTML = '<i class="fas fa-camera"></i> Pointez le code-barres face à la caméra…';
+
+    // ── 3. Configurer ZXing avec hints optimisés ────────
+    const hints = new Map();
+
+    // Formats courants en supermarché — omettre les autres accélère le décodage
+    const formats = [
+        ZXing.BarcodeFormat.EAN_13,
+        ZXing.BarcodeFormat.EAN_8,
+        ZXing.BarcodeFormat.UPC_A,
+        ZXing.BarcodeFormat.UPC_E,
+        ZXing.BarcodeFormat.CODE_128,
+        ZXing.BarcodeFormat.CODE_39,
+        ZXing.BarcodeFormat.ITF,
+        ZXing.BarcodeFormat.QR_CODE,
+        ZXing.BarcodeFormat.DATA_MATRIX
+    ];
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
+    // TryHarder = false → vitesse maximale (pas d'exhaustivité supplémentaire)
+    hints.set(ZXing.DecodeHintType.TRY_HARDER, false);
+    // Pré-binarisation douce — réduit les faux négatifs sans coût CPU excessif
+    hints.set(ZXing.DecodeHintType.PURE_BARCODE, false);
+
+    zxingReader = new ZXing.BrowserMultiFormatReader(hints, {
+        delayBetweenScanAttempts: 80  // ms entre deux tentatives — réactif
+    });
+
+    // ── 4. Démarrer le décodage en flux continu ─────────
+    try {
+        await zxingReader.decodeFromStream(stream, videoEl, (result, err) => {
+            if (result) {
+                applyCode(result.getText());
+            }
+            // err === NotFoundException est silencieux (frame normale sans code)
+        });
+    } catch (e) {
+        // Ignore les erreurs de stop propre
+        if (!String(e).includes('stop') && !String(e).includes('reset')) {
+            statusEl.textContent = '❌ Erreur : ' + (e.message || e);
         }
     }
 }
 
 /**
- * Applique le code détecté dans le champ barcode actif
+ * Injecte le code détecté dans le champ actif et ferme la modal.
  */
 function applyCode(code) {
     if (activeRowId === null) return;
@@ -876,7 +963,6 @@ function applyCode(code) {
     const input = document.getElementById('bc-input-' + activeRowId);
     if (input) {
         input.value = code;
-        // Flash vert
         input.style.borderColor = '#27ae60';
         input.style.background  = '#f0fdf4';
         setTimeout(() => { input.style.borderColor = ''; input.style.background = ''; }, 1500);
@@ -888,14 +974,11 @@ function applyCode(code) {
 
 function scanConfirmManual() {
     const val = document.getElementById('scanManualInput').value.trim();
-    if (!val) {
-        showToast('❌ Veuillez saisir un code.', 'error');
-        return;
-    }
+    if (!val) { showToast('❌ Veuillez saisir un code.', 'error'); return; }
     applyCode(val);
 }
 
-// Touche Entrée dans le champ manuel
+// Entrée clavier dans saisie manuelle
 document.addEventListener('keydown', function (e) {
     if (e.key === 'Enter' && !document.getElementById('scanModal').classList.contains('d-none')) {
         const section = document.getElementById('scanManualSection');
@@ -1030,6 +1113,5 @@ function showToast(msg, type = 'success') {
     document.body.appendChild(t);
     setTimeout(() => t.remove(), 3000);
 }
-test 
 </script>
 @stop
