@@ -3,959 +3,1061 @@
 @section('title', 'Nouvel Article')
 
 @section('content_header')
-<div class="art-header">
-    <a href="{{ route('articles.index') }}" class="art-back">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+{{-- ── Page Header ── --}}
+<header class="page-header">
+    <div class="header-icon">
+        <svg viewBox="0 0 24 24"><path d="M4 6h2v12H4zm3 0h1v12H7zm2 0h2v12H9zm3 0h1v12h-1zm3 0h1v12h-1zm2 0h2v12h-2zM2 4v16a2 2 0 002 2h16a2 2 0 002-2V4a2 2 0 00-2-2H4a2 2 0 00-2 2z"/></svg>
+    </div>
+    <div class="header-text">
+        <h1>Nouvel Article</h1>
+        <p>Renseignez les informations et scannez les codes-barres</p>
+    </div>
+    <a href="{{ route('articles.index') }}" class="header-back">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+        Retour liste
     </a>
-    <div>
-        <h1 class="art-title">Nouvel article</h1>
-        <p class="art-sub">Ajout au stock • {{ now()->format('d M Y') }}</p>
-    </div>
-    <div class="art-header-badge">
-        <span class="pulse-dot"></span> Stock
-    </div>
-</div>
+</header>
 @stop
 
 @section('content')
-<form action="{{ route('articles.store') }}" method="POST" enctype="multipart/form-data" id="mainForm" novalidate>
+
+{{-- ── Alerts ── --}}
+@if($errors->any())
+<div class="alert">
+    <div class="alert-inner alert-error">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+        <ul style="list-style:none; padding:0; margin:0;">
+            @foreach($errors->all() as $err)
+                <li>{{ $err }}</li>
+            @endforeach
+        </ul>
+    </div>
+</div>
+@endif
+
+@if(session('success'))
+<div class="alert">
+    <div class="alert-inner alert-success">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 12.5L6.5 10 5 11.5l4 4 9-9L16.5 5 9 12.5z"/></svg>
+        {{ session('success') }}
+    </div>
+</div>
+@endif
+
+{{-- ════════════════════════════════════════════════
+     FORM
+════════════════════════════════════════════════ --}}
+<form action="{{ route('articles.store') }}" method="POST" enctype="multipart/form-data" id="articleForm">
 @csrf
 
-<div class="art-grid">
-    <div class="art-col">
-        <div class="art-card" data-section="info">
-            <div class="art-card-label">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                Informations de base
-            </div>
-            <div class="fld">
-                <label class="fld-label">Nom de l'article <span class="req">*</span></label>
-                <div class="fld-wrap">
-                    <input type="text" name="nom" class="fld-input @error('nom') has-err @enderror"
-                           placeholder="Ex: Coca‑Cola 1.5L…" value="{{ old('nom') }}" required autocomplete="off">
-                    <span class="fld-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></span>
+<div class="form-layout">
+
+    {{-- ════ COLONNE GAUCHE ════ --}}
+    <div style="display:flex; flex-direction:column; gap:22px;">
+
+        {{-- ── Informations générales ── --}}
+        <div class="card">
+            <div class="card-header">
+                <div class="card-header-icon red">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z"/></svg>
                 </div>
-                @error('nom')<p class="err-msg">{{ $message }}</p>@enderror
+                <div>
+                    <div class="card-header-title">Informations Générales</div>
+                    <div class="card-header-sub">Identification et classification</div>
+                </div>
             </div>
+            <div class="card-body">
+                <div class="field">
+                    <label>Nom de l'article <span class="req">*</span></label>
+                    <input type="text" name="nom" value="{{ old('nom') }}"
+                           placeholder="Ex: Paracétamol 500mg, Aspirine..."
+                           class="{{ $errors->has('nom') ? 'is-invalid' : '' }}"
+                           autocomplete="off">
+                    @error('nom')<div class="error-msg"><svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><circle cx="12" cy="12" r="10"/><path d="M12 7v5m0 4h.01" stroke="white" stroke-width="2" fill="none"/></svg>{{ $message }}</div>@enderror
+                </div>
 
-            <div class="fld">
-                <label class="fld-label">Codes-barres <span class="req">*</span></label>
-                <div id="barcodeList"></div>
-                <button type="button" class="btn-add-bc" id="btnAddBarcode">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    Ajouter un code-barres
-                </button>
-                <p class="fld-hint">Le code <strong>Principal</strong> est utilisé par défaut lors des ventes.</p>
-            </div>
-
-            <div class="fld">
-                <label class="fld-label">Catégorie <span class="req">*</span></label>
-                <input type="hidden" name="categorie_id" id="categorie_id" value="{{ old('categorie_id') }}">
-                <div class="combo-wrap">
-                    <div class="combo-trigger" id="comboTrigger_cat">
-                        <svg class="combo-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
-                        <input type="text" id="catSearch" class="combo-input" placeholder="Rechercher une catégorie…" autocomplete="off">
-                        <button type="button" class="combo-clear d-none" id="catClear"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-                        <svg class="combo-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                <div class="field-row">
+                    <div class="field" style="margin:0">
+                        <label>Marque</label>
+                        <select name="marque_id">
+                            <option value="">— Aucune marque —</option>
+                            @foreach($marques as $m)
+                                <option value="{{ $m->id }}" {{ old('marque_id') == $m->id ? 'selected' : '' }}>{{ $m->nom }}</option>
+                            @endforeach
+                        </select>
                     </div>
-                    <div class="combo-dropdown d-none" id="catDropdown">
-                        <div class="combo-list" id="catList"></div>
-                        <div class="combo-empty d-none" id="catEmpty"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Aucun résultat</div>
+                    <div class="field" style="margin:0">
+                        <label>Fournisseur</label>
+                        <select name="fournisseur_id">
+                            <option value="">— Aucun —</option>
+                            @foreach($fournisseurs as $f)
+                                <option value="{{ $f->id }}" {{ old('fournisseur_id') == $f->id ? 'selected' : '' }}>{{ $f->nom }}</option>
+                            @endforeach
+                        </select>
                     </div>
-                    <div class="combo-badge d-none" id="catBadge"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><span id="catBadgeName"></span></div>
                 </div>
-                @error('categorie_id')<p class="err-msg">{{ $message }}</p>@enderror
-            </div>
 
-            <div class="fld">
-                <label class="fld-label">Marque <span class="opt">optionnel</span></label>
-                <input type="hidden" name="marque_id" id="marque_id" value="{{ old('marque_id') }}">
-                <div class="combo-wrap">
-                    <div class="combo-trigger" id="comboTrigger_mar">
-                        <svg class="combo-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg>
-                        <input type="text" id="marSearch" class="combo-input" placeholder="Rechercher une marque…" autocomplete="off">
-                        <button type="button" class="combo-clear d-none" id="marClear"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-                        <svg class="combo-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                <div class="field" style="margin-top:18px">
+                    <label>Catégorie parente <span class="req">*</span></label>
+                    <select name="parent_categorie_id" id="parentCat" onchange="loadSubcats(this.value)">
+                        <option value="">— Sélectionner une catégorie —</option>
+                        @foreach($categories->whereNull('parent_id') as $cat)
+                            @if(!$cat->parent_id)
+                                <option value="{{ $cat->id }}" {{ old('parent_categorie_id') == $cat->id ? 'selected' : '' }}>{{ $cat->nom }}</option>
+                            @endif
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="field">
+                    <label>Sous-catégorie <span class="req">*</span></label>
+                    <select name="categorie_id" id="subCat" class="{{ $errors->has('categorie_id') ? 'is-invalid' : '' }}">
+                        <option value="">— Choisir d'abord une catégorie —</option>
+                        @foreach($categories as $cat)
+                            @if($cat->parent_id)
+                                <option value="{{ $cat->id }}"
+                                        data-parent="{{ $cat->parent_id }}"
+                                        {{ old('categorie_id') == $cat->id ? 'selected' : '' }}>
+                                    {{ $cat->nom }}
+                                </option>
+                            @endif
+                        @endforeach
+                    </select>
+                    @error('categorie_id')<div class="error-msg">{{ $message }}</div>@enderror
+                </div>
+
+                <div class="field">
+                    <label>Description</label>
+                    <textarea name="description" placeholder="Informations complémentaires sur l'article...">{{ old('description') }}</textarea>
+                </div>
+            </div>
+        </div>
+
+        {{-- ── Stock & Prix ── --}}
+        <div class="card">
+            <div class="card-header">
+                <div class="card-header-icon amber">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1.41 16.09V20h-2.67v-1.93c-1.71-.36-3.16-1.46-3.27-3.4h1.96c.1 1.05.82 1.87 2.65 1.87 1.96 0 2.4-.98 2.4-1.59 0-.83-.44-1.61-2.67-2.14-2.48-.6-4.18-1.62-4.18-3.67 0-1.72 1.39-2.84 3.11-3.21V4h2.67v1.95c1.86.45 2.79 1.86 2.85 3.39H14.3c-.05-1.11-.64-1.87-2.22-1.87-1.5 0-2.4.68-2.4 1.64 0 .84.65 1.39 2.67 1.91s4.18 1.39 4.18 3.91c-.01 1.83-1.38 2.83-3.12 3.16z"/></svg>
+                </div>
+                <div>
+                    <div class="card-header-title">Stock & Tarification</div>
+                    <div class="card-header-sub">Quantités et prix</div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="field-row">
+                    <div class="field" style="margin:0">
+                        <label>Stock initial <span class="req">*</span></label>
+                        <input type="number" name="stock" value="{{ old('stock', 0) }}" min="0"
+                               id="stockInput" oninput="updateStockMeter(this.value)">
+                        <div class="stock-meter"><div class="stock-meter-fill" id="stockMeterFill"></div></div>
                     </div>
-                    <div class="combo-dropdown d-none" id="marDropdown">
-                        <div class="combo-list" id="marList"></div>
-                        <div class="combo-empty d-none" id="marEmpty"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Aucun résultat</div>
+                    <div class="field" style="margin:0">
+                        <label>Quantité minimale <span class="req">*</span></label>
+                        <input type="number" name="quantite_minimale" value="{{ old('quantite_minimale', 5) }}" min="0">
+                        <div class="input-hint">Alerte de réapprovisionnement</div>
                     </div>
-                    <div class="combo-badge d-none" id="marBadge"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><span id="marBadgeName"></span></div>
                 </div>
-                @error('marque_id')<p class="err-msg">{{ $message }}</p>@enderror
-            </div>
 
-            <div class="fld">
-                <label class="fld-label">Description <span class="opt">optionnel</span></label>
-                <textarea name="description" class="fld-textarea @error('description') has-err @enderror"
-                          placeholder="Décrivez l'article…" rows="3">{{ old('description') }}</textarea>
-                @error('description')<p class="err-msg">{{ $message }}</p>@enderror
-            </div>
-        </div>
-
-        <div class="art-card">
-            <div class="art-card-label">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                Photo de l'article
-            </div>
-            <div class="upload-zone" id="uploadZone">
-                <input type="file" name="photo" id="photoInput" class="d-none" accept="image/*" onchange="handlePhotoChange(this)">
-                <div class="upload-idle" id="uploadIdle">
-                    <div class="upload-icon-wrap"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/></svg></div>
-                    <p class="upload-text">Glissez une image ou <span>cliquez</span></p>
-                    <p class="upload-hint">JPG · PNG · GIF — max 2 Mo</p>
+                <div class="field" style="margin-top:16px">
+                    <label>Contenance carton</label>
+                    <input type="number" name="contenance_carton" value="{{ old('contenance_carton') }}" min="1"
+                           placeholder="Ex: 12 unités par carton">
+                    <div class="input-hint">Laissez vide si pas de conditionnement carton</div>
                 </div>
-                <div class="upload-preview d-none" id="uploadPreview">
-                    <img id="previewImg" src="" alt="">
-                    <button type="button" class="upload-remove" onclick="removePhoto()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-                </div>
-            </div>
-        </div>
-    </div>
 
-    <div class="art-col">
-        <div class="art-card">
-            <div class="art-card-label">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
-                Stock &amp; quantités
-            </div>
-            <div class="fld-row-3">
-                <div class="fld">
-                    <label class="fld-label">Stock initial <span class="req">*</span></label>
-                    <div class="num-wrap">
-                        <button type="button" class="num-btn" onclick="nudge('stock',-1)">−</button>
-                        <input type="number" name="stock" id="stock" class="num-input @error('stock') has-err @enderror" min="0" value="{{ old('stock', 0) }}" required>
-                        <button type="button" class="num-btn" onclick="nudge('stock',1)">+</button>
+                <div class="section-divider"><span>Prix</span></div>
+
+                <div class="field-row">
+                    <div class="field" style="margin:0">
+                        <label>Prix d'achat (DA)</label>
+                        <input type="number" name="prix_achat" value="{{ old('prix_achat') }}" step="0.01" min="0" placeholder="0.00">
                     </div>
-                    <p class="fld-hint">pièces</p>
-                    @error('stock')<p class="err-msg">{{ $message }}</p>@enderror
-                </div>
-                <div class="fld">
-                    <label class="fld-label">Qté minimale <span class="req">*</span></label>
-                    <div class="num-wrap">
-                        <button type="button" class="num-btn" onclick="nudge('quantite_minimale',-1)">−</button>
-                        <input type="number" name="quantite_minimale" id="quantite_minimale" class="num-input @error('quantite_minimale') has-err @enderror" min="0" value="{{ old('quantite_minimale', 0) }}" required>
-                        <button type="button" class="num-btn" onclick="nudge('quantite_minimale',1)">+</button>
+                    <div class="field" style="margin:0">
+                        <label>Prix de vente (DA)</label>
+                        <input type="number" name="prix_vente" value="{{ old('prix_vente') }}" step="0.01" min="0" placeholder="0.00">
                     </div>
-                    <p class="fld-hint">seuil d'alerte</p>
-                    @error('quantite_minimale')<p class="err-msg">{{ $message }}</p>@enderror
                 </div>
-                <div class="fld">
-                    <label class="fld-label">Carton</label>
-                    <div class="num-wrap">
-                        <button type="button" class="num-btn" onclick="nudge('contenance_carton',-1)">−</button>
-                        <input type="number" name="contenance_carton" id="contenance_carton" class="num-input @error('contenance_carton') has-err @enderror" min="1" value="{{ old('contenance_carton', 1) }}">
-                        <button type="button" class="num-btn" onclick="nudge('contenance_carton',1)">+</button>
+
+                <div class="field" style="margin-top:16px">
+                    <label>Date de péremption</label>
+                    <input type="date" name="date_peremption" value="{{ old('date_peremption') }}">
+                </div>
+            </div>
+        </div>
+
+    </div>{{-- fin colonne gauche --}}
+
+    {{-- ════ COLONNE DROITE ════ --}}
+    <div style="display:flex; flex-direction:column; gap:22px;">
+
+        {{-- ── Scanner de codes-barres ── --}}
+        <div class="card">
+            <div class="card-header">
+                <div class="card-header-icon green">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 6h2v12H4zm3 0h1v12H7zm2 0h2v12H9zm3 0h1v12h-1zm3 0h1v12h-1zm2 0h2v12h-2zM2 4v16a2 2 0 002 2h16a2 2 0 002-2V4a2 2 0 00-2-2H4a2 2 0 00-2 2z"/></svg>
+                </div>
+                <div>
+                    <div class="card-header-title">Codes-Barres</div>
+                    <div class="card-header-sub">Scanner ou saisir manuellement</div>
+                </div>
+            </div>
+            <div class="card-body">
+
+                {{-- Zone scanner --}}
+                <div class="scanner-area" id="scannerArea">
+                    <video id="scannerVideo" playsinline></video>
+
+                    <div class="scanner-overlay" id="scannerOverlay" style="display:none">
+                        <div class="scan-frame">
+                            <div class="scan-corner-bl"></div>
+                            <div class="scan-corner-tr"></div>
+                            <div class="scan-line"></div>
+                        </div>
+                        <div class="scan-hint-text">PLACEZ LE CODE-BARRES DANS LE CADRE</div>
                     </div>
-                    <p class="fld-hint">pièces/carton</p>
-                    @error('contenance_carton')<p class="err-msg">{{ $message }}</p>@enderror
+
+                    <div class="scanner-idle" id="scannerIdle" onclick="startScanner()">
+                        <div class="scan-idle-icon">
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 6h2v12H4zm3 0h1v12H7zm2 0h2v12H9zm3 0h1v12h-1zm3 0h1v12h-1zm2 0h2v12h-2zM2 4v16a2 2 0 002 2h16a2 2 0 002-2V4a2 2 0 00-2-2H4a2 2 0 00-2 2z"/></svg>
+                        </div>
+                        <div class="scan-idle-label">Activer le Scanner</div>
+                        <div class="scan-idle-sub">Cliquez pour ouvrir la caméra</div>
+                    </div>
                 </div>
-            </div>
-            <div class="stock-bar-wrap">
-                <div class="stock-bar-track">
-                    <div class="stock-bar-fill" id="stockBarFill"></div>
-                    <div class="stock-bar-min" id="stockBarMin"></div>
-                </div>
-                <div class="stock-bar-legend">
-                    <span id="stockBarLabel">Stock: 0 pcs</span>
-                    <span id="stockBarMinLabel">Min: 0</span>
-                </div>
-            </div>
-        </div>
 
-        <div class="art-card">
-            <div class="art-card-label">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
-                Prix &amp; dates
-            </div>
-            <div class="fld">
-                <label class="fld-label">Prix d'achat (DZD) <span class="opt">optionnel</span></label>
-                <div class="fld-wrap">
-                    <input type="number" step="0.01" name="prix_achat" class="fld-input has-prefix @error('prix_achat') has-err @enderror" placeholder="0.00" value="{{ old('prix_achat') }}">
-                    <span class="fld-prefix">DA</span>
-                </div>
-                @error('prix_achat')<p class="err-msg">{{ $message }}</p>@enderror
-            </div>
-            <div class="fld">
-                <label class="fld-label">Date de péremption <span class="opt">optionnel</span></label>
-                <div class="fld-wrap">
-                    <input type="date" name="date_peremption" class="fld-input @error('date_peremption') has-err @enderror" value="{{ old('date_peremption') }}">
-                    <span class="fld-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
-                </div>
-                @error('date_peremption')<p class="err-msg">{{ $message }}</p>@enderror
-            </div>
-        </div>
-
-        <div class="art-card recap-card">
-            <div class="art-card-label">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
-                Récapitulatif
-            </div>
-            <div class="recap-rows">
-                <div class="recap-row"><span>Nom</span><strong id="r-nom">—</strong></div>
-                <div class="recap-row"><span>Catégorie</span><strong id="r-cat">—</strong></div>
-                <div class="recap-row"><span>Stock</span><strong id="r-stock">0 pcs</strong></div>
-                <div class="recap-row"><span>Codes</span><strong id="r-codes">0</strong></div>
-                <div class="recap-row"><span>Prix achat</span><strong id="r-prix">—</strong></div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="art-actions">
-    <a href="{{ route('articles.index') }}" class="btn-art-cancel">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        Annuler
-    </a>
-    <button type="submit" class="btn-art-save" id="btnSave">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-        Enregistrer
-    </button>
-</div>
-</form>
-
-{{-- SCANNER MODAL --}}
-<div id="scanOverlay" class="scan-overlay" aria-hidden="true">
-    <div class="scan-sheet" role="dialog" aria-modal="true">
-        <div class="scan-top">
-            <div class="scan-top-left"><div class="scan-dot"></div><span>Scanner un code-barres</span></div>
-            <button type="button" class="scan-close" id="btnCloseScan" aria-label="Fermer">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
-        </div>
-        <div class="scan-tabs">
-            <button type="button" class="scan-tab active" data-tab="camera" onclick="switchScanTab('camera')">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                Caméra
-            </button>
-            <button type="button" class="scan-tab" data-tab="image" onclick="switchScanTab('image')">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                Image
-            </button>
-            <button type="button" class="scan-tab" data-tab="manual" onclick="switchScanTab('manual')">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
-                Manuel
-            </button>
-            <div class="scan-tab-indicator" id="scanTabIndicator"></div>
-        </div>
-
-        <div class="scan-panel" id="panelCamera">
-            <div class="scan-viewport">
-                <video id="scanVideo" autoplay muted playsinline></video>
-                <div class="scan-overlay-frame">
-                    <div class="scan-corner tl"></div><div class="scan-corner tr"></div>
-                    <div class="scan-corner bl"></div><div class="scan-corner br"></div>
-                    <div class="scan-beam"></div>
-                </div>
-                <canvas id="scanCanvas" style="display:none"></canvas>
-            </div>
-            <div class="scan-status-bar">
-                <div class="scan-spinner" id="scanSpinner"></div>
-                <span id="scanStatusText">Initialisation…</span>
-            </div>
-        </div>
-
-        <div class="scan-panel d-none" id="panelImage">
-            <div class="img-drop-zone">
-                <input type="file" id="scanImageInput" accept="image/*" style="display:none">
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                <p>Choisissez une image avec un code-barres</p>
-                <button type="button" class="btn-pick-img" onclick="document.getElementById('scanImageInput').click()">Choisir un fichier</button>
-                <p class="img-status" id="imgStatus"></p>
-            </div>
-        </div>
-
-        <div class="scan-panel d-none" id="panelManual">
-            <div class="manual-zone">
-                <label>Saisissez le code-barres manuellement</label>
-                <div class="manual-input-row">
-                    <input type="text" id="manualInput" inputmode="numeric" placeholder="Ex: 3760091721367"
-                           onkeydown="if(event.key==='Enter'){event.preventDefault();confirmManual();}">
-                    <button type="button" class="btn-manual-ok" onclick="confirmManual()">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                {{-- Contrôles scanner (cachés par défaut) --}}
+                <div class="scanner-controls" id="scannerControls" style="display:none">
+                    <button type="button" class="btn-scan-toggle-cam" onclick="switchCamera()" data-tooltip="Changer caméra">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M20 5h-3.17L15 3H9L7.17 5H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+                        Retourner
+                    </button>
+                    <button type="button" class="btn-scan-stop" onclick="stopScanner()">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M6 6h12v12H6z"/></svg>
+                        Arrêter
                     </button>
                 </div>
-                <p class="manual-hint">Appuyez sur <kbd>Entrée</kbd> pour valider</p>
+
+                {{-- Saisie manuelle --}}
+                <div class="section-divider" style="margin-top:14px"><span>Ou saisie manuelle</span></div>
+                <div class="scan-add-manual">
+                    <input type="text" id="manualBarcodeInput"
+                           placeholder="Entrez un code-barres..."
+                           style="font-family:'DM Mono',monospace; font-size:.85rem;"
+                           onkeydown="if(event.key==='Enter'){event.preventDefault();addBarcodeManual();}">
+                    <button type="button" class="btn-add-manual" onclick="addBarcodeManual()">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 13H13v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                        Ajouter
+                    </button>
+                </div>
+
+                {{-- Liste des codes-barres --}}
+                <div class="barcode-list" id="barcodeList" style="margin-top:16px"></div>
+
+                @error('barcodes')
+                    <div class="error-msg" style="margin-top:8px">
+                        <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><circle cx="12" cy="12" r="10"/><path d="M12 7v5m0 4h.01" stroke="white" stroke-width="2" fill="none"/></svg>
+                        {{ $message }}
+                    </div>
+                @enderror
+                <div id="barcodesRequiredMsg" class="error-msg" style="display:none; margin-top:8px">
+                    <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><circle cx="12" cy="12" r="10"/><path d="M12 7v5m0 4h.01" stroke="white" stroke-width="2" fill="none"/></svg>
+                    Au moins un code-barres est requis.
+                </div>
             </div>
         </div>
 
-        <div class="scan-success d-none" id="scanSuccess">
-            <div class="scan-success-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></div>
-            <div class="scan-success-code" id="scanSuccessCode"></div>
+        {{-- ── Photo ── --}}
+        <div class="card">
+            <div class="card-header">
+                <div class="card-header-icon blue">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+                </div>
+                <div>
+                    <div class="card-header-title">Photo de l'article</div>
+                    <div class="card-header-sub">JPEG, PNG, WEBP — max 2 Mo</div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="photo-drop" id="photoDrop" ondragover="handleDragOver(event)" ondrop="handleDrop(event)">
+                    <input type="file" name="photo" accept="image/*" id="photoInput" onchange="previewPhoto(this)">
+                    <div class="photo-drop-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    </div>
+                    <p><strong>Glissez une image</strong> ou cliquez pour parcourir</p>
+                    <img id="photo-preview" src="#" alt="Prévisualisation">
+                </div>
+            </div>
+        </div>
+
+    </div>{{-- fin colonne droite --}}
+
+    {{-- ── Barre de soumission ── --}}
+    <div class="submit-bar">
+        <div class="submit-info">
+            Champs marqués <span>*</span> obligatoires — <span id="barcodeCount">0</span> code(s)-barres enregistré(s)
+        </div>
+        <div class="submit-actions">
+            <a href="{{ route('articles.index') }}" class="btn-cancel">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                Annuler
+            </a>
+            <button type="submit" class="btn-submit" onclick="return validateForm()">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                Enregistrer l'article
+            </button>
         </div>
     </div>
-</div>
 
-<div class="art-toast-wrap" id="toastWrap"></div>
+</div>{{-- form-layout --}}
+</form>
+
 @stop
 
 @section('css')
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap');
-:root{--bg:#0d0f14;--surface:#13161d;--surface2:#1a1e28;--border:rgba(255,255,255,.07);--border2:rgba(255,255,255,.12);--accent:#6c63ff;--accent2:#8b83ff;--green:#22d37a;--red:#ff5252;--yellow:#ffc94a;--text:#e8eaf0;--text2:#8890a4;--text3:#555e72;--radius:14px;--radius-sm:9px;--font:'DM Sans',system-ui,sans-serif;--font-h:'Syne',sans-serif;--transition:.2s cubic-bezier(.4,0,.2,1)}
-*,*::before,*::after{box-sizing:border-box;margin:0}
-body,.content-wrapper{background:var(--bg)!important;font-family:var(--font);color:var(--text)}
-.content-wrapper{padding-bottom:110px!important}
-a{color:inherit}
-.art-header{display:flex;align-items:center;gap:1rem;padding:1.25rem 1.5rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:1.5rem}
-.art-back{width:40px;height:40px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text2);text-decoration:none;transition:var(--transition)}
-.art-back:hover{background:var(--accent);border-color:var(--accent);color:white}
-.art-title{font-family:var(--font-h);font-size:1.35rem;font-weight:700;color:var(--text);line-height:1}
-.art-sub{font-size:.78rem;color:var(--text3);margin-top:.25rem}
-.art-header-badge{margin-left:auto;display:flex;align-items:center;gap:.5rem;padding:.35rem .9rem;border-radius:20px;background:rgba(108,99,255,.12);border:1px solid rgba(108,99,255,.3);font-size:.78rem;font-weight:600;color:var(--accent2)}
-.pulse-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 1.8s infinite}
-@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(34,211,122,.4)}70%{box-shadow:0 0 0 7px rgba(34,211,122,0)}100%{box-shadow:0 0 0 0 rgba(34,211,122,0)}}
-.art-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem}
-.art-col{display:flex;flex-direction:column;gap:1.25rem}
-.art-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.5rem;transition:border-color var(--transition)}
-.art-card:hover{border-color:var(--border2)}
-.art-card-label{display:flex;align-items:center;gap:.5rem;font-family:var(--font-h);font-size:.7rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:1.25rem;padding-bottom:.75rem;border-bottom:1px solid var(--border)}
-.art-card-label svg{color:var(--accent)}
-.fld{margin-bottom:1.1rem}.fld:last-child{margin-bottom:0}
-.fld-label{display:block;font-size:.8rem;font-weight:600;color:var(--text2);margin-bottom:.45rem}
-.req{color:var(--red);margin-left:.15rem}.opt{color:var(--text3);font-weight:400;font-size:.75rem;margin-left:.3rem}
-.fld-wrap{position:relative}
-.fld-input{width:100%;height:44px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:0 2.6rem 0 .9rem;font-family:var(--font);font-size:.92rem;color:var(--text);outline:none;transition:border-color var(--transition),box-shadow var(--transition);-webkit-appearance:none}
-.fld-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(108,99,255,.18)}
-.fld-input.has-err{border-color:var(--red)}.fld-input::placeholder{color:var(--text3)}
-.fld-ico{position:absolute;right:.75rem;top:50%;transform:translateY(-50%);color:var(--text3);pointer-events:none}
-.fld-input.has-prefix{padding-left:3rem}
-.fld-prefix{position:absolute;left:.9rem;top:50%;transform:translateY(-50%);font-size:.8rem;font-weight:700;color:var(--accent);pointer-events:none}
-.fld-textarea{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:.7rem .9rem;font-family:var(--font);font-size:.92rem;color:var(--text);resize:vertical;min-height:80px;outline:none;transition:border-color var(--transition),box-shadow var(--transition)}
-.fld-textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(108,99,255,.18)}
-.fld-textarea::placeholder{color:var(--text3)}.fld-hint{font-size:.74rem;color:var(--text3);margin-top:.35rem}.err-msg{font-size:.77rem;color:var(--red);margin-top:.35rem}
-#barcodeList{display:flex;flex-direction:column;gap:.55rem;margin-bottom:.75rem}
-.bc-row{display:flex;gap:.45rem;align-items:center;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:.55rem .65rem;transition:border-color var(--transition);animation:rowIn .2s ease}
-@keyframes rowIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
-.bc-row.is-primary{border-color:var(--green)}
-.bc-code{flex:2;min-width:0;height:36px;background:var(--surface);border:1px solid var(--border2);border-radius:7px;padding:0 .7rem;font-family:'Courier New',monospace;font-size:.88rem;color:var(--text);outline:none;transition:border-color var(--transition)}
-.bc-code:focus{border-color:var(--accent)}.bc-code.ok{border-color:var(--green);background:rgba(34,211,122,.05)}
-.bc-lbl{flex:1;min-width:0;height:36px;background:var(--surface);border:1px solid var(--border2);border-radius:7px;padding:0 .7rem;font-family:var(--font);font-size:.82rem;color:var(--text2);outline:none}
-.bc-lbl:focus{border-color:var(--accent)}.bc-lbl::placeholder{color:var(--text3)}
-.bc-btn{width:34px;height:34px;flex-shrink:0;border:none;border-radius:7px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:opacity var(--transition),transform var(--transition);color:white}
-.bc-btn:hover{opacity:.85;transform:scale(1.07)}
-.bc-btn-cam{background:var(--green)}.bc-btn-img{background:var(--accent)}
-.bc-btn-del{background:rgba(255,82,82,.2);color:var(--red);border:1px solid rgba(255,82,82,.3)}.bc-btn-del:hover{background:var(--red);color:white}
-.bc-primary-btn{height:34px;padding:0 .6rem;border-radius:7px;border:1px solid var(--border2);background:transparent;color:var(--text3);font-size:.7rem;font-weight:700;font-family:var(--font);cursor:pointer;white-space:nowrap;transition:all var(--transition);flex-shrink:0}
-.bc-primary-btn.on{background:var(--green);border-color:var(--green);color:#0d1f14}
-.bc-primary-btn:hover:not(.on){border-color:var(--green);color:var(--green)}
-.btn-add-bc{display:inline-flex;align-items:center;gap:.45rem;padding:.55rem 1rem;border-radius:var(--radius-sm);background:rgba(108,99,255,.12);border:1px dashed rgba(108,99,255,.4);color:var(--accent2);font-size:.82rem;font-weight:600;font-family:var(--font);cursor:pointer;transition:all var(--transition)}
-.btn-add-bc:hover{background:rgba(108,99,255,.22);border-style:solid}
-.combo-wrap{position:relative}
-.combo-trigger{display:flex;align-items:center;gap:.5rem;height:44px;padding:0 .9rem;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-sm);cursor:text;transition:border-color var(--transition),box-shadow var(--transition)}
-.combo-trigger:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px rgba(108,99,255,.18)}
-.combo-ico{color:var(--accent);flex-shrink:0}
-.combo-input{flex:1;background:none;border:none;outline:none;font-family:var(--font);font-size:.92rem;color:var(--text);min-width:0}
-.combo-input::placeholder{color:var(--text3)}
-.combo-clear{background:none;border:none;cursor:pointer;color:var(--text3);padding:4px;display:flex;border-radius:4px;transition:color var(--transition)}.combo-clear:hover{color:var(--red)}
-.combo-chevron{color:var(--text3);flex-shrink:0;transition:transform var(--transition)}.combo-trigger:focus-within .combo-chevron{transform:rotate(180deg)}
-.combo-dropdown{position:absolute;top:calc(100% + 5px);left:0;right:0;background:var(--surface2);border:1px solid var(--accent);border-radius:var(--radius-sm);box-shadow:0 16px 40px rgba(0,0,0,.5);z-index:1000;max-height:240px;overflow-y:auto;animation:dropIn .15s ease}
-@keyframes dropIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
-.combo-dropdown::-webkit-scrollbar{width:4px}.combo-dropdown::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
-.combo-item{display:flex;align-items:center;gap:.5rem;padding:.65rem .9rem;cursor:pointer;font-size:.88rem;border-bottom:1px solid var(--border);transition:background var(--transition)}
-.combo-item:last-child{border-bottom:none}.combo-item:hover{background:rgba(108,99,255,.1)}
-.combo-item.depth-1{padding-left:1.8rem;color:var(--text2);font-size:.84rem}.combo-item.depth-2{padding-left:2.6rem;color:var(--text3);font-size:.8rem}
-.combo-item svg{color:var(--accent);flex-shrink:0}.cmatch{color:var(--accent2);font-weight:700}
-.combo-empty{padding:1.5rem;text-align:center;color:var(--text3);font-size:.85rem;display:flex;flex-direction:column;align-items:center;gap:.5rem}
-.combo-badge{display:inline-flex;align-items:center;gap:.4rem;margin-top:.45rem;padding:.35rem .75rem;background:rgba(34,211,122,.1);border:1px solid rgba(34,211,122,.3);border-radius:20px;font-size:.8rem;font-weight:600;color:var(--green)}
-.upload-zone{border:2px dashed var(--border2);border-radius:var(--radius);overflow:hidden;transition:border-color var(--transition);cursor:pointer}
-.upload-zone:hover,.upload-zone.dragover{border-color:var(--accent);background:rgba(108,99,255,.04)}
-.upload-idle{padding:2rem;text-align:center;display:flex;flex-direction:column;align-items:center;gap:.5rem}
-.upload-icon-wrap{width:64px;height:64px;border-radius:50%;background:var(--surface2);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;color:var(--accent);margin-bottom:.5rem}
-.upload-text{font-size:.9rem;color:var(--text2)}.upload-text span{color:var(--accent);font-weight:600;text-decoration:underline}
-.upload-hint{font-size:.75rem;color:var(--text3)}.upload-preview{position:relative}
-.upload-preview img{width:100%;max-height:260px;object-fit:cover;display:block}
-.upload-remove{position:absolute;top:.6rem;right:.6rem;width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,.7);border:1px solid rgba(255,255,255,.2);color:white;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background var(--transition)}.upload-remove:hover{background:var(--red)}
-.fld-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem}
-.num-wrap{display:flex;align-items:center;height:44px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-sm);overflow:hidden}
-.num-btn{width:38px;flex-shrink:0;height:100%;border:none;background:var(--surface);color:var(--text2);font-size:1.1rem;cursor:pointer;transition:all var(--transition)}.num-btn:hover{background:var(--accent);color:white}
-.num-input{flex:1;min-width:0;height:100%;border:none;outline:none;background:none;text-align:center;font-family:var(--font-h);font-size:1rem;font-weight:700;color:var(--text);-moz-appearance:textfield}
-.num-input::-webkit-outer-spin-button,.num-input::-webkit-inner-spin-button{-webkit-appearance:none}
-.stock-bar-wrap{margin-top:1rem}
-.stock-bar-track{position:relative;height:8px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);overflow:visible}
-.stock-bar-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--green),#6ef7a7);transition:width .5s cubic-bezier(.4,0,.2,1);width:0}
-.stock-bar-min{position:absolute;top:-4px;width:3px;height:16px;background:var(--yellow);border-radius:2px;transition:left .5s cubic-bezier(.4,0,.2,1);left:0}
-.stock-bar-legend{display:flex;justify-content:space-between;font-size:.72rem;color:var(--text3);margin-top:.5rem}
-.recap-card{border-color:rgba(108,99,255,.2)}.recap-rows{display:flex;flex-direction:column;gap:.55rem}
-.recap-row{display:flex;justify-content:space-between;align-items:baseline;font-size:.83rem;color:var(--text2);padding-bottom:.45rem;border-bottom:1px solid var(--border)}
-.recap-row:last-child{border-bottom:none;padding-bottom:0}.recap-row strong{color:var(--text);font-weight:600;max-width:60%;text-align:right}
-.art-actions{position:sticky;bottom:0;z-index:800;display:flex;justify-content:flex-end;gap:.75rem;padding:1rem 1.5rem;background:rgba(13,15,20,.92);backdrop-filter:blur(12px);border-top:1px solid var(--border);margin-top:1.5rem}
-.btn-art-cancel{display:inline-flex;align-items:center;gap:.5rem;height:44px;padding:0 1.4rem;border-radius:var(--radius-sm);background:var(--surface2);border:1px solid var(--border2);color:var(--text2);font-size:.88rem;font-weight:600;text-decoration:none;transition:all var(--transition)}.btn-art-cancel:hover{border-color:var(--red);color:var(--red);text-decoration:none}
-.btn-art-save{display:inline-flex;align-items:center;gap:.5rem;height:44px;padding:0 1.75rem;border-radius:var(--radius-sm);background:var(--accent);border:none;color:white;font-family:var(--font);font-size:.88rem;font-weight:700;cursor:pointer;transition:all var(--transition);box-shadow:0 4px 20px rgba(108,99,255,.4)}.btn-art-save:hover{background:var(--accent2);transform:translateY(-2px)}.btn-art-save:active{transform:translateY(0)}
-.scan-overlay{position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.8);backdrop-filter:blur(8px);display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s}.scan-overlay.open{opacity:1;pointer-events:all}
-.scan-sheet{width:min(100%,460px);max-height:90vh;background:var(--surface);border-radius:var(--radius) var(--radius) 0 0;overflow:hidden;display:flex;flex-direction:column;transform:translateY(40px);transition:transform .3s cubic-bezier(.34,1.56,.64,1)}.scan-overlay.open .scan-sheet{transform:translateY(0)}
-.scan-top{display:flex;align-items:center;justify-content:space-between;padding:.9rem 1.1rem;border-bottom:1px solid var(--border);font-family:var(--font-h);font-size:.85rem;font-weight:700;color:var(--text)}
-.scan-top-left{display:flex;align-items:center;gap:.6rem}
-.scan-dot{width:8px;height:8px;border-radius:50%;background:var(--green);animation:pulse 1.8s infinite}
-.scan-close{width:32px;height:32px;border-radius:8px;border:1px solid var(--border2);background:var(--surface2);color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all var(--transition)}.scan-close:hover{background:var(--red);border-color:var(--red);color:white}
-.scan-tabs{display:flex;position:relative;border-bottom:1px solid var(--border);background:var(--surface2)}
-.scan-tab{flex:1;display:flex;align-items:center;justify-content:center;gap:.4rem;height:42px;background:none;border:none;cursor:pointer;font-family:var(--font);font-size:.8rem;font-weight:600;color:var(--text3);transition:color var(--transition);position:relative;z-index:1}.scan-tab.active{color:var(--accent2)}
-.scan-tab-indicator{position:absolute;bottom:0;height:2px;background:var(--accent);border-radius:2px 2px 0 0;transition:left .2s ease,width .2s ease}
-.scan-panel{padding:0}
-.scan-viewport{position:relative;width:100%;background:#000;overflow:hidden;max-height:340px}
-#scanVideo{width:100%;display:block;max-height:340px;object-fit:cover}
-#scanCanvas{display:none}
-.scan-overlay-frame{position:absolute;inset:0;pointer-events:none}
-.scan-corner{position:absolute;width:24px;height:24px;border-color:var(--accent2);border-style:solid}
-.scan-corner.tl{top:20px;left:20px;border-width:3px 0 0 3px;border-radius:4px 0 0 0}
-.scan-corner.tr{top:20px;right:20px;border-width:3px 3px 0 0;border-radius:0 4px 0 0}
-.scan-corner.bl{bottom:20px;left:20px;border-width:0 0 3px 3px;border-radius:0 0 0 4px}
-.scan-corner.br{bottom:20px;right:20px;border-width:0 3px 3px 0;border-radius:0 0 4px 0}
-.scan-beam{position:absolute;left:20px;right:20px;height:2px;background:linear-gradient(90deg,transparent,var(--accent),var(--accent2),var(--accent),transparent);box-shadow:0 0 10px 2px rgba(108,99,255,.6);animation:beamSweep 2s ease-in-out infinite;top:20px}
-@keyframes beamSweep{0%{top:20px}50%{top:calc(100% - 20px)}100%{top:20px}}
-.scan-status-bar{display:flex;align-items:center;gap:.6rem;padding:.65rem 1rem;background:var(--surface2);border-top:1px solid var(--border);font-size:.8rem;color:var(--text2)}
-.scan-spinner{width:14px;height:14px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
-@keyframes spin{to{transform:rotate(360deg)}}
-.img-drop-zone{display:flex;flex-direction:column;align-items:center;gap:.6rem;padding:2rem 1.5rem;text-align:center}
-.img-drop-zone svg{color:var(--text3)}.img-drop-zone p{font-size:.88rem;color:var(--text2)}
-.btn-pick-img{padding:.55rem 1.4rem;border-radius:var(--radius-sm);background:var(--accent);border:none;color:white;font-family:var(--font);font-size:.85rem;font-weight:600;cursor:pointer;transition:all var(--transition)}.btn-pick-img:hover{background:var(--accent2)}
-.img-status{font-size:.8rem;color:var(--text3);margin-top:.3rem}
-.manual-zone{padding:1.5rem}.manual-zone label{display:block;font-size:.8rem;color:var(--text2);font-weight:600;margin-bottom:.6rem}
-.manual-input-row{display:flex;gap:.5rem}
-.manual-input-row input{flex:1;height:46px;background:var(--surface2);border:1.5px solid var(--border2);border-radius:var(--radius-sm);padding:0 .9rem;font-family:'Courier New',monospace;font-size:1rem;color:var(--text);outline:none;transition:border-color var(--transition)}.manual-input-row input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(108,99,255,.18)}.manual-input-row input::placeholder{color:var(--text3);font-family:var(--font);font-size:.88rem}
-.btn-manual-ok{width:46px;height:46px;border-radius:var(--radius-sm);background:var(--green);border:none;color:white;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all var(--transition)}.btn-manual-ok:hover{background:#1db368;transform:scale(1.05)}
-.manual-hint{font-size:.74rem;color:var(--text3);margin-top:.6rem}.manual-hint kbd{display:inline-block;padding:.1rem .4rem;border-radius:4px;background:var(--surface2);border:1px solid var(--border2);font-size:.7rem;font-family:var(--font)}
-.scan-success{position:absolute;inset:0;z-index:10;background:rgba(13,15,20,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.75rem;animation:fadeIn .2s ease}
-@keyframes fadeIn{from{opacity:0}to{opacity:1}}
-.scan-success-icon{width:64px;height:64px;border-radius:50%;background:rgba(34,211,122,.15);border:2px solid var(--green);display:flex;align-items:center;justify-content:center;color:var(--green);animation:popIn .3s cubic-bezier(.34,1.56,.64,1)}
-@keyframes popIn{from{transform:scale(.5);opacity:0}to{transform:scale(1);opacity:1}}
-.scan-success-code{font-family:'Courier New',monospace;font-size:1.1rem;color:var(--text);background:var(--surface2);padding:.5rem 1.2rem;border-radius:var(--radius-sm);border:1px solid var(--green)}
-.art-toast-wrap{position:fixed;bottom:80px;right:1.5rem;display:flex;flex-direction:column;gap:.5rem;z-index:99999;pointer-events:none}
-.art-toast{display:flex;align-items:center;gap:.6rem;padding:.65rem 1rem;border-radius:var(--radius-sm);font-size:.82rem;font-weight:600;color:white;box-shadow:0 8px 24px rgba(0,0,0,.4);animation:toastIn .25s cubic-bezier(.34,1.56,.64,1);backdrop-filter:blur(8px)}
-.art-toast.ok{background:rgba(34,211,122,.92)}.art-toast.err{background:rgba(255,82,82,.92)}.art-toast.warn{background:rgba(255,201,74,.92);color:#1a1200}
-@keyframes toastIn{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:none}}
-.d-none{display:none!important}.content-header{background:transparent!important;box-shadow:none!important}
-@media(max-width:900px){.art-grid{grid-template-columns:1fr}}
-@media(max-width:520px){.fld-row-3{grid-template-columns:1fr 1fr}.art-actions{flex-direction:column}.btn-art-cancel,.btn-art-save{width:100%;justify-content:center}}
+:root {
+    --ink:        #0c0c0f;
+    --ink-soft:   #3a3a4a;
+    --ink-muted:  #7a7a90;
+    --paper:      #f5f4f0;
+    --paper-warm: #edecea;
+    --surface:    #ffffff;
+    --accent:     #e84f3c;
+    --accent-2:   #f5a623;
+    --scan-green: #00e676;
+    --scan-dim:   #00c853;
+    --border:     #e0dfd9;
+    --radius:     10px;
+    --shadow:     0 2px 12px rgba(0,0,0,.08), 0 1px 3px rgba(0,0,0,.06);
+    --shadow-lg:  0 8px 32px rgba(0,0,0,.13), 0 2px 8px rgba(0,0,0,.08);
+}
+
+* { box-sizing: border-box; }
+
+.page-header {
+    background: var(--ink);
+    color: white;
+    padding: 28px 40px 24px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    border-bottom: 3px solid var(--accent);
+    position: relative;
+    overflow: hidden;
+    margin: -10px -15px 0;
+}
+.page-header::before {
+    content: '';
+    position: absolute;
+    top: -40px; right: -40px;
+    width: 180px; height: 180px;
+    border: 2px solid rgba(255,255,255,.06);
+    border-radius: 50%;
+}
+.page-header::after {
+    content: '';
+    position: absolute;
+    top: -20px; right: -20px;
+    width: 100px; height: 100px;
+    border: 2px solid rgba(232,79,60,.25);
+    border-radius: 50%;
+}
+.header-icon {
+    width: 52px; height: 52px;
+    background: var(--accent);
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+}
+.header-icon svg { width: 26px; height: 26px; fill: white; }
+.header-text h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.6rem; font-weight: 800;
+    letter-spacing: -.01em;
+    line-height: 1.1;
+    margin: 0;
+}
+.header-text p { font-size: .82rem; color: rgba(255,255,255,.5); margin-top: 4px; margin-bottom: 0; }
+.header-back {
+    margin-left: auto;
+    display: flex; align-items: center; gap: 8px;
+    color: rgba(255,255,255,.6);
+    text-decoration: none;
+    font-size: .82rem;
+    font-family: 'DM Mono', monospace;
+    padding: 8px 16px;
+    border: 1px solid rgba(255,255,255,.15);
+    border-radius: 6px;
+    transition: all .2s;
+    position: relative; z-index: 1;
+}
+.header-back:hover { color: white; border-color: rgba(255,255,255,.4); background: rgba(255,255,255,.07); }
+
+.form-layout {
+    max-width: 1080px;
+    margin: 28px auto;
+    padding: 0 0 40px;
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    gap: 24px;
+    align-items: start;
+}
+@media (max-width: 860px) {
+    .form-layout { grid-template-columns: 1fr; }
+    .page-header { padding: 20px 20px 18px; margin: -10px -10px 0; }
+}
+
+/* AdminLTE override — nos cards écrasent les siennes */
+.form-layout .card {
+    background: var(--surface);
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius) !important;
+    box-shadow: var(--shadow) !important;
+    overflow: hidden;
+    animation: slideUp .35s cubic-bezier(.22,1,.36,1) both;
+    margin-bottom: 0 !important;
+}
+.form-layout .card:nth-child(2) { animation-delay: .06s; }
+.form-layout .card:nth-child(3) { animation-delay: .12s; }
+.form-layout .card:nth-child(4) { animation-delay: .18s; }
+
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.form-layout .card-header {
+    padding: 16px 20px 14px !important;
+    border-bottom: 1px solid var(--border) !important;
+    display: flex !important; align-items: center; gap: 12px;
+    background: var(--paper-warm) !important;
+}
+.card-header-icon {
+    width: 34px; height: 34px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+}
+.card-header-icon.red   { background: rgba(232,79,60,.12); color: var(--accent); }
+.card-header-icon.amber { background: rgba(245,166,35,.15); color: var(--accent-2); }
+.card-header-icon.green { background: rgba(0,200,83,.12);  color: var(--scan-dim); }
+.card-header-icon.blue  { background: rgba(66,133,244,.12); color: #4285f4; }
+.card-header-icon svg   { width: 17px; height: 17px; }
+
+.card-header-title {
+    font-family: 'Syne', sans-serif;
+    font-size: .95rem; font-weight: 700;
+    letter-spacing: .01em;
+    margin: 0;
+}
+.card-header-sub { font-size: .72rem; color: var(--ink-muted); margin-top: 1px; }
+.form-layout .card-body { padding: 20px !important; }
+
+/* Fields */
+.field { margin-bottom: 16px; }
+.field:last-child { margin-bottom: 0; }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+.form-layout label {
+    display: block;
+    font-size: .75rem; font-weight: 600;
+    letter-spacing: .04em; text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-bottom: 6px;
+}
+label .req { color: var(--accent); margin-left: 2px; }
+
+.form-layout input[type=text],
+.form-layout input[type=number],
+.form-layout input[type=date],
+.form-layout select,
+.form-layout textarea {
+    width: 100%;
+    padding: 9px 13px;
+    border: 1.5px solid var(--border) !important;
+    border-radius: 7px !important;
+    font-family: 'DM Sans', sans-serif;
+    font-size: .87rem;
+    color: var(--ink);
+    background: white !important;
+    transition: border-color .18s, box-shadow .18s;
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+    box-shadow: none !important;
+}
+.form-layout input:focus,
+.form-layout select:focus,
+.form-layout textarea:focus {
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 0 3px rgba(232,79,60,.1) !important;
+}
+.form-layout select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237a7a90' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 12px center !important;
+    padding-right: 36px;
+}
+.form-layout textarea { resize: vertical; min-height: 78px; }
+.input-hint { font-size: .7rem; color: var(--ink-muted); margin-top: 4px; }
+.is-invalid { border-color: var(--accent) !important; background: rgba(232,79,60,.03) !important; }
+.error-msg { font-size: .72rem; color: var(--accent); margin-top: 5px; display: flex; align-items: center; gap: 4px; }
+
+/* Photo upload */
+.photo-drop {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 26px 18px;
+    text-align: center;
+    cursor: pointer;
+    transition: all .2s;
+    position: relative;
+}
+.photo-drop:hover, .photo-drop.drag-over {
+    border-color: var(--accent);
+    background: rgba(232,79,60,.03);
+}
+.photo-drop input[type=file] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+}
+.photo-drop-icon {
+    width: 42px; height: 42px;
+    background: var(--paper);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 10px;
+}
+.photo-drop-icon svg { width: 20px; height: 20px; color: var(--ink-muted); }
+.photo-drop p { font-size: .78rem; color: var(--ink-muted); line-height: 1.5; margin: 0; }
+.photo-drop strong { color: var(--accent); font-weight: 600; }
+#photo-preview {
+    display: none; width: 100%; max-height: 150px;
+    object-fit: contain; border-radius: 7px;
+    margin-top: 12px; border: 1px solid var(--border);
+}
+
+/* Scanner */
+.scanner-area {
+    position: relative;
+    background: #0a0a0a;
+    border-radius: 10px;
+    overflow: hidden;
+    aspect-ratio: 4/3;
+    border: 2px solid #1a1a1a;
+}
+.scanner-area video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.scanner-overlay {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    pointer-events: none;
+}
+.scan-frame { width: 72%; height: 55%; position: relative; }
+.scan-frame::before, .scan-frame::after,
+.scan-corner-tr, .scan-corner-bl {
+    content: '';
+    position: absolute;
+    width: 28px; height: 28px;
+    border-color: var(--scan-green);
+    border-style: solid;
+}
+.scan-frame::before  { top: 0;    left: 0;  border-width: 3px 0 0 3px; border-radius: 3px 0 0 0; }
+.scan-frame::after   { top: 0;    right: 0; border-width: 3px 3px 0 0; border-radius: 0 3px 0 0; }
+.scan-corner-bl      { bottom: 0; left: 0;  border-width: 0 0 3px 3px; border-radius: 0 0 0 3px; }
+.scan-corner-tr      { bottom: 0; right: 0; border-width: 0 3px 3px 0; border-radius: 0 0 3px 0; }
+.scan-line {
+    position: absolute; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--scan-green), transparent);
+    top: 10%;
+    animation: scanMove 2.2s ease-in-out infinite;
+    box-shadow: 0 0 8px var(--scan-green), 0 0 18px rgba(0,230,118,.4);
+}
+@keyframes scanMove {
+    0%,100% { top: 10%; }
+    50%      { top: 85%; }
+}
+.scan-hint-text {
+    position: absolute; bottom: 10px; left: 0; right: 0;
+    text-align: center;
+    font-family: 'DM Mono', monospace;
+    font-size: .66rem; color: rgba(255,255,255,.55); letter-spacing: .06em;
+}
+.scanner-idle {
+    position: absolute; inset: 0;
+    background: #0a0a0a;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 12px;
+    cursor: pointer; transition: background .2s;
+}
+.scanner-idle:hover { background: #111; }
+.scan-idle-icon {
+    width: 60px; height: 60px;
+    border: 2px solid rgba(0,230,118,.3);
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+}
+.scan-idle-icon svg { width: 28px; height: 28px; color: var(--scan-green); }
+.scan-idle-icon::before {
+    content: '';
+    position: absolute; inset: -6px;
+    border: 1px solid rgba(0,230,118,.1);
+    border-radius: 16px;
+    animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%       { opacity: .4; transform: scale(1.08); }
+}
+.scan-idle-label {
+    font-family: 'Syne', sans-serif;
+    font-size: .82rem; font-weight: 700;
+    color: rgba(255,255,255,.7); letter-spacing: .02em;
+}
+.scan-idle-sub { font-size: .67rem; color: rgba(255,255,255,.35); font-family: 'DM Mono', monospace; }
+
+.scanner-controls { display: flex; gap: 8px; margin-top: 10px; }
+.btn-scan-stop, .btn-scan-toggle-cam {
+    flex: 1; padding: 9px; border: none; border-radius: 7px;
+    font-family: 'DM Sans', sans-serif; font-size: .8rem; font-weight: 600;
+    cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;
+    transition: all .18s;
+}
+.btn-scan-stop { background: rgba(232,79,60,.12); color: var(--accent); border: 1px solid rgba(232,79,60,.2); }
+.btn-scan-stop:hover { background: rgba(232,79,60,.2); }
+.btn-scan-toggle-cam { background: var(--paper); color: var(--ink-soft); border: 1px solid var(--border); }
+.btn-scan-toggle-cam:hover { background: var(--paper-warm); }
+
+.barcode-list { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+.barcode-item {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--paper); border: 1.5px solid var(--border);
+    border-radius: 8px; padding: 10px 12px;
+    animation: itemIn .25s cubic-bezier(.22,1,.36,1) both;
+}
+.barcode-item.is-primary { border-color: var(--scan-dim); background: rgba(0,200,83,.04); }
+@keyframes itemIn {
+    from { opacity: 0; transform: translateX(-10px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+.barcode-item-code {
+    font-family: 'DM Mono', monospace; font-size: .82rem; font-weight: 500;
+    color: var(--ink); flex: 1; border: none; background: transparent; padding: 0; outline: none;
+}
+.barcode-item-code:focus { color: var(--accent); }
+.barcode-item-label-input {
+    width: 100px; padding: 4px 8px;
+    border: 1px solid var(--border); border-radius: 5px;
+    font-size: .74rem; color: var(--ink-soft); background: white; outline: none;
+}
+.barcode-item-label-input:focus { border-color: var(--accent); }
+.barcode-item-label-input::placeholder { color: var(--ink-muted); }
+.badge-primary {
+    font-size: .62rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+    background: var(--scan-dim); color: white; padding: 2px 7px; border-radius: 4px; flex-shrink: 0;
+}
+.btn-set-primary {
+    background: none; border: none; cursor: pointer; color: var(--ink-muted); font-size: .68rem;
+    display: flex; align-items: center; gap: 3px; padding: 3px 6px; border-radius: 4px;
+    white-space: nowrap; transition: all .15s;
+}
+.btn-set-primary:hover { color: var(--scan-dim); background: rgba(0,200,83,.08); }
+.btn-remove-barcode {
+    width: 28px; height: 28px; flex-shrink: 0; background: none; border: none;
+    cursor: pointer; border-radius: 6px; display: flex; align-items: center; justify-content: center;
+    color: var(--ink-muted); transition: all .15s;
+}
+.btn-remove-barcode:hover { background: rgba(232,79,60,.1); color: var(--accent); }
+.btn-remove-barcode svg { width: 14px; height: 14px; }
+
+.scan-add-manual { display: flex; gap: 8px; margin-top: 10px; }
+.scan-add-manual input { flex: 1; }
+.btn-add-manual {
+    padding: 10px 16px; background: var(--ink); color: white; border: none;
+    border-radius: 7px; font-weight: 600; font-size: .82rem; cursor: pointer;
+    white-space: nowrap; transition: background .15s;
+    display: flex; align-items: center; gap: 6px;
+}
+.btn-add-manual:hover { background: #222; }
+.btn-add-manual svg { width: 14px; height: 14px; }
+
+.scan-flash {
+    position: absolute; inset: 0; background: rgba(0,230,118,.15);
+    border-radius: 10px; animation: flashIn .6s ease-out both; pointer-events: none;
+}
+@keyframes flashIn { 0% { opacity: 1; } 100% { opacity: 0; } }
+
+/* Submit bar */
+.submit-bar {
+    grid-column: 1 / -1;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 18px 24px;
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    box-shadow: var(--shadow);
+}
+.submit-info { font-size: .78rem; color: var(--ink-muted); }
+.submit-info span { color: var(--accent); font-weight: 600; }
+.submit-actions { display: flex; gap: 12px; }
+.btn-cancel {
+    padding: 10px 20px; background: white; border: 1.5px solid var(--border);
+    border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: .85rem; font-weight: 500;
+    cursor: pointer; color: var(--ink-soft); text-decoration: none;
+    display: flex; align-items: center; gap: 7px; transition: all .18s;
+}
+.btn-cancel:hover { border-color: var(--ink-soft); color: var(--ink); }
+.btn-submit {
+    padding: 11px 28px; background: var(--accent); border: none; border-radius: 8px;
+    font-family: 'Syne', sans-serif; font-size: .9rem; font-weight: 700;
+    cursor: pointer; color: white; display: flex; align-items: center; gap: 8px;
+    transition: all .2s; letter-spacing: .01em; position: relative; overflow: hidden;
+}
+.btn-submit::before {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,.15) 0%, transparent 60%);
+}
+.btn-submit:hover { background: #d43f2d; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(232,79,60,.35); }
+.btn-submit:active { transform: translateY(0); }
+.btn-submit svg { width: 17px; height: 17px; }
+
+/* Alerts */
+.alert { padding: 0; margin-bottom: 16px; }
+.alert-inner {
+    padding: 13px 16px; border-radius: 8px; font-size: .83rem;
+    display: flex; align-items: flex-start; gap: 10px; border-left: 4px solid;
+}
+.alert-inner svg { width: 16px; height: 16px; flex-shrink: 0; margin-top: 1px; }
+.alert-error  { background: rgba(232,79,60,.07); border-color: var(--accent); color: #c0392b; }
+.alert-success { background: rgba(0,200,83,.07); border-color: var(--scan-dim); color: #1a8a47; }
+
+/* Stock meter */
+.stock-meter { height: 4px; background: var(--border); border-radius: 4px; margin-top: 8px; overflow: hidden; }
+.stock-meter-fill {
+    height: 100%; border-radius: 4px;
+    background: linear-gradient(90deg, #4caf50, #8bc34a);
+    transition: width .4s ease; width: 0%;
+}
+
+/* Section divider */
+.section-divider { display: flex; align-items: center; gap: 12px; margin: 6px 0 14px; }
+.section-divider span {
+    font-size: .69rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .07em; color: var(--ink-muted); white-space: nowrap;
+}
+.section-divider::before, .section-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+/* Tooltip */
+[data-tooltip] { position: relative; }
+[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+    background: var(--ink); color: white; font-size: .68rem; white-space: nowrap;
+    padding: 4px 8px; border-radius: 5px;
+    pointer-events: none; opacity: 0; transition: opacity .18s; z-index: 9999;
+}
+[data-tooltip]:hover::after { opacity: 1; }
 </style>
 @stop
 
-@php
-    if (!function_exists('flattenCats')) {
-        function flattenCats($cats, $depth = 0) {
-            $out = [];
-            foreach ($cats as $c) {
-                $out[] = ['id' => $c->id, 'nom' => $c->nom, 'depth' => $depth];
-                if (!empty($c->children)) $out = array_merge($out, flattenCats($c->children, $depth + 1));
-            }
-            return $out;
-        }
-    }
-    $flatCats = flattenCats($categories);
-@endphp
-
 @section('js')
-{{-- @zxing/browser : la lib la plus stable et éprouvée pour WebView Android/iOS --}}
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
+
 <script>
-'use strict';
+/* ══════════════════════════════════════════
+   STATE
+══════════════════════════════════════════ */
+let barcodes        = [];
+let scanActive      = false;
+let codeReader      = null;
+let currentDeviceIdx = 0;
+let videoDevices    = [];
+let scanDebounce    = null;
 
-const CATS  = {!! json_encode($flatCats) !!};
-const MARQS = {!! json_encode($marques->map(fn($m)=>['id'=>$m->id,'nom'=>$m->nom])->values()) !!};
+/* ══════════════════════════════════════════
+   RENDER
+══════════════════════════════════════════ */
+function renderBarcodes() {
+    const list  = document.getElementById('barcodeList');
+    const count = document.getElementById('barcodeCount');
+    list.innerHTML = '';
+    count.textContent = barcodes.length;
 
-let bcCounter  = 0;
-let activeRow  = null;
-let camStream  = null;
-let scanActive = false;
-let scanLoopId = null;
-let currentTab = 'camera';
-let zxReader   = null;   // instance ZXing réutilisable
-let nativeDet  = null;   // BarcodeDetector si dispo
+    if (barcodes.length === 0) {
+        list.innerHTML = `<div style="text-align:center;padding:16px;color:var(--ink-muted);font-size:.78rem;font-family:'DM Mono',monospace;border:1px dashed var(--border);border-radius:8px;">Aucun code-barres — scannez ou saisissez</div>`;
+        return;
+    }
 
-/* ══ INIT ═══════════════════════════════════════════ */
-document.addEventListener('DOMContentLoaded', () => {
-
-    /* pré-init du moteur */
-    initEngine();
-
-    @if(old('barcodes'))
-        const ob = Object.values({!! json_encode(old('barcodes')) !!});
-        ob.forEach((b, i) => addRow(i === 0, b));
-        const pi = ob.findIndex(b => b.primary === '1' || b.primary === 1);
-        if (pi > 0) setPrimary(pi + 1);
-    @else
-        addRow(true);
-    @endif
-
-    document.getElementById('btnAddBarcode').addEventListener('click', () => addRow(false));
-    document.getElementById('btnCloseScan').addEventListener('click', closeScan);
-    document.getElementById('scanOverlay').addEventListener('click', e => { if (e.target.id === 'scanOverlay') closeScan(); });
-    document.getElementById('scanImageInput').addEventListener('change', handleScanImage);
-
-    const uz = document.getElementById('uploadZone');
-    uz.addEventListener('click', () => document.getElementById('photoInput').click());
-    uz.addEventListener('dragover', e => { e.preventDefault(); uz.classList.add('dragover'); });
-    uz.addEventListener('dragleave', () => uz.classList.remove('dragover'));
-    uz.addEventListener('drop', e => {
-        e.preventDefault(); uz.classList.remove('dragover');
-        const f = e.dataTransfer.files[0];
-        if (f && f.type.startsWith('image/')) {
-            const dt = new DataTransfer(); dt.items.add(f);
-            document.getElementById('photoInput').files = dt.files;
-            handlePhotoChange(document.getElementById('photoInput'));
-        }
+    barcodes.forEach((b, i) => {
+        const item = document.createElement('div');
+        item.className = 'barcode-item' + (b.isPrimary ? ' is-primary' : '');
+        item.innerHTML = `
+            <input type="text" class="barcode-item-code" value="${escHtml(b.code)}"
+                   oninput="updateCode(${i}, this.value)" placeholder="Code-barres">
+            <input type="text" class="barcode-item-label-input" value="${escHtml(b.label || '')}"
+                   oninput="updateLabel(${i}, this.value)" placeholder="Libellé…">
+            ${b.isPrimary
+                ? `<span class="badge-primary">Principal</span>`
+                : `<button type="button" class="btn-set-primary" onclick="setPrimary(${i})">
+                       <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                       Principal
+                   </button>`}
+            <button type="button" class="btn-remove-barcode" onclick="removeBarcode(${i})">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+            </button>`;
+        list.appendChild(item);
     });
-
-    buildCombo({ searchId:'catSearch', dropdownId:'catDropdown', listId:'catList', emptyId:'catEmpty', hiddenId:'categorie_id', badgeId:'catBadge', badgeNameId:'catBadgeName', clearId:'catClear', data: CATS, depthClass: true });
-    buildCombo({ searchId:'marSearch', dropdownId:'marDropdown', listId:'marList', emptyId:'marEmpty', hiddenId:'marque_id',    badgeId:'marBadge', badgeNameId:'marBadgeName', clearId:'marClear', data: MARQS, depthClass: false });
-
-    @if(old('categorie_id'))
-    const pc = CATS.find(c => c.id == {{ old('categorie_id') }});
-    if (pc) preSelect('catSearch','categorie_id','catBadge','catBadgeName','catClear', pc);
-    @endif
-    @if(old('marque_id'))
-    const pm = MARQS.find(m => m.id == {{ old('marque_id') }});
-    if (pm) preSelect('marSearch','marque_id','marBadge','marBadgeName','marClear', pm);
-    @endif
-
-    ['stock','quantite_minimale'].forEach(id => document.getElementById(id).addEventListener('input', updateStockBar));
-    updateStockBar();
-    document.querySelector('input[name="nom"]').addEventListener('input', updateRecap);
-    document.querySelector('input[name="prix_achat"]').addEventListener('input', updateRecap);
-    document.getElementById('stock').addEventListener('input', updateRecap);
-    updateRecap();
-    document.getElementById('mainForm').addEventListener('submit', onSubmit);
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeScan(); });
-    updateTabIndicator('camera');
-});
-
-/* ══ MOTEUR ══════════════════════════════════════════
-   Stratégie :
-   1. BarcodeDetector API natif (Android Chrome 83+ / iOS 17+) — ultra-rapide
-   2. @zxing/library 0.19 — fallback universel, API stable et éprouvée
-══════════════════════════════════════════════════════ */
-async function initEngine() {
-    /* -- 1. BarcodeDetector natif -- */
-    if ('BarcodeDetector' in window) {
-        try {
-            const supported = await BarcodeDetector.getSupportedFormats();
-            const want = ['ean_13','ean_8','code_128','code_39','qr_code','upc_a','upc_e','itf','codabar','data_matrix'];
-            const fmts = supported.filter(f => want.includes(f));
-            nativeDet = new BarcodeDetector({ formats: fmts.length ? fmts : ['ean_13','code_128','qr_code'] });
-            console.log('[Scanner] ⚡ BarcodeDetector natif OK', fmts);
-            return;
-        } catch(e) { console.warn('[Scanner] BarcodeDetector KO:', e.message); }
-    }
-
-    /* -- 2. ZXing @zxing/library 0.19 (API correcte) -- */
-    if (typeof ZXing !== 'undefined' && ZXing.BrowserMultiFormatReader) {
-        try {
-            const hints = new Map();
-            hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
-            hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
-                ZXing.BarcodeFormat.EAN_13,
-                ZXing.BarcodeFormat.EAN_8,
-                ZXing.BarcodeFormat.CODE_128,
-                ZXing.BarcodeFormat.CODE_39,
-                ZXing.BarcodeFormat.QR_CODE,
-                ZXing.BarcodeFormat.UPC_A,
-                ZXing.BarcodeFormat.UPC_E,
-                ZXing.BarcodeFormat.ITF,
-                ZXing.BarcodeFormat.CODABAR,
-                ZXing.BarcodeFormat.DATA_MATRIX,
-            ]);
-            zxReader = new ZXing.BrowserMultiFormatReader(hints);
-            console.log('[Scanner] ZXing @zxing/library OK');
-            return;
-        } catch(e) { console.warn('[Scanner] ZXing KO:', e.message); }
-    }
-
-    console.error('[Scanner] ⚠️ Aucun moteur — mode Manuel uniquement');
+    renderHiddenBarcodes();
 }
 
-/* ══ BARCODE ROWS ════════════════════════════════════ */
-function addRow(primary = false, data = {}) {
-    const id  = ++bcCounter;
-    const div = document.createElement('div');
-    div.className = 'bc-row' + (primary ? ' is-primary' : '');
-    div.id = 'bcr-' + id;
-    div.innerHTML = `
-        <input type="hidden" name="barcodes[${id}][id]" value="${esc(data.id||'')}">
-        <input type="text" name="barcodes[${id}][code]" id="bci-${id}"
-               class="bc-code" placeholder="Code-barres…"
-               value="${esc(data.code||'')}" required autocomplete="off"
-               oninput="onBcInput(${id})">
-        <input type="text" name="barcodes[${id}][label]" class="bc-lbl"
-               placeholder="Libellé…" value="${esc(data.label||'')}">
-        <button type="button" class="bc-primary-btn${primary?' on':''}" id="bcp-${id}"
-                onclick="setPrimary(${id})">★ Principal</button>
-        <button type="button" class="bc-btn bc-btn-cam" onclick="openScan(${id},'camera')" title="Caméra">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
-        </button>
-        <button type="button" class="bc-btn bc-btn-img" onclick="openScan(${id},'image')" title="Image">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-        </button>
-        <button type="button" class="bc-btn bc-btn-del" onclick="delRow(${id})" title="Supprimer">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
-        </button>
-        <input type="hidden" name="barcodes[${id}][primary]" id="bcpv-${id}" value="${primary?'1':''}">`;
-    document.getElementById('barcodeList').appendChild(div);
-    ensurePrimary();
-    updateRecap();
-}
-
-function onBcInput(id) {
-    const inp = document.getElementById('bci-' + id);
-    inp.classList.toggle('ok', inp.value.trim().length > 0);
-    updateRecap();
-}
-function setPrimary(id) {
-    document.querySelectorAll('#barcodeList .bc-row').forEach(r => r.classList.remove('is-primary'));
-    document.querySelectorAll('#barcodeList .bc-primary-btn').forEach(b => b.classList.remove('on'));
-    document.querySelectorAll('[id^="bcpv-"]').forEach(i => i.value = '');
-    document.getElementById('bcr-'+id).classList.add('is-primary');
-    document.getElementById('bcp-'+id).classList.add('on');
-    document.getElementById('bcpv-'+id).value = '1';
-}
-function delRow(id) {
-    const list = document.getElementById('barcodeList');
-    if (list.children.length <= 1) { toast('⚠️ Minimum un code-barres requis','warn'); return; }
-    const wasPrimary = document.getElementById('bcpv-'+id).value === '1';
-    document.getElementById('bcr-'+id).remove();
-    if (wasPrimary) ensurePrimary();
-    updateRecap();
-}
-function ensurePrimary() {
-    if (!document.querySelector('#barcodeList .bc-primary-btn.on')) {
-        const first = document.querySelector('#barcodeList .bc-primary-btn');
-        if (first) { const m = first.id.match(/bcp-(\d+)/); if (m) setPrimary(+m[1]); }
-    }
-}
-
-/* ══ SCANNER OUVERTURE/FERMETURE ═════════════════════ */
-function openScan(rowId, tab = 'camera') {
-    activeRow = rowId;
-    document.getElementById('scanOverlay').classList.add('open');
-    document.getElementById('scanOverlay').removeAttribute('aria-hidden');
-    document.getElementById('scanSuccess').classList.add('d-none');
-    document.getElementById('imgStatus').textContent = '';
-    document.getElementById('manualInput').value = '';
-    switchScanTab(tab);
-}
-function closeScan() {
-    stopCam();
-    document.getElementById('scanOverlay').classList.remove('open');
-    document.getElementById('scanOverlay').setAttribute('aria-hidden','true');
-    activeRow  = null;
-    scanActive = false;
-}
-
-/* ══ TABS ════════════════════════════════════════════ */
-function switchScanTab(tab) {
-    currentTab = tab;
-    ['camera','image','manual'].forEach(t => {
-        const p = document.getElementById('panel'+cap(t));
-        const b = document.querySelector(`.scan-tab[data-tab="${t}"]`);
-        if (p) p.classList.toggle('d-none', t !== tab);
-        if (b) b.classList.toggle('active', t === tab);
+function renderHiddenBarcodes() {
+    document.querySelectorAll('.bc-hidden-group').forEach(el => el.remove());
+    barcodes.forEach((b, i) => {
+        const g = document.createElement('div');
+        g.className = 'bc-hidden-group';
+        g.style.display = 'none';
+        g.innerHTML = `
+            <input type="hidden" name="barcodes[${i}][code]"    value="${escHtml(b.code)}">
+            <input type="hidden" name="barcodes[${i}][label]"   value="${escHtml(b.label || '')}">
+            <input type="hidden" name="barcodes[${i}][primary]" value="${b.isPrimary ? '1' : '0'}">`;
+        document.getElementById('articleForm').appendChild(g);
     });
-    updateTabIndicator(tab);
-    if (tab === 'camera') { startCam(); }
-    else { stopCam(); if (tab === 'manual') setTimeout(() => document.getElementById('manualInput').focus(), 80); }
-}
-function updateTabIndicator(tab) {
-    const btn = document.querySelector(`.scan-tab[data-tab="${tab}"]`);
-    const ind = document.getElementById('scanTabIndicator');
-    if (!btn || !ind) return;
-    const pr = btn.parentElement.getBoundingClientRect();
-    const rc = btn.getBoundingClientRect();
-    ind.style.left  = (rc.left - pr.left) + 'px';
-    ind.style.width = rc.width + 'px';
 }
 
-/* ══ CAMÉRA ══════════════════════════════════════════ */
-async function startCam() {
+/* ══════════════════════════════════════════
+   BARCODE OPERATIONS
+══════════════════════════════════════════ */
+function addBarcode(code, fromScan = false) {
+    const clean = code.trim();
+    if (!clean) return;
+    if (barcodes.find(b => b.code === clean)) {
+        if (fromScan) flashArea('rgba(232,79,60,.15)');
+        return;
+    }
+    barcodes.push({ code: clean, label: '', isPrimary: barcodes.length === 0 });
+    renderBarcodes();
+    if (fromScan) { flashArea('rgba(0,230,118,.15)'); playScanBeep(); }
+    document.getElementById('barcodesRequiredMsg').style.display = 'none';
+}
+
+function removeBarcode(idx) {
+    const wasPrimary = barcodes[idx].isPrimary;
+    barcodes.splice(idx, 1);
+    if (wasPrimary && barcodes.length > 0) barcodes[0].isPrimary = true;
+    renderBarcodes();
+}
+function setPrimary(idx) {
+    barcodes.forEach((b, i) => b.isPrimary = (i === idx));
+    renderBarcodes();
+}
+function updateCode(idx, val)  { barcodes[idx].code  = val; renderHiddenBarcodes(); }
+function updateLabel(idx, val) { barcodes[idx].label = val; renderHiddenBarcodes(); }
+
+function flashArea(color) {
+    const area  = document.getElementById('scannerArea');
+    const flash = document.createElement('div');
+    flash.style.cssText = `position:absolute;inset:0;background:${color};border-radius:10px;pointer-events:none;z-index:10;animation:flashIn .6s ease-out both`;
+    area.appendChild(flash);
+    setTimeout(() => flash.remove(), 700);
+}
+
+/* ══════════════════════════════════════════
+   MANUAL INPUT
+══════════════════════════════════════════ */
+function addBarcodeManual() {
+    const inp = document.getElementById('manualBarcodeInput');
+    addBarcode(inp.value);
+    inp.value = '';
+    inp.focus();
+}
+
+/* ══════════════════════════════════════════
+   SCANNER — API NATIVE (compatible ZXing 0.19)
+══════════════════════════════════════════ */
+async function startScanner() {
     if (scanActive) return;
-    setStatus('Démarrage caméra…', true);
-
-    if (!navigator.mediaDevices?.getUserMedia) {
-        setStatus('❌ Caméra indisponible — utilisez Manuel.', false); return;
-    }
-    if (!nativeDet && !zxReader) await initEngine();
 
     try {
-        camStream = await navigator.mediaDevices.getUserMedia({
-            video: {
-                facingMode: { ideal: 'environment' },
-                width:  { ideal: 1280, min: 640 },
-                height: { ideal: 720,  min: 480 },
-                advanced: [{ focusMode: 'continuous' }]
-            }, audio: false
-        });
-        const video = document.getElementById('scanVideo');
-        video.srcObject = camStream;
-        await video.play();
+        if (!window.ZXing) { alert('ZXing non chargé, rechargez la page.'); return; }
+
+        /* 1. Demander la permission caméra en premier pour débloquer les labels */
+        const tempStream = await navigator.mediaDevices.getUserMedia({ video: true });
+        tempStream.getTracks().forEach(t => t.stop());
+
+        /* 2. Lister les caméras via l'API native */
+        const all = await navigator.mediaDevices.enumerateDevices();
+        videoDevices = all.filter(d => d.kind === 'videoinput');
+
+        if (videoDevices.length === 0) { alert('Aucune caméra détectée.'); return; }
+
+        /* 3. Préférer la caméra arrière sur mobile */
+        if (currentDeviceIdx === 0) {
+            const backIdx = videoDevices.findIndex(d => /back|rear|environment/i.test(d.label));
+            if (backIdx !== -1) currentDeviceIdx = backIdx;
+        }
+
+        /* 4. Démarrer ZXing */
+        codeReader = new ZXing.BrowserMultiFormatReader();
         scanActive = true;
 
-        if (nativeDet) {
-            setStatus('⚡ Moteur natif actif — pointez le code', false);
-            startNativeLoop(video);
-        } else if (zxReader) {
-            setStatus('🔍 Pointez le code-barres dans le cadre', false);
-            startZxingLoop(video);
-        } else {
-            setStatus('⚠️ Pas de moteur — utilisez Manuel', false);
-        }
-    } catch (err) {
-        scanActive = false;
-        const msgs = { NotAllowedError:'❌ Permission refusée.', NotFoundError:'❌ Aucune caméra.', OverconstrainedError:'❌ Rechargez la page.' };
-        setStatus(msgs[err.name] || '❌ ' + err.message, false);
-    }
-}
+        document.getElementById('scannerIdle').style.display    = 'none';
+        document.getElementById('scannerOverlay').style.display = 'flex';
+        document.getElementById('scannerControls').style.display = 'flex';
 
-/* ══ BOUCLE NATIVE (BarcodeDetector) ════════════════
-   Envoie directement les frames vidéo au GPU — < 50ms
-══════════════════════════════════════════════════════ */
-function startNativeLoop(video) {
-    let last = 0;
-    const loop = async (ts) => {
-        if (!scanActive) return;
-        if (ts - last < 120) { scanLoopId = requestAnimationFrame(loop); return; }
-        if (video.readyState < video.HAVE_ENOUGH_DATA) { scanLoopId = requestAnimationFrame(loop); return; }
-        last = ts;
-        try {
-            const bmp = await createImageBitmap(video);
-            const res = await nativeDet.detect(bmp);
-            bmp.close();
-            if (res.length > 0) { applyCode(res[0].rawValue); return; }
-        } catch(_) {}
-        scanLoopId = requestAnimationFrame(loop);
-    };
-    scanLoopId = requestAnimationFrame(loop);
-}
+        const deviceId = videoDevices[currentDeviceIdx]?.deviceId || undefined;
+        const video    = document.getElementById('scannerVideo');
 
-/* ══ BOUCLE ZXING (@zxing/library 0.19) ═════════════
-   Utilise decodeFromImageElement sur canvas — fiable
-══════════════════════════════════════════════════════ */
-function startZxingLoop(video) {
-    const canvas = document.getElementById('scanCanvas');
-    const ctx    = canvas.getContext('2d', { willReadFrequently: true });
-    let last = 0;
-
-    const loop = async (ts) => {
-        if (!scanActive) return;
-        if (ts - last < 200) { scanLoopId = requestAnimationFrame(loop); return; }
-        if (video.readyState < video.HAVE_ENOUGH_DATA) { scanLoopId = requestAnimationFrame(loop); return; }
-        last = ts;
-
-        try {
-            canvas.width  = video.videoWidth;
-            canvas.height = video.videoHeight;
-            ctx.drawImage(video, 0, 0);
-            /* decodeFromCanvas : méthode correcte de @zxing/library */
-            const result = zxReader.decodeFromCanvas(canvas);
-            if (result) { applyCode(result.getText()); return; }
-        } catch(e) {
-            /* NotFoundException est normal — pas de code dans le cadre */
-            if (e && e.name !== 'NotFoundException') console.warn('[ZXing]', e.message);
-        }
-        scanLoopId = requestAnimationFrame(loop);
-    };
-    scanLoopId = requestAnimationFrame(loop);
-}
-
-function stopCam() {
-    scanActive = false;
-    if (scanLoopId) { cancelAnimationFrame(scanLoopId); scanLoopId = null; }
-    if (camStream)  { camStream.getTracks().forEach(t => t.stop()); camStream = null; }
-    const v = document.getElementById('scanVideo');
-    if (v) { v.pause(); v.srcObject = null; }
-}
-
-/* ══ SCAN IMAGE ══════════════════════════════════════ */
-async function handleScanImage() {
-    const file = this.files?.[0];
-    if (!file || activeRow === null) return;
-    document.getElementById('imgStatus').textContent = '⏳ Analyse…';
-    if (!nativeDet && !zxReader) await initEngine();
-
-    try {
-        if (nativeDet) {
-            const bmp = await createImageBitmap(file);
-            const res = await nativeDet.detect(bmp);
-            bmp.close();
-            if (res.length > 0) { applyCode(res[0].rawValue); return; }
-            throw new Error('Aucun code trouvé');
-        } else if (zxReader) {
-            /* créer un <img> temporaire pour decodeFromImageElement */
-            const url = URL.createObjectURL(file);
-            const img = new Image();
-            img.src = url;
-            await new Promise((res, rej) => { img.onload = res; img.onerror = rej; });
-            const result = zxReader.decodeFromImageElement(img);
-            URL.revokeObjectURL(url);
-            if (result) { applyCode(result.getText()); return; }
-            throw new Error('Aucun code trouvé');
-        }
-    } catch(_) {
-        document.getElementById('imgStatus').textContent = '❌ Aucun code-barres détecté dans cette image.';
-    }
-    this.value = '';
-}
-
-/* ══ MANUEL ══════════════════════════════════════════ */
-function confirmManual() {
-    const val = document.getElementById('manualInput').value.trim();
-    if (!val) { toast('Saisissez un code-barres','warn'); return; }
-    applyCode(val);
-}
-
-/* ══ APPLIQUER LE CODE ═══════════════════════════════ */
-function applyCode(code) {
-    if (activeRow === null) return;
-    stopCam();
-    document.getElementById('scanSuccessCode').textContent = code;
-    document.getElementById('scanSuccess').classList.remove('d-none');
-    const inp = document.getElementById('bci-' + activeRow);
-    if (inp) { inp.value = code; inp.classList.add('ok'); inp.dispatchEvent(new Event('input')); updateRecap(); }
-    if (navigator.vibrate) navigator.vibrate([60, 30, 60]);
-    toast('✓ Code capturé : ' + code, 'ok');
-    setTimeout(() => closeScan(), 900);
-}
-
-/* ══ PHOTO ═══════════════════════════════════════════ */
-function handlePhotoChange(input) {
-    if (!input.files?.[0]) return;
-    const reader = new FileReader();
-    reader.onload = e => {
-        document.getElementById('previewImg').src = e.target.result;
-        document.getElementById('uploadIdle').classList.add('d-none');
-        document.getElementById('uploadPreview').classList.remove('d-none');
-    };
-    reader.readAsDataURL(input.files[0]);
-}
-function removePhoto() {
-    document.getElementById('photoInput').value = '';
-    document.getElementById('previewImg').src = '';
-    document.getElementById('uploadIdle').classList.remove('d-none');
-    document.getElementById('uploadPreview').classList.add('d-none');
-}
-
-/* ══ COMBOS ══════════════════════════════════════════ */
-function buildCombo({ searchId, dropdownId, listId, emptyId, hiddenId, badgeId, badgeNameId, clearId, data, depthClass }) {
-    const search   = document.getElementById(searchId);
-    const dropdown = document.getElementById(dropdownId);
-    const list     = document.getElementById(listId);
-    const empty    = document.getElementById(emptyId);
-    const hidden   = document.getElementById(hiddenId);
-    const badge    = document.getElementById(badgeId);
-    const badgeName= document.getElementById(badgeNameId);
-    const clear    = document.getElementById(clearId);
-    if (!search) return;
-    const select = item => {
-        hidden.value = item.id; search.value = item.nom; badgeName.textContent = item.nom;
-        badge.classList.remove('d-none'); clear.classList.remove('d-none'); dropdown.classList.add('d-none');
-        if (badgeId === 'catBadge') document.getElementById('r-cat').textContent = item.nom;
-        updateRecap();
-    };
-    search.addEventListener('input', () => {
-        const q = search.value.trim().toLowerCase();
-        clear.classList.toggle('d-none', !q);
-        if (!q) { dropdown.classList.add('d-none'); return; }
-        const filtered = data.filter(i => i.nom.toLowerCase().includes(q));
-        list.innerHTML = '';
-        empty.classList.toggle('d-none', filtered.length > 0);
-        filtered.forEach(item => {
-            const div = document.createElement('div');
-            div.className = 'combo-item' + (depthClass && item.depth ? ' depth-' + item.depth : '');
-            const hi = item.nom.replace(new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi'),'<span class="cmatch">$1</span>');
-            div.innerHTML = depthClass
-                ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>${hi}`
-                : `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg>${hi}`;
-            div.addEventListener('click', () => select(item));
-            list.appendChild(div);
+        await codeReader.decodeFromVideoDevice(deviceId, video, (result, err) => {
+            if (result) {
+                clearTimeout(scanDebounce);
+                scanDebounce = setTimeout(() => addBarcode(result.getText(), true), 300);
+            }
+            /* err = juste "rien dans ce frame", on ignore */
         });
-        dropdown.classList.remove('d-none');
-    });
-    clear.addEventListener('click', () => {
-        hidden.value=''; search.value='';
-        badge.classList.add('d-none'); clear.classList.add('d-none');
-        dropdown.classList.add('d-none'); search.focus();
-    });
-    search.addEventListener('keydown', e => { if (e.key==='Escape') dropdown.classList.add('d-none'); });
-    document.addEventListener('click', e => {
-        if (!e.target.closest('#'+searchId) && !e.target.closest('#'+dropdownId) && !e.target.closest('#'+clearId))
-            dropdown.classList.add('d-none');
-    });
-}
-function preSelect(searchId, hiddenId, badgeId, badgeNameId, clearId, item) {
-    document.getElementById(hiddenId).value = item.id;
-    document.getElementById(searchId).value = item.nom;
-    document.getElementById(badgeNameId).textContent = item.nom;
-    document.getElementById(badgeId).classList.remove('d-none');
-    document.getElementById(clearId).classList.remove('d-none');
-}
 
-/* ══ STOCK BAR ═══════════════════════════════════════ */
-function updateStockBar() {
-    const stock = Math.max(0, parseInt(document.getElementById('stock').value)||0);
-    const min   = Math.max(0, parseInt(document.getElementById('quantite_minimale').value)||0);
-    const max   = Math.max(stock, min, 1);
-    document.getElementById('stockBarFill').style.width    = Math.min(100,(stock/max)*100)+'%';
-    document.getElementById('stockBarMin').style.left      = Math.min(99,(min/max)*100)+'%';
-    document.getElementById('stockBarLabel').textContent   = 'Stock: '+stock+' pcs';
-    document.getElementById('stockBarMinLabel').textContent = 'Min: '+min;
-    document.getElementById('stockBarFill').style.background = stock < min
-        ? 'linear-gradient(90deg,var(--red),#ff8a8a)'
-        : 'linear-gradient(90deg,var(--green),#6ef7a7)';
-    updateRecap();
-}
-
-/* ══ RÉCAP ═══════════════════════════════════════════ */
-function updateRecap() {
-    const nom  = document.querySelector('input[name="nom"]').value.trim();
-    const stk  = document.getElementById('stock').value;
-    const prix = document.querySelector('input[name="prix_achat"]').value;
-    const codes= document.querySelectorAll('#barcodeList .bc-code').length;
-    document.getElementById('r-nom').textContent   = nom  || '—';
-    document.getElementById('r-stock').textContent = stk  + ' pcs';
-    document.getElementById('r-codes').textContent = codes;
-    document.getElementById('r-prix').textContent  = prix ? prix+' DA' : '—';
-}
-
-/* ══ NUDGE ═══════════════════════════════════════════ */
-function nudge(id, delta) {
-    const inp = document.getElementById(id);
-    inp.value = Math.max(parseInt(inp.min)||0, (parseInt(inp.value)||0)+delta);
-    inp.dispatchEvent(new Event('input'));
-}
-
-/* ══ SUBMIT ══════════════════════════════════════════ */
-function onSubmit(e) {
-    let ok = true;
-    if (!document.getElementById('categorie_id').value) {
-        e.preventDefault(); ok=false;
-        document.getElementById('catSearch').focus();
-        toast('Sélectionnez une catégorie','err');
+    } catch (e) {
+        console.error(e);
+        alert('Impossible d\'accéder à la caméra : ' + e.message);
+        stopScanner();
     }
-    const bcs = document.querySelectorAll('#barcodeList .bc-code');
-    let bcOk = true;
-    bcs.forEach(b => { if (!b.value.trim()) { b.style.borderColor='var(--red)'; bcOk=false; } });
-    if (!bcOk) { e.preventDefault(); ok=false; toast('Remplissez tous les codes-barres','err'); }
-    const codes = [...bcs].map(b=>b.value.trim().toLowerCase());
-    if (new Set(codes).size!==codes.length) { e.preventDefault(); ok=false; toast('Codes-barres en double','err'); }
-    if (!ok) return;
-    const stock = parseInt(document.getElementById('stock').value)||0;
-    const minQ  = parseInt(document.getElementById('quantite_minimale').value)||0;
-    if (stock < minQ && !confirm('⚠️ Stock initial inférieur à la quantité minimale. Continuer ?'))
-        e.preventDefault();
 }
 
-/* ══ UTILITAIRES ═════════════════════════════════════ */
-function setStatus(msg, loading) {
-    const txt = document.getElementById('scanStatusText');
-    const sp  = document.getElementById('scanSpinner');
-    if (txt) txt.textContent = msg;
-    if (sp)  sp.style.display = loading ? 'block' : 'none';
+function stopScanner() {
+    if (codeReader) { try { codeReader.reset(); } catch(e){} codeReader = null; }
+    scanActive = false;
+    document.getElementById('scannerIdle').style.display     = 'flex';
+    document.getElementById('scannerOverlay').style.display  = 'none';
+    document.getElementById('scannerControls').style.display = 'none';
+    const video = document.getElementById('scannerVideo');
+    if (video.srcObject) { video.srcObject.getTracks().forEach(t => t.stop()); video.srcObject = null; }
 }
-function esc(s) { return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-function cap(s) { return s.charAt(0).toUpperCase()+s.slice(1); }
-function toast(msg, type='ok') {
-    const d = document.createElement('div');
-    d.className='art-toast '+type; d.textContent=msg;
-    document.getElementById('toastWrap').appendChild(d);
-    setTimeout(()=>{ d.style.opacity='0'; d.style.transition='opacity .3s'; setTimeout(()=>d.remove(),300); },3000);
+
+async function switchCamera() {
+    if (videoDevices.length <= 1) { alert('Une seule caméra disponible.'); return; }
+    const nextIdx = (currentDeviceIdx + 1) % videoDevices.length;
+    stopScanner();
+    currentDeviceIdx = nextIdx;
+    await startScanner();
 }
+
+/* ══════════════════════════════════════════
+   BEEP
+══════════════════════════════════════════ */
+function playScanBeep() {
+    try {
+        const ctx  = new (window.AudioContext || window.webkitAudioContext)();
+        const osc  = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.frequency.setValueAtTime(1047, ctx.currentTime);
+        osc.frequency.setValueAtTime(1319, ctx.currentTime + 0.05);
+        gain.gain.setValueAtTime(.3, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(.001, ctx.currentTime + .18);
+        osc.start(ctx.currentTime); osc.stop(ctx.currentTime + .18);
+    } catch(e) {}
+}
+
+/* ══════════════════════════════════════════
+   SUBCATEGORIES (cascade sans AJAX)
+══════════════════════════════════════════ */
+function loadSubcats(parentId) {
+    const sub = document.getElementById('subCat');
+    sub.innerHTML = '<option value="">— Sélectionner —</option>';
+    if (!parentId) return;
+    document.querySelectorAll('#subCatData option').forEach(opt => {
+        if (opt.dataset.parent == parentId) sub.appendChild(new Option(opt.textContent, opt.value));
+    });
+}
+
+/* ══════════════════════════════════════════
+   PHOTO
+══════════════════════════════════════════ */
+function previewPhoto(input) {
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = e => {
+            const p = document.getElementById('photo-preview');
+            p.src = e.target.result; p.style.display = 'block';
+            document.querySelector('.photo-drop p').style.opacity = '.5';
+            document.querySelector('.photo-drop-icon').style.opacity = '.4';
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+function handleDragOver(e) { e.preventDefault(); document.getElementById('photoDrop').classList.add('drag-over'); }
+function handleDrop(e) {
+    e.preventDefault(); document.getElementById('photoDrop').classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) {
+        const dt = new DataTransfer(); dt.items.add(file);
+        document.getElementById('photoInput').files = dt.files;
+        previewPhoto(document.getElementById('photoInput'));
+    }
+}
+
+/* ══════════════════════════════════════════
+   STOCK METER
+══════════════════════════════════════════ */
+function updateStockMeter(val) {
+    document.getElementById('stockMeterFill').style.width =
+        Math.max(0, Math.min(parseInt(val)||0, 500) / 500 * 100) + '%';
+}
+
+/* ══════════════════════════════════════════
+   VALIDATION
+══════════════════════════════════════════ */
+function validateForm() {
+    if (barcodes.length === 0) {
+        document.getElementById('barcodesRequiredMsg').style.display = 'flex';
+        document.getElementById('barcodeList').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return false;
+    }
+    return true;
+}
+
+/* ══════════════════════════════════════════
+   UTILS
+══════════════════════════════════════════ */
+function escHtml(str) {
+    return String(str).replace(/[&<>"']/g, m =>
+        ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+/* ══════════════════════════════════════════
+   INIT
+══════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', () => {
+    /* Store caché pour les sous-catégories */
+    const store  = document.createElement('select');
+    store.id     = 'subCatData';
+    store.style.display = 'none';
+    Array.from(document.getElementById('subCat').options).forEach(o => {
+        if (o.dataset.parent) store.appendChild(o.cloneNode(true));
+    });
+    document.body.appendChild(store);
+
+    /* Pré-sélection si old() */
+    @if(old('parent_categorie_id'))
+        loadSubcats('{{ old("parent_categorie_id") }}');
+        document.getElementById('subCat').value = '{{ old("categorie_id") }}';
+    @endif
+
+    updateStockMeter(document.getElementById('stockInput').value);
+
+    /* Recharger les barcodes après erreur de validation */
+    @if(old('barcodes'))
+        @foreach(old('barcodes') as $i => $bc)
+            barcodes.push({
+                code: '{{ addslashes($bc["code"] ?? "") }}',
+                label: '{{ addslashes($bc["label"] ?? "") }}',
+                isPrimary: {{ !empty($bc['primary']) ? 'true' : ($i === 0 ? 'true' : 'false') }}
+            });
+        @endforeach
+        renderBarcodes();
+    @endif
+});
+
+window.addEventListener('beforeunload', stopScanner);
 </script>
 @stop
