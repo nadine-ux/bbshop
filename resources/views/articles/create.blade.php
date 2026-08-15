@@ -206,7 +206,7 @@
 
                 {{-- Zone scanner --}}
                 <div class="scanner-area" id="scannerArea">
-                    <video id="scannerVideo" playsinline></video>
+                    <div id="scannerContainer" style="width:100%;height:100%;display:none;"></div>
 
                     <div class="scanner-overlay" id="scannerOverlay" style="display:none">
                         <div class="scan-frame">
@@ -226,11 +226,11 @@
                     </div>
                 </div>
 
-                {{-- Contrôles scanner (cachés par défaut) --}}
+                {{-- Contrôles scanner --}}
                 <div class="scanner-controls" id="scannerControls" style="display:none">
-                    <button type="button" class="btn-scan-toggle-cam" onclick="switchCamera()" data-tooltip="Changer caméra">
+                    <button type="button" class="btn-scan-toggle-cam" onclick="switchCamera()">
                         <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M20 5h-3.17L15 3H9L7.17 5H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
-                        Retourner
+                        Changer caméra
                     </button>
                     <button type="button" class="btn-scan-stop" onclick="stopScanner()">
                         <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M6 6h12v12H6z"/></svg>
@@ -411,7 +411,6 @@
     .page-header { padding: 20px 20px 18px; margin: -10px -10px 0; }
 }
 
-/* AdminLTE override — nos cards écrasent les siennes */
 .form-layout .card {
     background: var(--surface);
     border: 1px solid var(--border) !important;
@@ -457,7 +456,6 @@
 .card-header-sub { font-size: .72rem; color: var(--ink-muted); margin-top: 1px; }
 .form-layout .card-body { padding: 20px !important; }
 
-/* Fields */
 .field { margin-bottom: 16px; }
 .field:last-child { margin-bottom: 0; }
 .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
@@ -507,7 +505,6 @@ label .req { color: var(--accent); margin-left: 2px; }
 .is-invalid { border-color: var(--accent) !important; background: rgba(232,79,60,.03) !important; }
 .error-msg { font-size: .72rem; color: var(--accent); margin-top: 5px; display: flex; align-items: center; gap: 4px; }
 
-/* Photo upload */
 .photo-drop {
     border: 2px dashed var(--border);
     border-radius: var(--radius);
@@ -758,11 +755,24 @@ label .req { color: var(--accent); margin-left: 2px; }
     pointer-events: none; opacity: 0; transition: opacity .18s; z-index: 9999;
 }
 [data-tooltip]:hover::after { opacity: 1; }
+
+/* html5-qrcode override */
+#scannerContainer > div:first-child {
+    border: none !important;
+    box-shadow: none !important;
+}
+#scannerContainer video {
+    border-radius: 10px !important;
+    object-fit: cover !important;
+}
+#scannerContainer img[src*="scanning"] {
+    display: none !important;
+}
 </style>
 @stop
 
 @section('js')
-<script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
 <script>
 /* ══════════════════════════════════════════
@@ -770,13 +780,12 @@ label .req { color: var(--accent); margin-left: 2px; }
 ══════════════════════════════════════════ */
 let barcodes        = [];
 let scanActive      = false;
-let codeReader      = null;
-let currentDeviceIdx = 0;
-let videoDevices    = [];
-let scanDebounce    = null;
+let html5QrCode     = null;
+let currentCamera   = null;
+let cameras         = [];
 
 /* ══════════════════════════════════════════
-   RENDER
+   RENDER  (CORRIGÉ — template literals propres)
 ══════════════════════════════════════════ */
 function renderBarcodes() {
     const list  = document.getElementById('barcodeList');
@@ -785,27 +794,28 @@ function renderBarcodes() {
     count.textContent = barcodes.length;
 
     if (barcodes.length === 0) {
-        list.innerHTML = `<div style="text-align:center;padding:16px;color:var(--ink-muted);font-size:.78rem;font-family:'DM Mono',monospace;border:1px dashed var(--border);border-radius:8px;">Aucun code-barres — scannez ou saisissez</div>`;
+        list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--ink-muted);font-size:.78rem;font-family:DM Mono,monospace;border:1px dashed var(--border);border-radius:8px;">Aucun code-barres — scannez ou saisissez</div>';
+        renderHiddenBarcodes();
         return;
     }
 
     barcodes.forEach((b, i) => {
         const item = document.createElement('div');
         item.className = 'barcode-item' + (b.isPrimary ? ' is-primary' : '');
-        item.innerHTML = `
-            <input type="text" class="barcode-item-code" value="${escHtml(b.code)}"
-                   oninput="updateCode(${i}, this.value)" placeholder="Code-barres">
-            <input type="text" class="barcode-item-label-input" value="${escHtml(b.label || '')}"
-                   oninput="updateLabel(${i}, this.value)" placeholder="Libellé…">
-            ${b.isPrimary
-                ? `<span class="badge-primary">Principal</span>`
-                : `<button type="button" class="btn-set-primary" onclick="setPrimary(${i})">
-                       <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                       Principal
-                   </button>`}
-            <button type="button" class="btn-remove-barcode" onclick="removeBarcode(${i})">
-                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-            </button>`;
+        item.innerHTML =
+            '<input type="text" class="barcode-item-code" value="' + escHtml(b.code) + '"' +
+            ' oninput="updateCode(' + i + ', this.value)" placeholder="Code-barres">' +
+            '<input type="text" class="barcode-item-label-input" value="' + escHtml(b.label || '') + '"' +
+            ' oninput="updateLabel(' + i + ', this.value)" placeholder="Libellé…">' +
+            (b.isPrimary
+                ? '<span class="badge-primary">Principal</span>'
+                : '<button type="button" class="btn-set-primary" onclick="setPrimary(' + i + ')">' +
+                  '<svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>' +
+                  ' Principal' +
+                  '</button>') +
+            '<button type="button" class="btn-remove-barcode" onclick="removeBarcode(' + i + ')">' +
+            '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>' +
+            '</button>';
         list.appendChild(item);
     });
     renderHiddenBarcodes();
@@ -817,10 +827,10 @@ function renderHiddenBarcodes() {
         const g = document.createElement('div');
         g.className = 'bc-hidden-group';
         g.style.display = 'none';
-        g.innerHTML = `
-            <input type="hidden" name="barcodes[${i}][code]"    value="${escHtml(b.code)}">
-            <input type="hidden" name="barcodes[${i}][label]"   value="${escHtml(b.label || '')}">
-            <input type="hidden" name="barcodes[${i}][primary]" value="${b.isPrimary ? '1' : '0'}">`;
+        g.innerHTML =
+            '<input type="hidden" name="barcodes[' + i + '][code]"    value="' + escHtml(b.code) + '">' +
+            '<input type="hidden" name="barcodes[' + i + '][label]"   value="' + escHtml(b.label || '') + '">' +
+            '<input type="hidden" name="barcodes[' + i + '][primary]" value="' + (b.isPrimary ? '1' : '0') + '">';
         document.getElementById('articleForm').appendChild(g);
     });
 }
@@ -828,7 +838,7 @@ function renderHiddenBarcodes() {
 /* ══════════════════════════════════════════
    BARCODE OPERATIONS
 ══════════════════════════════════════════ */
-function addBarcode(code, fromScan = false) {
+function addBarcode(code, fromScan) {
     const clean = code.trim();
     if (!clean) return;
     if (barcodes.find(b => b.code === clean)) {
@@ -857,7 +867,8 @@ function updateLabel(idx, val) { barcodes[idx].label = val; renderHiddenBarcodes
 function flashArea(color) {
     const area  = document.getElementById('scannerArea');
     const flash = document.createElement('div');
-    flash.style.cssText = `position:absolute;inset:0;background:${color};border-radius:10px;pointer-events:none;z-index:10;animation:flashIn .6s ease-out both`;
+    flash.className = 'scan-flash';
+    flash.style.background = color;
     area.appendChild(flash);
     setTimeout(() => flash.remove(), 700);
 }
@@ -873,71 +884,89 @@ function addBarcodeManual() {
 }
 
 /* ══════════════════════════════════════════
-   SCANNER — API NATIVE (compatible ZXing 0.19)
+   SCANNER — html5-qrcode (ultra robuste)
 ══════════════════════════════════════════ */
 async function startScanner() {
     if (scanActive) return;
 
+    if (typeof Html5Qrcode === 'undefined') {
+        alert('Librairie scanner non chargée. Vérifiez votre connexion et rechargez la page.');
+        return;
+    }
+
     try {
-        if (!window.ZXing) { alert('ZXing non chargé, rechargez la page.'); return; }
-
-        /* 1. Demander la permission caméra en premier pour débloquer les labels */
-        const tempStream = await navigator.mediaDevices.getUserMedia({ video: true });
-        tempStream.getTracks().forEach(t => t.stop());
-
-        /* 2. Lister les caméras via l'API native */
-        const all = await navigator.mediaDevices.enumerateDevices();
-        videoDevices = all.filter(d => d.kind === 'videoinput');
-
-        if (videoDevices.length === 0) { alert('Aucune caméra détectée.'); return; }
-
-        /* 3. Préférer la caméra arrière sur mobile */
-        if (currentDeviceIdx === 0) {
-            const backIdx = videoDevices.findIndex(d => /back|rear|environment/i.test(d.label));
-            if (backIdx !== -1) currentDeviceIdx = backIdx;
+        /* 1. Permissions + lister caméras */
+        cameras = await Html5Qrcode.getCameras();
+        if (!cameras || cameras.length === 0) {
+            alert('Aucune caméra détectée sur cet appareil.');
+            return;
         }
 
-        /* 4. Démarrer ZXing */
-        codeReader = new ZXing.BrowserMultiFormatReader();
+        /* 2. Choisir caméra arrière par défaut */
+        let camId = cameras[0].id;
+        const backCam = cameras.find(c => /back|rear|environment/i.test(c.label));
+        if (backCam) camId = backCam.id;
+        currentCamera = camId;
+
+        /* 3. UI */
+        document.getElementById('scannerIdle').style.display    = 'none';
+        document.getElementById('scannerOverlay').style.display   = 'flex';
+        document.getElementById('scannerControls').style.display  = 'flex';
+        document.getElementById('scannerContainer').style.display = 'block';
+
+        /* 4. Démarrer html5-qrcode */
+        html5QrCode = new Html5Qrcode('scannerContainer');
         scanActive = true;
 
-        document.getElementById('scannerIdle').style.display    = 'none';
-        document.getElementById('scannerOverlay').style.display = 'flex';
-        document.getElementById('scannerControls').style.display = 'flex';
-
-        const deviceId = videoDevices[currentDeviceIdx]?.deviceId || undefined;
-        const video    = document.getElementById('scannerVideo');
-
-        await codeReader.decodeFromVideoDevice(deviceId, video, (result, err) => {
-            if (result) {
-                clearTimeout(scanDebounce);
-                scanDebounce = setTimeout(() => addBarcode(result.getText(), true), 300);
+        await html5QrCode.start(
+            camId,
+            {
+                fps: 10,
+                qrbox: { width: 250, height: 180 },
+                aspectRatio: 1.333,
+                disableFlip: false
+            },
+            (decodedText) => {
+                /* Succès scan */
+                addBarcode(decodedText, true);
+            },
+            () => {
+                /* Pas de code dans ce frame — on ignore silencieusement */
             }
-            /* err = juste "rien dans ce frame", on ignore */
-        });
+        );
 
     } catch (e) {
         console.error(e);
-        alert('Impossible d\'accéder à la caméra : ' + e.message);
+        alert('Impossible d\'accéder à la caméra : ' + (e.message || 'Permission refusée'));
         stopScanner();
     }
 }
 
 function stopScanner() {
-    if (codeReader) { try { codeReader.reset(); } catch(e){} codeReader = null; }
+    if (html5QrCode && scanActive) {
+        html5QrCode.stop().then(() => {
+            html5QrCode = null;
+        }).catch(() => {
+            html5QrCode = null;
+        });
+    }
     scanActive = false;
     document.getElementById('scannerIdle').style.display     = 'flex';
     document.getElementById('scannerOverlay').style.display  = 'none';
     document.getElementById('scannerControls').style.display = 'none';
-    const video = document.getElementById('scannerVideo');
-    if (video.srcObject) { video.srcObject.getTracks().forEach(t => t.stop()); video.srcObject = null; }
+    document.getElementById('scannerContainer').style.display = 'none';
 }
 
 async function switchCamera() {
-    if (videoDevices.length <= 1) { alert('Une seule caméra disponible.'); return; }
-    const nextIdx = (currentDeviceIdx + 1) % videoDevices.length;
+    if (!cameras || cameras.length <= 1) {
+        alert('Une seule caméra disponible.');
+        return;
+    }
+    const idx = cameras.findIndex(c => c.id === currentCamera);
+    const next = cameras[(idx + 1) % cameras.length];
     stopScanner();
-    currentDeviceIdx = nextIdx;
+    currentCamera = next.id;
+    await new Promise(r => setTimeout(r, 400));
     await startScanner();
 }
 
