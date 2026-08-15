@@ -3,7 +3,6 @@
 @section('title', 'Nouvel Article')
 
 @section('content_header')
-{{-- ── Page Header ── --}}
 <header class="page-header">
     <div class="header-icon">
         <svg viewBox="0 0 24 24"><path d="M4 6h2v12H4zm3 0h1v12H7zm2 0h2v12H9zm3 0h1v12h-1zm3 0h1v12h-1zm2 0h2v12h-2zM2 4v16a2 2 0 002 2h16a2 2 0 002-2V4a2 2 0 00-2-2H4a2 2 0 00-2 2z"/></svg>
@@ -21,15 +20,12 @@
 
 @section('content')
 
-{{-- ── Alerts ── --}}
 @if($errors->any())
 <div class="alert">
     <div class="alert-inner alert-error">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
         <ul style="list-style:none; padding:0; margin:0;">
-            @foreach($errors->all() as $err)
-                <li>{{ $err }}</li>
-            @endforeach
+            @foreach($errors->all() as $err)<li>{{ $err }}</li>@endforeach
         </ul>
     </div>
 </div>
@@ -44,18 +40,13 @@
 </div>
 @endif
 
-{{-- ════════════════════════════════════════════════
-     FORM
-════════════════════════════════════════════════ --}}
 <form action="{{ route('articles.store') }}" method="POST" enctype="multipart/form-data" id="articleForm">
 @csrf
 
 <div class="form-layout">
 
-    {{-- ════ COLONNE GAUCHE ════ --}}
     <div style="display:flex; flex-direction:column; gap:22px;">
 
-        {{-- ── Informations générales ── --}}
         <div class="card">
             <div class="card-header">
                 <div class="card-header-icon red">
@@ -133,7 +124,6 @@
             </div>
         </div>
 
-        {{-- ── Stock & Prix ── --}}
         <div class="card">
             <div class="card-header">
                 <div class="card-header-icon amber">
@@ -186,12 +176,10 @@
             </div>
         </div>
 
-    </div>{{-- fin colonne gauche --}}
+    </div>
 
-    {{-- ════ COLONNE DROITE ════ --}}
     <div style="display:flex; flex-direction:column; gap:22px;">
 
-        {{-- ── Scanner de codes-barres ── --}}
         <div class="card">
             <div class="card-header">
                 <div class="card-header-icon green">
@@ -204,7 +192,6 @@
             </div>
             <div class="card-body">
 
-                {{-- Zone scanner --}}
                 <div class="scanner-area" id="scannerArea">
                     <div id="scannerContainer" style="width:100%;height:100%;display:none;"></div>
 
@@ -226,7 +213,6 @@
                     </div>
                 </div>
 
-                {{-- Contrôles scanner --}}
                 <div class="scanner-controls" id="scannerControls" style="display:none">
                     <button type="button" class="btn-scan-toggle-cam" onclick="switchCamera()">
                         <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M20 5h-3.17L15 3H9L7.17 5H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
@@ -238,7 +224,6 @@
                     </button>
                 </div>
 
-                {{-- Saisie manuelle --}}
                 <div class="section-divider" style="margin-top:14px"><span>Ou saisie manuelle</span></div>
                 <div class="scan-add-manual">
                     <input type="text" id="manualBarcodeInput"
@@ -251,7 +236,6 @@
                     </button>
                 </div>
 
-                {{-- Liste des codes-barres --}}
                 <div class="barcode-list" id="barcodeList" style="margin-top:16px"></div>
 
                 @error('barcodes')
@@ -267,7 +251,6 @@
             </div>
         </div>
 
-        {{-- ── Photo ── --}}
         <div class="card">
             <div class="card-header">
                 <div class="card-header-icon blue">
@@ -290,9 +273,8 @@
             </div>
         </div>
 
-    </div>{{-- fin colonne droite --}}
+    </div>
 
-    {{-- ── Barre de soumission ── --}}
     <div class="submit-bar">
         <div class="submit-info">
             Champs marqués <span>*</span> obligatoires — <span id="barcodeCount">0</span> code(s)-barres enregistré(s)
@@ -309,7 +291,7 @@
         </div>
     </div>
 
-</div>{{-- form-layout --}}
+</div>
 </form>
 
 @stop
@@ -335,7 +317,6 @@
     --shadow:     0 2px 12px rgba(0,0,0,.08), 0 1px 3px rgba(0,0,0,.06);
     --shadow-lg:  0 8px 32px rgba(0,0,0,.13), 0 2px 8px rgba(0,0,0,.08);
 }
-
 * { box-sizing: border-box; }
 
 .page-header {
@@ -687,7 +668,6 @@ label .req { color: var(--accent); margin-left: 2px; }
 }
 @keyframes flashIn { 0% { opacity: 1; } 100% { opacity: 0; } }
 
-/* Submit bar */
 .submit-bar {
     grid-column: 1 / -1;
     background: var(--surface); border: 1px solid var(--border);
@@ -719,7 +699,6 @@ label .req { color: var(--accent); margin-left: 2px; }
 .btn-submit:active { transform: translateY(0); }
 .btn-submit svg { width: 17px; height: 17px; }
 
-/* Alerts */
 .alert { padding: 0; margin-bottom: 16px; }
 .alert-inner {
     padding: 13px 16px; border-radius: 8px; font-size: .83rem;
@@ -729,7 +708,6 @@ label .req { color: var(--accent); margin-left: 2px; }
 .alert-error  { background: rgba(232,79,60,.07); border-color: var(--accent); color: #c0392b; }
 .alert-success { background: rgba(0,200,83,.07); border-color: var(--scan-dim); color: #1a8a47; }
 
-/* Stock meter */
 .stock-meter { height: 4px; background: var(--border); border-radius: 4px; margin-top: 8px; overflow: hidden; }
 .stock-meter-fill {
     height: 100%; border-radius: 4px;
@@ -737,7 +715,6 @@ label .req { color: var(--accent); margin-left: 2px; }
     transition: width .4s ease; width: 0%;
 }
 
-/* Section divider */
 .section-divider { display: flex; align-items: center; gap: 12px; margin: 6px 0 14px; }
 .section-divider span {
     font-size: .69rem; font-weight: 700; text-transform: uppercase;
@@ -745,7 +722,6 @@ label .req { color: var(--accent); margin-left: 2px; }
 }
 .section-divider::before, .section-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 
-/* Tooltip */
 [data-tooltip] { position: relative; }
 [data-tooltip]::after {
     content: attr(data-tooltip);
@@ -756,18 +732,9 @@ label .req { color: var(--accent); margin-left: 2px; }
 }
 [data-tooltip]:hover::after { opacity: 1; }
 
-/* html5-qrcode override */
-#scannerContainer > div:first-child {
-    border: none !important;
-    box-shadow: none !important;
-}
-#scannerContainer video {
-    border-radius: 10px !important;
-    object-fit: cover !important;
-}
-#scannerContainer img[src*="scanning"] {
-    display: none !important;
-}
+#scannerContainer > div:first-child { border: none !important; box-shadow: none !important; }
+#scannerContainer video { border-radius: 10px !important; object-fit: cover !important; }
+#scannerContainer img[src*="scanning"] { display: none !important; }
 </style>
 @stop
 
@@ -775,30 +742,18 @@ label .req { color: var(--accent); margin-left: 2px; }
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
 <script>
-/* ══════════════════════════════════════════
-   STATE
-══════════════════════════════════════════ */
-let barcodes        = [];
-let scanActive      = false;
-let html5QrCode     = null;
-let currentCamera   = null;
-let cameras         = [];
+let barcodes = [], scanActive = false, html5QrCode = null, currentCamera = null, cameras = [];
 
-/* ══════════════════════════════════════════
-   RENDER  (CORRIGÉ — template literals propres)
-══════════════════════════════════════════ */
 function renderBarcodes() {
-    const list  = document.getElementById('barcodeList');
+    const list = document.getElementById('barcodeList');
     const count = document.getElementById('barcodeCount');
     list.innerHTML = '';
     count.textContent = barcodes.length;
-
     if (barcodes.length === 0) {
         list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--ink-muted);font-size:.78rem;font-family:DM Mono,monospace;border:1px dashed var(--border);border-radius:8px;">Aucun code-barres — scannez ou saisissez</div>';
         renderHiddenBarcodes();
         return;
     }
-
     barcodes.forEach((b, i) => {
         const item = document.createElement('div');
         item.className = 'barcode-item' + (b.isPrimary ? ' is-primary' : '');
@@ -811,8 +766,7 @@ function renderBarcodes() {
                 ? '<span class="badge-primary">Principal</span>'
                 : '<button type="button" class="btn-set-primary" onclick="setPrimary(' + i + ')">' +
                   '<svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>' +
-                  ' Principal' +
-                  '</button>') +
+                  ' Principal</button>') +
             '<button type="button" class="btn-remove-barcode" onclick="removeBarcode(' + i + ')">' +
             '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>' +
             '</button>';
@@ -835,9 +789,6 @@ function renderHiddenBarcodes() {
     });
 }
 
-/* ══════════════════════════════════════════
-   BARCODE OPERATIONS
-══════════════════════════════════════════ */
 function addBarcode(code, fromScan) {
     const clean = code.trim();
     if (!clean) return;
@@ -873,9 +824,6 @@ function flashArea(color) {
     setTimeout(() => flash.remove(), 700);
 }
 
-/* ══════════════════════════════════════════
-   MANUAL INPUT
-══════════════════════════════════════════ */
 function addBarcodeManual() {
     const inp = document.getElementById('manualBarcodeInput');
     addBarcode(inp.value);
@@ -884,13 +832,13 @@ function addBarcodeManual() {
 }
 
 /* ══════════════════════════════════════════
-   SCANNER — html5-qrcode (ultra robuste)
+   SCANNER — html5-qrcode CORRIGÉ
 ══════════════════════════════════════════ */
 async function startScanner() {
     if (scanActive) return;
 
     if (typeof Html5Qrcode === 'undefined') {
-        alert('Librairie scanner non chargée. Vérifiez votre connexion et rechargez la page.');
+        alert('Librairie scanner non chargée. Rechargez la page.');
         return;
     }
 
@@ -898,7 +846,7 @@ async function startScanner() {
         /* 1. Permissions + lister caméras */
         cameras = await Html5Qrcode.getCameras();
         if (!cameras || cameras.length === 0) {
-            alert('Aucune caméra détectée sur cet appareil.');
+            alert('Aucune caméra détectée.');
             return;
         }
 
@@ -920,19 +868,9 @@ async function startScanner() {
 
         await html5QrCode.start(
             camId,
-            {
-                fps: 10,
-                qrbox: { width: 250, height: 180 },
-                aspectRatio: 1.333,
-                disableFlip: false
-            },
-            (decodedText) => {
-                /* Succès scan */
-                addBarcode(decodedText, true);
-            },
-            () => {
-                /* Pas de code dans ce frame — on ignore silencieusement */
-            }
+            { fps: 10, qrbox: { width: 250, height: 180 }, aspectRatio: 1.333, disableFlip: false },
+            (decodedText) => { addBarcode(decodedText, true); },
+            () => {}
         );
 
     } catch (e) {
@@ -942,15 +880,23 @@ async function startScanner() {
     }
 }
 
-function stopScanner() {
-    if (html5QrCode && scanActive) {
-        html5QrCode.stop().then(() => {
-            html5QrCode = null;
-        }).catch(() => {
-            html5QrCode = null;
-        });
-    }
+async function stopScanner() {
     scanActive = false;
+
+    if (html5QrCode) {
+        try {
+            await html5QrCode.stop();
+        } catch (e) {}
+        try {
+            await html5QrCode.clear();
+        } catch (e) {}
+        html5QrCode = null;
+    }
+
+    /* Vider le container pour éviter les doublons */
+    const container = document.getElementById('scannerContainer');
+    if (container) container.innerHTML = '';
+
     document.getElementById('scannerIdle').style.display     = 'flex';
     document.getElementById('scannerOverlay').style.display  = 'none';
     document.getElementById('scannerControls').style.display = 'none';
@@ -962,17 +908,16 @@ async function switchCamera() {
         alert('Une seule caméra disponible.');
         return;
     }
+
     const idx = cameras.findIndex(c => c.id === currentCamera);
     const next = cameras[(idx + 1) % cameras.length];
-    stopScanner();
+
+    await stopScanner();
     currentCamera = next.id;
-    await new Promise(r => setTimeout(r, 400));
+    await new Promise(r => setTimeout(r, 600));
     await startScanner();
 }
 
-/* ══════════════════════════════════════════
-   BEEP
-══════════════════════════════════════════ */
 function playScanBeep() {
     try {
         const ctx  = new (window.AudioContext || window.webkitAudioContext)();
@@ -987,9 +932,6 @@ function playScanBeep() {
     } catch(e) {}
 }
 
-/* ══════════════════════════════════════════
-   SUBCATEGORIES (cascade sans AJAX)
-══════════════════════════════════════════ */
 function loadSubcats(parentId) {
     const sub = document.getElementById('subCat');
     sub.innerHTML = '<option value="">— Sélectionner —</option>';
@@ -999,9 +941,6 @@ function loadSubcats(parentId) {
     });
 }
 
-/* ══════════════════════════════════════════
-   PHOTO
-══════════════════════════════════════════ */
 function previewPhoto(input) {
     if (input.files && input.files[0]) {
         const reader = new FileReader();
@@ -1025,17 +964,11 @@ function handleDrop(e) {
     }
 }
 
-/* ══════════════════════════════════════════
-   STOCK METER
-══════════════════════════════════════════ */
 function updateStockMeter(val) {
     document.getElementById('stockMeterFill').style.width =
         Math.max(0, Math.min(parseInt(val)||0, 500) / 500 * 100) + '%';
 }
 
-/* ══════════════════════════════════════════
-   VALIDATION
-══════════════════════════════════════════ */
 function validateForm() {
     if (barcodes.length === 0) {
         document.getElementById('barcodesRequiredMsg').style.display = 'flex';
@@ -1045,28 +978,20 @@ function validateForm() {
     return true;
 }
 
-/* ══════════════════════════════════════════
-   UTILS
-══════════════════════════════════════════ */
 function escHtml(str) {
     return String(str).replace(/[&<>"']/g, m =>
         ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 }
 
-/* ══════════════════════════════════════════
-   INIT
-══════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', () => {
-    /* Store caché pour les sous-catégories */
-    const store  = document.createElement('select');
-    store.id     = 'subCatData';
+    const store = document.createElement('select');
+    store.id = 'subCatData';
     store.style.display = 'none';
     Array.from(document.getElementById('subCat').options).forEach(o => {
         if (o.dataset.parent) store.appendChild(o.cloneNode(true));
     });
     document.body.appendChild(store);
 
-    /* Pré-sélection si old() */
     @if(old('parent_categorie_id'))
         loadSubcats('{{ old("parent_categorie_id") }}');
         document.getElementById('subCat').value = '{{ old("categorie_id") }}';
@@ -1074,7 +999,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     updateStockMeter(document.getElementById('stockInput').value);
 
-    /* Recharger les barcodes après erreur de validation */
     @if(old('barcodes'))
         @foreach(old('barcodes') as $i => $bc)
             barcodes.push({
@@ -1087,6 +1011,6 @@ document.addEventListener('DOMContentLoaded', () => {
     @endif
 });
 
-window.addEventListener('beforeunload', stopScanner);
+window.addEventListener('beforeunload', () => { if(html5QrCode) stopScanner(); });
 </script>
 @stop
