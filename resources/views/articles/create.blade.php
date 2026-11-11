@@ -1100,97 +1100,109 @@ async function stopScanner() {
 }
 
 /* Cherche l'id de la caméra arrière (les labels ne sont lisibles qu'après autorisation) */
-async function findBackCameraId() {
+var backCams = [], backIdx = 0;
+
+async function loadBackCams() {
+    var cams = [];
+    try { cams = await Html5Qrcode.getCameras(); } catch (e) {}
+    cameras = cams || [];
+    var back = cameras.filter(function (c) {
+        return /back|rear|arri[eè]re|environment|facing back/i.test(c.label || '');
+    });
+    backCams = back.length ? back : cameras;
+}
+
+function isVideoBlack() {
     try {
-        var cams = await Html5Qrcode.getCameras();
-        cameras = cams || [];
-        var back = cameras.filter(function (c) {
-            return /back|rear|arri[eè]re|environment|traseira|trasera/i.test(c.label || '');
-        });
-        if (back.length) return back[0].id;
-        if (cameras.length > 1) return cameras[cameras.length - 1].id; // souvent l'arrière
-    } catch (e) {}
-    return null;
+        var v = document.querySelector('#scannerContainer video');
+        if (!v || !v.videoWidth) return true;
+        var c = document.createElement('canvas');
+        c.width = 32; c.height = 32;
+        var x = c.getContext('2d');
+        x.drawImage(v, 0, 0, 32, 32);
+        var d = x.getImageData(0, 0, 32, 32).data, sum = 0;
+        for (var i = 0; i < d.length; i += 4) sum += d[i] + d[i + 1] + d[i + 2];
+        return (sum / (d.length / 4 * 3)) < 8; // moyenne quasi nulle = noir
+    } catch (e) { return false; }
+}
+
+async function startWith(src) {
+    document.getElementById('scannerContainer').innerHTML = '';
+    html5QrCode = newScanner('scannerContainer');
+    await html5QrCode.start(src, scanConfig(false), onDecoded, function () {});
 }
 
 async function startScanner(source) {
     if (scanActive) return;
 
     if (typeof Html5Qrcode === 'undefined') {
-        setStatus('Librairie scanner non chargée (connexion internet ?). Rechargez la page.', true);
-        alert('Librairie scanner non chargée. Rechargez la page.');
+        setStatus('Librairie scanner non chargée. Rechargez la page.', true);
         return;
     }
     if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        var m = "La caméra exige une connexion sécurisée (https://). Utilisez le bouton « Photo du code » en attendant.";
-        setStatus(m, true);
-        alert(m);
+        setStatus("La caméra exige https://. Utilisez « Photo du code ».", true);
         return;
     }
 
     setStatus('Démarrage de la caméra…');
     showScannerUI(true);
 
-    // Liste des essais : on force l'arrière en priorité
-    var attempts = source
-        ? [source]
-        : [{ facingMode: { exact: 'environment' } }, { facingMode: 'environment' }, 'BACK_BY_ID'];
+    if (!backCams.length) await loadBackCams();
 
-    var started = false, lastErr = null, usedSrc = null;
+    // ordre d'essai : caméra choisie, sinon caméras arrière par id, sinon facingMode
+    var list = [];
+    if (source) list.push(source);
+    else {
+        for (var k = 0; k < backCams.length; k++) list.push(backCams[(backIdx + k) % backCams.length].id);
+        list.push({ facingMode: 'environment' });
+    }
 
-    for (var i = 0; i < attempts.length && !started; i++) {
-        var src = attempts[i];
+    var started = false, lastErr = null;
+    for (var i = 0; i < list.length && !started; i++) {
         try {
-            if (src === 'BACK_BY_ID') {
-                src = await findBackCameraId();
-                if (!src) continue;
+            await startWith(list[i]);
+            await new Promise(function (r) { setTimeout(r, 1200); });
+            if (isVideoBlack() && i < list.length - 1 && !source) {
+                // image noire => mauvais objectif, on passe au suivant
+                try { await html5QrCode.stop(); } catch (x) {}
+                await new Promise(function (r) { setTimeout(r, 400); });
+                continue;
             }
-            document.getElementById('scannerContainer').innerHTML = '';
-            html5QrCode = newScanner('scannerContainer');
-            // PAS de videoConstraints ici : sinon la config écrase le choix de caméra
-            await html5QrCode.start(src, scanConfig(false), onDecoded, function () {});
             started = true;
-            usedSrc = src;
+            currentSource = list[i];
+            if (typeof list[i] === 'string') {
+                backIdx = Math.max(0, backCams.findIndex(function (c) { return c.id === list[i]; }));
+            }
         } catch (e) {
             lastErr = e;
-            console.warn('[scan] échec tentative ' + (i + 1), e);
+            console.warn('[scan] échec', list[i], e);
             try { await html5QrCode.stop(); } catch (x) {}
+            await new Promise(function (r) { setTimeout(r, 400); });
         }
     }
 
     if (!started) {
-        var msg = camErrorMessage(lastErr);
-        setStatus(msg, true);
-        alert(msg);
+        setStatus(camErrorMessage(lastErr), true);
         html5QrCode = null;
         showScannerUI(false);
         return;
     }
 
     scanActive = true;
-    currentSource = usedSrc;
-    setStatus('Caméra active — tenez le code à 15–25 cm, bien éclairé et net.');
-
-    try { cameras = await Html5Qrcode.getCameras(); } catch (e) { cameras = []; }
-
-    // Mémorise l'index de la caméra réellement utilisée
-    try {
-        var id = html5QrCode.getRunningTrackSettings().deviceId;
-        camIndex = cameras.findIndex(function (c) { return c.id === id; });
-    } catch (e) { camIndex = -1; }
+    setStatus('Caméra active — code à 15–25 cm, bien éclairé et net. Image noire ? Appuyez sur « Changer caméra ».');
 }
 
 async function switchCamera() {
-    if (!cameras || cameras.length <= 1) {
-        setStatus('Une seule caméra disponible.', true);
-        return;
-    }
-    camIndex = (camIndex + 1) % cameras.length;
-    var next = cameras[camIndex].id;
+    if (!backCams.length) await loadBackCams();
+    if (backCams.length <= 1) { setStatus('Une seule caméra disponible.', true); return; }
+    backIdx = (backIdx + 1) % backCams.length;
+    var next = backCams[backIdx].id;
     await stopScanner();
     await new Promise(function (r) { setTimeout(r, 500); });
     await startScanner(next);
 }
+
+
 
 /* Lecture via photo (marche aussi sans HTTPS) */
 async function scanFromFile(input) {
