@@ -220,7 +220,7 @@ public function store(Request $request)
             'barcodes' => array_values($request->input('barcodes', []))
         ]);
     }
- 
+
     $request->validate([
         'nom'                => 'required|string|max:255',
         'barcodes'           => 'required|array|min:1',
@@ -229,6 +229,7 @@ public function store(Request $request)
         'barcodes.*.primary' => 'nullable',
         'categorie_id'       => 'required|exists:categories,id',
         'marque_id'          => 'nullable|exists:marques,id',
+        'fournisseur_id'     => 'nullable|exists:fournisseurs,id',
         'description'        => 'nullable|string',
         'stock'              => 'required|integer|min:0',
         'quantite_minimale'  => 'required|integer|min:0',
@@ -238,10 +239,9 @@ public function store(Request $request)
         'date_peremption'    => 'nullable|date',
         'photo'              => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
     ]);
- 
-    // Vérifier unicité des codes-barres manuellement
-    // (la règle 'distinct' ne fonctionne pas bien avec array_values sur clés custom)
-    $codes = collect($request->input('barcodes'))->pluck('code');
+
+    // Unicité des codes-barres
+    $codes = collect($request->input('barcodes'))->pluck('code')->map(fn($c) => trim($c));
     if ($codes->unique()->count() !== $codes->count()) {
         return redirect()->back()
             ->withInput()
@@ -254,56 +254,52 @@ public function store(Request $request)
                 ->withErrors(['barcodes' => "Le code-barres « {$code} » existe déjà."]);
         }
     }
- 
+
     try {
-        $data = $request->except(['photo', 'barcodes', '_token']);
- 
+        $data = $request->except(['photo', 'barcodes', '_token', 'parent_categorie_id']);
+
         if ($request->hasFile('photo')) {
             $data['photo'] = $request->file('photo')->store('articles', 'public');
         }
- 
-        $article = \DB::transaction(function () use ($data, $request) {
+
+        \DB::transaction(function () use ($data, $request) {
             $barcodes = array_values($request->input('barcodes', []));
-$primary  = collect($barcodes)->first(fn($b) => !empty($b['primary'])) ?? $barcodes[0] ?? null;
-$data['code_barres'] = $primary ? trim($primary['code']) : '';
-            $article  = \App\Models\Article::create($data);
-            $barcodes = array_values($request->input('barcodes', []));
- 
-            // Détecter si au moins un est marqué primary
+
             $hasPrimary = collect($barcodes)->contains(
                 fn($b) => !empty($b['primary']) && $b['primary'] !== '0'
             );
- 
+
+            $primary = collect($barcodes)->first(
+                fn($b) => !empty($b['primary']) && $b['primary'] !== '0'
+            ) ?? $barcodes[0] ?? null;
+
+            $data['code_barres'] = $primary ? trim($primary['code']) : '';
+
+            $article = \App\Models\Article::create($data);
+
             foreach ($barcodes as $i => $b) {
                 $isPrimary = (!empty($b['primary']) && $b['primary'] !== '0')
                     || (!$hasPrimary && $i === 0);
- 
+
                 $article->barcodes()->create([
                     'code_barres' => trim($b['code']),
                     'label'       => $b['label'] ?? null,
                     'is_primary'  => $isPrimary,
                 ]);
             }
- 
-            return $article;
         });
- 
+
         return redirect()->route('articles.index')
             ->with('success', 'Article créé avec succès !');
- 
+
     } catch (\Exception $e) {
-    dd([
-        'message' => $e->getMessage(),
-        'data'    => $data,
-        'barcodes' => $request->input('barcodes'),
-    ]);
+        \Log::error('Erreur création article : ' . $e->getMessage());
 
         return redirect()->back()
             ->withInput()
             ->with('error', 'Erreur lors de la création : ' . $e->getMessage());
     }
 }
- 
  
 // ─── update() ────────────────────────────────────────────────────
 public function update(Request $request, \App\Models\Article $article)

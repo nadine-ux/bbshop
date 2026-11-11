@@ -20,6 +20,12 @@
 
 @section('content')
 
+@php
+    $marquesJs = $marques->map(function ($m) { return ['id' => $m->id, 'nom' => $m->nom]; })->values();
+    $fournisseursJs = $fournisseurs->map(function ($f) { return ['id' => $f->id, 'nom' => $f->nom]; })->values();
+    $categoriesJs = $categories->map(function ($c) { return ['id' => $c->id, 'nom' => $c->nom, 'parent_id' => $c->parent_id]; })->values();
+@endphp
+
 @if($errors->any())
 <div class="alert">
     <div class="alert-inner alert-error">
@@ -27,6 +33,15 @@
         <ul style="list-style:none; padding:0; margin:0;">
             @foreach($errors->all() as $err)<li>{{ $err }}</li>@endforeach
         </ul>
+    </div>
+</div>
+@endif
+
+@if(session('error'))
+<div class="alert">
+    <div class="alert-inner alert-error">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+        {{ session('error') }}
     </div>
 </div>
 @endif
@@ -64,57 +79,50 @@
                            placeholder="Ex: Paracétamol 500mg, Aspirine..."
                            class="{{ $errors->has('nom') ? 'is-invalid' : '' }}"
                            autocomplete="off">
-                    @error('nom')<div class="error-msg"><svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><circle cx="12" cy="12" r="10"/><path d="M12 7v5m0 4h.01" stroke="white" stroke-width="2" fill="none"/></svg>{{ $message }}</div>@enderror
+                    @error('nom')<div class="error-msg">{{ $message }}</div>@enderror
                 </div>
 
                 <div class="field-row">
                     <div class="field" style="margin:0">
                         <label>Marque</label>
-                        <select name="marque_id">
-                            <option value="">— Aucune marque —</option>
-                            @foreach($marques as $m)
-                                <option value="{{ $m->id }}" {{ old('marque_id') == $m->id ? 'selected' : '' }}>{{ $m->nom }}</option>
-                            @endforeach
-                        </select>
+                        <div class="ac" id="acMarque">
+                            <input type="text" class="ac-input" placeholder="Rechercher une marque…" autocomplete="off">
+                            <input type="hidden" name="marque_id" value="{{ old('marque_id') }}">
+                            <button type="button" class="ac-clear" tabindex="-1" aria-label="Effacer">&times;</button>
+                            <div class="ac-list"></div>
+                        </div>
                     </div>
                     <div class="field" style="margin:0">
                         <label>Fournisseur</label>
-                        <select name="fournisseur_id">
-                            <option value="">— Aucun —</option>
-                            @foreach($fournisseurs as $f)
-                                <option value="{{ $f->id }}" {{ old('fournisseur_id') == $f->id ? 'selected' : '' }}>{{ $f->nom }}</option>
-                            @endforeach
-                        </select>
+                        <div class="ac" id="acFournisseur">
+                            <input type="text" class="ac-input" placeholder="Rechercher un fournisseur…" autocomplete="off">
+                            <input type="hidden" name="fournisseur_id" value="{{ old('fournisseur_id') }}">
+                            <button type="button" class="ac-clear" tabindex="-1" aria-label="Effacer">&times;</button>
+                            <div class="ac-list"></div>
+                        </div>
                     </div>
                 </div>
 
                 <div class="field" style="margin-top:18px">
                     <label>Catégorie parente <span class="req">*</span></label>
-                    <select name="parent_categorie_id" id="parentCat" onchange="loadSubcats(this.value)">
-                        <option value="">— Sélectionner une catégorie —</option>
-                        @foreach($categories->whereNull('parent_id') as $cat)
-                            @if(!$cat->parent_id)
-                                <option value="{{ $cat->id }}" {{ old('parent_categorie_id') == $cat->id ? 'selected' : '' }}>{{ $cat->nom }}</option>
-                            @endif
-                        @endforeach
-                    </select>
+                    <div class="ac" id="acParent">
+                        <input type="text" class="ac-input" placeholder="Rechercher une catégorie…" autocomplete="off">
+                        <input type="hidden" name="parent_categorie_id" value="{{ old('parent_categorie_id') }}">
+                        <button type="button" class="ac-clear" tabindex="-1" aria-label="Effacer">&times;</button>
+                        <div class="ac-list"></div>
+                    </div>
                 </div>
 
                 <div class="field">
                     <label>Sous-catégorie <span class="req">*</span></label>
-                    <select name="categorie_id" id="subCat" class="{{ $errors->has('categorie_id') ? 'is-invalid' : '' }}">
-                        <option value="">— Choisir d'abord une catégorie —</option>
-                        @foreach($categories as $cat)
-                            @if($cat->parent_id)
-                                <option value="{{ $cat->id }}"
-                                        data-parent="{{ $cat->parent_id }}"
-                                        {{ old('categorie_id') == $cat->id ? 'selected' : '' }}>
-                                    {{ $cat->nom }}
-                                </option>
-                            @endif
-                        @endforeach
-                    </select>
+                    <div class="ac" id="acSub">
+                        <input type="text" class="ac-input {{ $errors->has('categorie_id') ? 'is-invalid' : '' }}" placeholder="Choisir d'abord une catégorie" autocomplete="off">
+                        <input type="hidden" name="categorie_id" value="{{ old('categorie_id') }}">
+                        <button type="button" class="ac-clear" tabindex="-1" aria-label="Effacer">&times;</button>
+                        <div class="ac-list"></div>
+                    </div>
                     @error('categorie_id')<div class="error-msg">{{ $message }}</div>@enderror
+                    <div id="catRequiredMsg" class="error-msg" style="display:none">Veuillez choisir une catégorie et une sous-catégorie dans la liste.</div>
                 </div>
 
                 <div class="field">
@@ -193,7 +201,7 @@
             <div class="card-body">
 
                 <div class="scanner-area" id="scannerArea">
-                    <div id="scannerContainer" style="width:100%;height:100%;display:none;"></div>
+                    <div id="scannerContainer" style="width:100%;display:none;"></div>
 
                     <div class="scanner-overlay" id="scannerOverlay" style="display:none">
                         <div class="scan-frame">
@@ -224,10 +232,20 @@
                     </button>
                 </div>
 
+                <div class="scan-status" id="scanStatus"></div>
+
+                <label class="btn-scan-file">
+                    <input type="file" accept="image/*" capture="environment" id="barcodeFileInput" style="display:none" onchange="scanFromFile(this)">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 12m-3.2 0a3.2 3.2 0 1 0 6.4 0a3.2 3.2 0 1 0-6.4 0M9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/></svg>
+                    Photo du code (si le scan direct ne marche pas)
+                </label>
+                <div id="fileScanHolder" style="display:none"></div>
+
                 <div class="section-divider" style="margin-top:14px"><span>Ou saisie manuelle</span></div>
                 <div class="scan-add-manual">
                     <input type="text" id="manualBarcodeInput"
                            placeholder="Entrez un code-barres..."
+                           inputmode="numeric"
                            style="font-family:'DM Mono',monospace; font-size:.85rem;"
                            onkeydown="if(event.key==='Enter'){event.preventDefault();addBarcodeManual();}">
                     <button type="button" class="btn-add-manual" onclick="addBarcodeManual()">
@@ -239,13 +257,9 @@
                 <div class="barcode-list" id="barcodeList" style="margin-top:16px"></div>
 
                 @error('barcodes')
-                    <div class="error-msg" style="margin-top:8px">
-                        <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><circle cx="12" cy="12" r="10"/><path d="M12 7v5m0 4h.01" stroke="white" stroke-width="2" fill="none"/></svg>
-                        {{ $message }}
-                    </div>
+                    <div class="error-msg" style="margin-top:8px">{{ $message }}</div>
                 @enderror
                 <div id="barcodesRequiredMsg" class="error-msg" style="display:none; margin-top:8px">
-                    <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><circle cx="12" cy="12" r="10"/><path d="M12 7v5m0 4h.01" stroke="white" stroke-width="2" fill="none"/></svg>
                     Au moins un code-barres est requis.
                 </div>
             </div>
@@ -392,15 +406,18 @@
     .page-header { padding: 20px 20px 18px; margin: -10px -10px 0; }
 }
 
+/* overflow visible + pas de transform persistant => les listes autocomplete ne sont plus coupées */
 .form-layout .card {
+    position: relative;
     background: var(--surface);
     border: 1px solid var(--border) !important;
     border-radius: var(--radius) !important;
     box-shadow: var(--shadow) !important;
-    overflow: hidden;
-    animation: slideUp .35s cubic-bezier(.22,1,.36,1) both;
+    overflow: visible;
+    animation: slideUp .35s cubic-bezier(.22,1,.36,1) backwards;
     margin-bottom: 0 !important;
 }
+.form-layout .card:focus-within { z-index: 20; }
 .form-layout .card:nth-child(2) { animation-delay: .06s; }
 .form-layout .card:nth-child(3) { animation-delay: .12s; }
 .form-layout .card:nth-child(4) { animation-delay: .18s; }
@@ -415,6 +432,7 @@
     border-bottom: 1px solid var(--border) !important;
     display: flex !important; align-items: center; gap: 12px;
     background: var(--paper-warm) !important;
+    border-radius: 10px 10px 0 0 !important;
 }
 .card-header-icon {
     width: 34px; height: 34px;
@@ -440,6 +458,7 @@
 .field { margin-bottom: 16px; }
 .field:last-child { margin-bottom: 0; }
 .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 520px) { .field-row { grid-template-columns: 1fr; } }
 
 .form-layout label {
     display: block;
@@ -475,16 +494,32 @@ label .req { color: var(--accent); margin-left: 2px; }
     border-color: var(--accent) !important;
     box-shadow: 0 0 0 3px rgba(232,79,60,.1) !important;
 }
-.form-layout select {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237a7a90' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") !important;
-    background-repeat: no-repeat !important;
-    background-position: right 12px center !important;
-    padding-right: 36px;
-}
 .form-layout textarea { resize: vertical; min-height: 78px; }
 .input-hint { font-size: .7rem; color: var(--ink-muted); margin-top: 4px; }
 .is-invalid { border-color: var(--accent) !important; background: rgba(232,79,60,.03) !important; }
 .error-msg { font-size: .72rem; color: var(--accent); margin-top: 5px; display: flex; align-items: center; gap: 4px; }
+
+/* ───── Autocomplete ───── */
+.ac { position: relative; }
+.form-layout .ac .ac-input { padding-right: 34px; }
+.ac-clear {
+    position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+    width: 26px; height: 26px; border: none; background: transparent;
+    color: var(--ink-muted); font-size: 1.2rem; line-height: 1; cursor: pointer;
+    border-radius: 50%; display: none; align-items: center; justify-content: center;
+}
+.ac-clear:hover { background: rgba(232,79,60,.1); color: var(--accent); }
+.ac.has-value .ac-clear { display: flex; }
+.ac-list {
+    display: none; position: absolute; left: 0; right: 0; top: calc(100% + 4px);
+    background: #fff; border: 1.5px solid var(--border); border-radius: 8px;
+    box-shadow: var(--shadow-lg); max-height: 240px; overflow-y: auto; z-index: 100;
+    -webkit-overflow-scrolling: touch;
+}
+.ac-item { padding: 11px 13px; font-size: .87rem; cursor: pointer; color: var(--ink); }
+.ac-item:hover, .ac-item.active { background: rgba(232,79,60,.08); }
+.ac-empty { padding: 12px 13px; font-size: .8rem; color: var(--ink-muted); }
+.ac.disabled .ac-input { background: var(--paper) !important; cursor: not-allowed; }
 
 .photo-drop {
     border: 2px dashed var(--border);
@@ -518,16 +553,22 @@ label .req { color: var(--accent); margin-left: 2px; }
     margin-top: 12px; border: 1px solid var(--border);
 }
 
-/* Scanner */
+/* ───── Scanner ───── */
 .scanner-area {
     position: relative;
     background: #0a0a0a;
     border-radius: 10px;
     overflow: hidden;
-    aspect-ratio: 4/3;
+    min-height: 260px;
     border: 2px solid #1a1a1a;
 }
-.scanner-area video { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* IMPORTANT : ne PAS mettre object-fit:cover sur la vidéo (décale la zone de lecture) */
+#scannerContainer { border: none !important; padding: 0 !important; min-height: 0; }
+#scannerContainer video { width: 100% !important; height: auto !important; display: block; }
+#scannerContainer img[src*="scanning"] { display: none !important; }
+#qr-shaded-region { border-color: rgba(0,0,0,.35) !important; }
+#qr-shaded-region > div { display: none !important; }
+
 .scanner-overlay {
     position: absolute; inset: 0;
     display: flex; align-items: center; justify-content: center;
@@ -561,7 +602,7 @@ label .req { color: var(--accent); margin-left: 2px; }
     position: absolute; bottom: 10px; left: 0; right: 0;
     text-align: center;
     font-family: 'DM Mono', monospace;
-    font-size: .66rem; color: rgba(255,255,255,.55); letter-spacing: .06em;
+    font-size: .66rem; color: rgba(255,255,255,.7); letter-spacing: .06em;
 }
 .scanner-idle {
     position: absolute; inset: 0;
@@ -599,7 +640,7 @@ label .req { color: var(--accent); margin-left: 2px; }
 
 .scanner-controls { display: flex; gap: 8px; margin-top: 10px; }
 .btn-scan-stop, .btn-scan-toggle-cam {
-    flex: 1; padding: 9px; border: none; border-radius: 7px;
+    flex: 1; padding: 11px; border: none; border-radius: 7px;
     font-family: 'DM Sans', sans-serif; font-size: .8rem; font-weight: 600;
     cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;
     transition: all .18s;
@@ -608,6 +649,18 @@ label .req { color: var(--accent); margin-left: 2px; }
 .btn-scan-stop:hover { background: rgba(232,79,60,.2); }
 .btn-scan-toggle-cam { background: var(--paper); color: var(--ink-soft); border: 1px solid var(--border); }
 .btn-scan-toggle-cam:hover { background: var(--paper-warm); }
+
+.scan-status { font-size: .74rem; font-family: 'DM Mono', monospace; color: var(--ink-muted); margin-top: 8px; min-height: 0; }
+.scan-status.err { color: var(--accent); }
+.scan-status.ok  { color: var(--scan-dim); }
+
+.btn-scan-file {
+    margin-top: 10px; padding: 11px; border: 1.5px dashed var(--border); border-radius: 7px;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    font-size: .78rem; font-weight: 600; color: var(--ink-soft); cursor: pointer;
+    text-align: center; transition: all .18s;
+}
+.btn-scan-file:hover { border-color: var(--scan-dim); color: var(--scan-dim); background: rgba(0,200,83,.04); }
 
 .barcode-list { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
 .barcode-item {
@@ -621,18 +674,17 @@ label .req { color: var(--accent); margin-left: 2px; }
     from { opacity: 0; transform: translateX(-10px); }
     to   { opacity: 1; transform: translateX(0); }
 }
-.barcode-item-code {
+.form-layout .barcode-item-code {
     font-family: 'DM Mono', monospace; font-size: .82rem; font-weight: 500;
-    color: var(--ink); flex: 1; border: none; background: transparent; padding: 0; outline: none;
+    color: var(--ink); flex: 1; min-width: 0; border: none !important; background: transparent !important; padding: 0 !important; outline: none;
 }
 .barcode-item-code:focus { color: var(--accent); }
-.barcode-item-label-input {
+.form-layout .barcode-item-label-input {
     width: 100px; padding: 4px 8px;
-    border: 1px solid var(--border); border-radius: 5px;
+    border: 1px solid var(--border) !important; border-radius: 5px !important;
     font-size: .74rem; color: var(--ink-soft); background: white; outline: none;
 }
 .barcode-item-label-input:focus { border-color: var(--accent); }
-.barcode-item-label-input::placeholder { color: var(--ink-muted); }
 .badge-primary {
     font-size: .62rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
     background: var(--scan-dim); color: white; padding: 2px 7px; border-radius: 4px; flex-shrink: 0;
@@ -664,7 +716,7 @@ label .req { color: var(--accent); margin-left: 2px; }
 
 .scan-flash {
     position: absolute; inset: 0; background: rgba(0,230,118,.15);
-    border-radius: 10px; animation: flashIn .6s ease-out both; pointer-events: none;
+    border-radius: 10px; animation: flashIn .6s ease-out both; pointer-events: none; z-index: 5;
 }
 @keyframes flashIn { 0% { opacity: 1; } 100% { opacity: 0; } }
 
@@ -675,6 +727,7 @@ label .req { color: var(--accent); margin-left: 2px; }
     display: flex; align-items: center; justify-content: space-between; gap: 16px;
     box-shadow: var(--shadow);
 }
+@media (max-width: 600px) { .submit-bar { flex-direction: column; align-items: stretch; } .submit-actions { justify-content: stretch; } .submit-actions > * { flex: 1; justify-content: center; } }
 .submit-info { font-size: .78rem; color: var(--ink-muted); }
 .submit-info span { color: var(--accent); font-weight: 600; }
 .submit-actions { display: flex; gap: 12px; }
@@ -721,20 +774,6 @@ label .req { color: var(--accent); margin-left: 2px; }
     letter-spacing: .07em; color: var(--ink-muted); white-space: nowrap;
 }
 .section-divider::before, .section-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
-
-[data-tooltip] { position: relative; }
-[data-tooltip]::after {
-    content: attr(data-tooltip);
-    position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
-    background: var(--ink); color: white; font-size: .68rem; white-space: nowrap;
-    padding: 4px 8px; border-radius: 5px;
-    pointer-events: none; opacity: 0; transition: opacity .18s; z-index: 9999;
-}
-[data-tooltip]:hover::after { opacity: 1; }
-
-#scannerContainer > div:first-child { border: none !important; box-shadow: none !important; }
-#scannerContainer video { border-radius: 10px !important; object-fit: cover !important; }
-#scannerContainer img[src*="scanning"] { display: none !important; }
 </style>
 @stop
 
@@ -742,11 +781,157 @@ label .req { color: var(--accent); margin-left: 2px; }
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
 <script>
-let barcodes = [], scanActive = false, html5QrCode = null, currentCamera = null, cameras = [];
+/* ═══════════════ DONNÉES (pour l'autocomplete) ═══════════════ */
+var DATA = {
+    marques:      @json($marquesJs),
+    fournisseurs: @json($fournisseursJs),
+    categories:   @json($categoriesJs)
+};
+
+/* ═══════════════ AUTOCOMPLETE ═══════════════ */
+function normalizeStr(s) {
+    return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+}
+
+function initAutocomplete(root, opts) {
+    var input    = root.querySelector('.ac-input');
+    var hidden   = root.querySelector('input[type=hidden]');
+    var list     = root.querySelector('.ac-list');
+    var clearBtn = root.querySelector('.ac-clear');
+    var active = -1, shown = [];
+
+    var api = {
+        get value() { return hidden.value; },
+        setValue: function (id) {
+            var found = null;
+            opts.items().forEach(function (i) { if (String(i.id) === String(id)) found = i; });
+            if (found) { hidden.value = found.id; input.value = found.nom; }
+            else { hidden.value = ''; input.value = ''; }
+            root.classList.toggle('has-value', !!hidden.value);
+        },
+        clear: function () { api.setValue(''); },
+        enable: function (on) {
+            input.disabled = !on;
+            root.classList.toggle('disabled', !on);
+            if (opts.placeholder) input.placeholder = on ? opts.placeholder : opts.disabledPlaceholder;
+        }
+    };
+
+    function close() { list.style.display = 'none'; active = -1; }
+
+    function choose(item) {
+        hidden.value = item.id;
+        input.value = item.nom;
+        root.classList.add('has-value');
+        close();
+        if (opts.onChange) opts.onChange(item);
+    }
+
+    function render() {
+        var q = normalizeStr(input.value);
+        var all = opts.items();
+        shown = (q ? all.filter(function (i) { return normalizeStr(i.nom).indexOf(q) !== -1; }) : all).slice(0, 60);
+        list.innerHTML = '';
+        if (!shown.length) {
+            list.innerHTML = '<div class="ac-empty">Aucun résultat</div>';
+        }
+        shown.forEach(function (it, idx) {
+            var d = document.createElement('div');
+            d.className = 'ac-item' + (idx === active ? ' active' : '');
+            d.textContent = it.nom;
+            d.addEventListener('mousedown', function (e) { e.preventDefault(); choose(it); });
+            list.appendChild(d);
+        });
+        list.style.display = 'block';
+    }
+
+    input.addEventListener('focus', function () { if (!input.disabled) { input.select(); render(); } });
+    input.addEventListener('input', function () {
+        if (hidden.value) {
+            hidden.value = '';
+            root.classList.remove('has-value');
+            if (opts.onChange) opts.onChange(null);
+        }
+        active = -1;
+        render();
+    });
+    input.addEventListener('keydown', function (e) {
+        if (e.key === 'ArrowDown') { e.preventDefault(); active = Math.min(active + 1, shown.length - 1); render(); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); active = Math.max(active - 1, 0); render(); }
+        else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (list.style.display === 'block' && shown.length) choose(shown[active >= 0 ? active : 0]);
+        }
+        else if (e.key === 'Escape') { close(); }
+    });
+    input.addEventListener('blur', function () {
+        setTimeout(function () {
+            close();
+            // si pas de choix valide dans la liste, on vide le texte
+            if (!hidden.value) input.value = '';
+        }, 120);
+    });
+    clearBtn.addEventListener('click', function () {
+        api.clear();
+        if (opts.onChange) opts.onChange(null);
+        if (!input.disabled) input.focus();
+    });
+    return api;
+}
+
+var acMarque, acFournisseur, acParent, acSub;
+
+function initAllAutocompletes() {
+    acMarque = initAutocomplete(document.getElementById('acMarque'), {
+        items: function () { return DATA.marques; }
+    });
+    acFournisseur = initAutocomplete(document.getElementById('acFournisseur'), {
+        items: function () { return DATA.fournisseurs; }
+    });
+    acParent = initAutocomplete(document.getElementById('acParent'), {
+        items: function () { return DATA.categories.filter(function (c) { return !c.parent_id; }); },
+        onChange: function (item) {
+            acSub.clear();
+            acSub.enable(!!item);
+        }
+    });
+    acSub = initAutocomplete(document.getElementById('acSub'), {
+        placeholder: 'Rechercher une sous-catégorie…',
+        disabledPlaceholder: "Choisir d'abord une catégorie",
+        items: function () {
+            var p = acParent ? acParent.value : '';
+            return DATA.categories.filter(function (c) { return c.parent_id && String(c.parent_id) === String(p); });
+        }
+    });
+    acSub.enable(false);
+
+    // Pré-remplissage (retour de validation)
+    var oldMarque = @json(old('marque_id'));
+    var oldFourn  = @json(old('fournisseur_id'));
+    var oldParent = @json(old('parent_categorie_id'));
+    var oldSub    = @json(old('categorie_id'));
+
+    if (oldMarque) acMarque.setValue(oldMarque);
+    if (oldFourn)  acFournisseur.setValue(oldFourn);
+
+    if (oldSub && !oldParent) {
+        DATA.categories.forEach(function (c) { if (String(c.id) === String(oldSub) && c.parent_id) oldParent = c.parent_id; });
+    }
+    if (oldParent) {
+        acParent.setValue(oldParent);
+        acSub.enable(true);
+        if (oldSub) acSub.setValue(oldSub);
+    }
+}
+
+/* ═══════════════ CODES-BARRES (liste) ═══════════════ */
+var barcodes = [], scanActive = false, html5QrCode = null;
+var cameras = [], currentSource = null, camIndex = -1;
+var lastText = '', lastTime = 0;
 
 function renderBarcodes() {
-    const list = document.getElementById('barcodeList');
-    const count = document.getElementById('barcodeCount');
+    var list = document.getElementById('barcodeList');
+    var count = document.getElementById('barcodeCount');
     list.innerHTML = '';
     count.textContent = barcodes.length;
     if (barcodes.length === 0) {
@@ -754,8 +939,8 @@ function renderBarcodes() {
         renderHiddenBarcodes();
         return;
     }
-    barcodes.forEach((b, i) => {
-        const item = document.createElement('div');
+    barcodes.forEach(function (b, i) {
+        var item = document.createElement('div');
         item.className = 'barcode-item' + (b.isPrimary ? ' is-primary' : '');
         item.innerHTML =
             '<input type="text" class="barcode-item-code" value="' + escHtml(b.code) + '"' +
@@ -776,9 +961,9 @@ function renderBarcodes() {
 }
 
 function renderHiddenBarcodes() {
-    document.querySelectorAll('.bc-hidden-group').forEach(el => el.remove());
-    barcodes.forEach((b, i) => {
-        const g = document.createElement('div');
+    document.querySelectorAll('.bc-hidden-group').forEach(function (el) { el.remove(); });
+    barcodes.forEach(function (b, i) {
+        var g = document.createElement('div');
         g.className = 'bc-hidden-group';
         g.style.display = 'none';
         g.innerHTML =
@@ -790,162 +975,228 @@ function renderHiddenBarcodes() {
 }
 
 function addBarcode(code, fromScan) {
-    const clean = code.trim();
+    var clean = String(code || '').trim();
     if (!clean) return;
-    if (barcodes.find(b => b.code === clean)) {
-        if (fromScan) flashArea('rgba(232,79,60,.15)');
+    if (barcodes.some(function (b) { return b.code === clean; })) {
+        if (fromScan) { flashArea('rgba(232,79,60,.25)'); setStatus('Code déjà ajouté : ' + clean, true); }
         return;
     }
     barcodes.push({ code: clean, label: '', isPrimary: barcodes.length === 0 });
     renderBarcodes();
-    if (fromScan) { flashArea('rgba(0,230,118,.15)'); playScanBeep(); }
+    if (fromScan) {
+        flashArea('rgba(0,230,118,.25)');
+        playScanBeep();
+        if (navigator.vibrate) navigator.vibrate(120);
+        setStatus('✔ Code lu : ' + clean, false, true);
+    }
     document.getElementById('barcodesRequiredMsg').style.display = 'none';
 }
 
 function removeBarcode(idx) {
-    const wasPrimary = barcodes[idx].isPrimary;
+    var wasPrimary = barcodes[idx].isPrimary;
     barcodes.splice(idx, 1);
     if (wasPrimary && barcodes.length > 0) barcodes[0].isPrimary = true;
     renderBarcodes();
 }
 function setPrimary(idx) {
-    barcodes.forEach((b, i) => b.isPrimary = (i === idx));
+    barcodes.forEach(function (b, i) { b.isPrimary = (i === idx); });
     renderBarcodes();
 }
 function updateCode(idx, val)  { barcodes[idx].code  = val; renderHiddenBarcodes(); }
 function updateLabel(idx, val) { barcodes[idx].label = val; renderHiddenBarcodes(); }
 
 function flashArea(color) {
-    const area  = document.getElementById('scannerArea');
-    const flash = document.createElement('div');
+    var area  = document.getElementById('scannerArea');
+    var flash = document.createElement('div');
     flash.className = 'scan-flash';
     flash.style.background = color;
     area.appendChild(flash);
-    setTimeout(() => flash.remove(), 700);
+    setTimeout(function () { flash.remove(); }, 700);
+}
+
+function setStatus(msg, isErr, isOk) {
+    var el = document.getElementById('scanStatus');
+    el.textContent = msg || '';
+    el.className = 'scan-status' + (isErr ? ' err' : '') + (isOk ? ' ok' : '');
 }
 
 function addBarcodeManual() {
-    const inp = document.getElementById('manualBarcodeInput');
+    var inp = document.getElementById('manualBarcodeInput');
     addBarcode(inp.value);
     inp.value = '';
     inp.focus();
 }
 
-/* ══════════════════════════════════════════
-   SCANNER — html5-qrcode CORRIGÉ
-══════════════════════════════════════════ */
-async function startScanner() {
+/* ═══════════════ SCANNER ═══════════════ */
+function scanFormats() {
+    var F = Html5QrcodeSupportedFormats;
+    return [F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E, F.CODE_128, F.CODE_39, F.CODE_93, F.ITF, F.CODABAR, F.QR_CODE];
+}
+
+function newScanner(elId) {
+    return new Html5Qrcode(elId, {
+        formatsToSupport: scanFormats(),
+        useBarCodeDetectorIfSupported: true,
+        verbose: false
+    });
+}
+
+function scanConfig(highRes) {
+    var cfg = {
+        fps: 10,
+        qrbox: function (w, h) {
+            return { width: Math.max(50, Math.floor(w * 0.72)), height: Math.max(50, Math.floor(h * 0.55)) };
+        },
+        disableFlip: false,
+        experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+    };
+    if (highRes) {
+        cfg.videoConstraints = {
+            facingMode: 'environment',
+            width:  { ideal: 1280 },
+            height: { ideal: 720 }
+        };
+    }
+    return cfg;
+}
+
+function camErrorMessage(e) {
+    var name = (e && e.name) ? e.name : '';
+    var msg  = (e && e.message) ? e.message : String(e);
+    if (!window.isSecureContext) return "La caméra exige une connexion sécurisée : ouvrez le site en https://";
+    if (name === 'NotAllowedError' || /permission/i.test(msg)) return "Accès à la caméra refusé. Autorisez la caméra dans les réglages du navigateur (icône cadenas à côté de l'adresse).";
+    if (name === 'NotFoundError' || /no camera|requested device not found/i.test(msg)) return "Aucune caméra détectée sur cet appareil.";
+    if (name === 'NotReadableError' || /could not start video/i.test(msg)) return "La caméra est utilisée par une autre application. Fermez-la puis réessayez.";
+    return "Impossible de démarrer la caméra : " + msg;
+}
+
+function showScannerUI(on) {
+    document.getElementById('scannerIdle').style.display      = on ? 'none' : 'flex';
+    document.getElementById('scannerOverlay').style.display   = on ? 'flex' : 'none';
+    document.getElementById('scannerControls').style.display  = on ? 'flex' : 'none';
+    document.getElementById('scannerContainer').style.display = on ? 'block' : 'none';
+}
+
+function onDecoded(text) {
+    var now = Date.now();
+    if (text === lastText && now - lastTime < 2000) return;
+    lastText = text; lastTime = now;
+    console.log('[scan] décodé :', text);
+    addBarcode(text, true);
+}
+
+async function startScanner(source) {
     if (scanActive) return;
 
     if (typeof Html5Qrcode === 'undefined') {
+        setStatus('Librairie scanner non chargée (connexion internet ?). Rechargez la page.', true);
         alert('Librairie scanner non chargée. Rechargez la page.');
         return;
     }
-
-    try {
-        /* 1. Permissions + lister caméras */
-        cameras = await Html5Qrcode.getCameras();
-        if (!cameras || cameras.length === 0) {
-            alert('Aucune caméra détectée.');
-            return;
-        }
-
-        /* 2. Choisir caméra arrière par défaut */
-        let camId = cameras[0].id;
-        const backCam = cameras.find(c => /back|rear|environment/i.test(c.label));
-        if (backCam) camId = backCam.id;
-        currentCamera = camId;
-
-        /* 3. UI */
-        document.getElementById('scannerIdle').style.display    = 'none';
-        document.getElementById('scannerOverlay').style.display   = 'flex';
-        document.getElementById('scannerControls').style.display  = 'flex';
-        document.getElementById('scannerContainer').style.display = 'block';
-
-        /* 4. Démarrer html5-qrcode */
-        html5QrCode = new Html5Qrcode('scannerContainer');
-        scanActive = true;
-
-        await html5QrCode.start(
-            camId,
-            { fps: 10, qrbox: { width: 250, height: 180 }, aspectRatio: 1.333, disableFlip: false },
-            (decodedText) => { addBarcode(decodedText, true); },
-            () => {}
-        );
-
-    } catch (e) {
-        console.error(e);
-        alert('Impossible d\'accéder à la caméra : ' + (e.message || 'Permission refusée'));
-        stopScanner();
+    if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        var m = "La caméra exige une connexion sécurisée (https://). Utilisez le bouton « Photo du code » en attendant.";
+        setStatus(m, true);
+        alert(m);
+        return;
     }
+
+    var src = source || currentSource || { facingMode: 'environment' };
+    setStatus('Démarrage de la caméra…');
+    showScannerUI(true);
+
+    var started = false, lastErr = null;
+    for (var attempt = 0; attempt < 2 && !started; attempt++) {
+        var highRes = (attempt === 0) && (typeof src !== 'string');
+        try {
+            document.getElementById('scannerContainer').innerHTML = '';
+            html5QrCode = newScanner('scannerContainer');
+            await html5QrCode.start(src, scanConfig(highRes), onDecoded, function () {});
+            started = true;
+        } catch (e) {
+            lastErr = e;
+            console.warn('[scan] échec tentative ' + (attempt + 1), e);
+            try { await html5QrCode.stop(); } catch (x) {}
+        }
+    }
+
+    if (!started) {
+        var msg = camErrorMessage(lastErr);
+        setStatus(msg, true);
+        alert(msg);
+        html5QrCode = null;
+        showScannerUI(false);
+        return;
+    }
+
+    scanActive = true;
+    currentSource = src;
+    setStatus('Caméra active — tenez le code à 15–25 cm, bien éclairé et net.');
+
+    try { cameras = await Html5Qrcode.getCameras(); } catch (e) { cameras = []; }
 }
 
 async function stopScanner() {
     scanActive = false;
-
     if (html5QrCode) {
-        try {
-            await html5QrCode.stop();
-        } catch (e) {}
-        try {
-            await html5QrCode.clear();
-        } catch (e) {}
+        try { await html5QrCode.stop(); } catch (e) {}
+        try { html5QrCode.clear(); } catch (e) {}
         html5QrCode = null;
     }
-
-    /* Vider le container pour éviter les doublons */
-    const container = document.getElementById('scannerContainer');
+    var container = document.getElementById('scannerContainer');
     if (container) container.innerHTML = '';
-
-    document.getElementById('scannerIdle').style.display     = 'flex';
-    document.getElementById('scannerOverlay').style.display  = 'none';
-    document.getElementById('scannerControls').style.display = 'none';
-    document.getElementById('scannerContainer').style.display = 'none';
+    showScannerUI(false);
 }
 
 async function switchCamera() {
     if (!cameras || cameras.length <= 1) {
-        alert('Une seule caméra disponible.');
+        setStatus('Une seule caméra disponible.', true);
         return;
     }
-
-    const idx = cameras.findIndex(c => c.id === currentCamera);
-    const next = cameras[(idx + 1) % cameras.length];
-
+    camIndex = (camIndex + 1) % cameras.length;
+    var next = cameras[camIndex].id;
     await stopScanner();
-    currentCamera = next.id;
-    await new Promise(r => setTimeout(r, 600));
-    await startScanner();
+    await new Promise(function (r) { setTimeout(r, 500); });
+    await startScanner(next);
+}
+
+/* Lecture via photo (marche aussi sans HTTPS) */
+async function scanFromFile(input) {
+    var file = input.files && input.files[0];
+    if (!file) return;
+    if (typeof Html5Qrcode === 'undefined') { setStatus('Librairie scanner non chargée.', true); return; }
+    setStatus('Lecture de la photo…');
+    var h = newScanner('fileScanHolder');
+    try {
+        var text = await h.scanFile(file, false);
+        addBarcode(text, true);
+    } catch (e) {
+        console.warn('[scan] photo non lue', e);
+        setStatus('Code non lu sur la photo. Rapprochez-vous, bonne lumière, code bien net et à plat.', true);
+    }
+    try { h.clear(); } catch (e) {}
+    input.value = '';
 }
 
 function playScanBeep() {
     try {
-        const ctx  = new (window.AudioContext || window.webkitAudioContext)();
-        const osc  = ctx.createOscillator();
-        const gain = ctx.createGain();
+        var ctx  = new (window.AudioContext || window.webkitAudioContext)();
+        var osc  = ctx.createOscillator();
+        var gain = ctx.createGain();
         osc.connect(gain); gain.connect(ctx.destination);
         osc.frequency.setValueAtTime(1047, ctx.currentTime);
         osc.frequency.setValueAtTime(1319, ctx.currentTime + 0.05);
         gain.gain.setValueAtTime(.3, ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(.001, ctx.currentTime + .18);
         osc.start(ctx.currentTime); osc.stop(ctx.currentTime + .18);
-    } catch(e) {}
+    } catch (e) {}
 }
 
-function loadSubcats(parentId) {
-    const sub = document.getElementById('subCat');
-    sub.innerHTML = '<option value="">— Sélectionner —</option>';
-    if (!parentId) return;
-    document.querySelectorAll('#subCatData option').forEach(opt => {
-        if (opt.dataset.parent == parentId) sub.appendChild(new Option(opt.textContent, opt.value));
-    });
-}
-
+/* ═══════════════ PHOTO / STOCK ═══════════════ */
 function previewPhoto(input) {
     if (input.files && input.files[0]) {
-        const reader = new FileReader();
-        reader.onload = e => {
-            const p = document.getElementById('photo-preview');
+        var reader = new FileReader();
+        reader.onload = function (e) {
+            var p = document.getElementById('photo-preview');
             p.src = e.target.result; p.style.display = 'block';
             document.querySelector('.photo-drop p').style.opacity = '.5';
             document.querySelector('.photo-drop-icon').style.opacity = '.4';
@@ -956,9 +1207,9 @@ function previewPhoto(input) {
 function handleDragOver(e) { e.preventDefault(); document.getElementById('photoDrop').classList.add('drag-over'); }
 function handleDrop(e) {
     e.preventDefault(); document.getElementById('photoDrop').classList.remove('drag-over');
-    const file = e.dataTransfer.files[0];
-    if (file && file.type.startsWith('image/')) {
-        const dt = new DataTransfer(); dt.items.add(file);
+    var file = e.dataTransfer.files[0];
+    if (file && file.type.indexOf('image/') === 0) {
+        var dt = new DataTransfer(); dt.items.add(file);
         document.getElementById('photoInput').files = dt.files;
         previewPhoto(document.getElementById('photoInput'));
     }
@@ -966,51 +1217,64 @@ function handleDrop(e) {
 
 function updateStockMeter(val) {
     document.getElementById('stockMeterFill').style.width =
-        Math.max(0, Math.min(parseInt(val)||0, 500) / 500 * 100) + '%';
+        Math.max(0, Math.min(parseInt(val) || 0, 500) / 500 * 100) + '%';
 }
 
+/* ═══════════════ VALIDATION ═══════════════ */
 function validateForm() {
+    // code tapé mais pas encore "Ajouté" => on l'ajoute automatiquement
+    var manual = document.getElementById('manualBarcodeInput');
+    if (manual && manual.value.trim()) { addBarcode(manual.value); manual.value = ''; }
+
+    var ok = true;
+
+    var subVal = document.querySelector('input[name="categorie_id"]').value;
+    var catMsg = document.getElementById('catRequiredMsg');
+    if (!subVal) {
+        catMsg.style.display = 'flex';
+        document.getElementById('acParent').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        ok = false;
+    } else {
+        catMsg.style.display = 'none';
+    }
+
     if (barcodes.length === 0) {
         document.getElementById('barcodesRequiredMsg').style.display = 'flex';
-        document.getElementById('barcodeList').scrollIntoView({ behavior: 'smooth', block: 'center' });
-        return false;
+        if (ok) document.getElementById('barcodeList').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        ok = false;
     }
-    return true;
+
+    if (ok && scanActive) stopScanner();
+    return ok;
 }
 
 function escHtml(str) {
-    return String(str).replace(/[&<>"']/g, m =>
-        ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    return String(str).replace(/[&<>"']/g, function (m) {
+        return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m];
+    });
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    const store = document.createElement('select');
-    store.id = 'subCatData';
-    store.style.display = 'none';
-    Array.from(document.getElementById('subCat').options).forEach(o => {
-        if (o.dataset.parent) store.appendChild(o.cloneNode(true));
-    });
-    document.body.appendChild(store);
-
-    @if(old('parent_categorie_id'))
-        loadSubcats('{{ old("parent_categorie_id") }}');
-        document.getElementById('subCat').value = '{{ old("categorie_id") }}';
-    @endif
-
+/* ═══════════════ INIT ═══════════════ */
+document.addEventListener('DOMContentLoaded', function () {
+    initAllAutocompletes();
     updateStockMeter(document.getElementById('stockInput').value);
 
-    @if(old('barcodes'))
-        @foreach(old('barcodes') as $i => $bc)
+    var oldBarcodes = @json(old('barcodes', []));
+    var keys = oldBarcodes ? Object.keys(oldBarcodes) : [];
+    keys.forEach(function (k) {
+        var bc = oldBarcodes[k] || {};
+        if (bc.code) {
             barcodes.push({
-                code: '{{ addslashes($bc["code"] ?? "") }}',
-                label: '{{ addslashes($bc["label"] ?? "") }}',
-                isPrimary: {{ !empty($bc['primary']) ? 'true' : ($i === 0 ? 'true' : 'false') }}
+                code: String(bc.code),
+                label: bc.label ? String(bc.label) : '',
+                isPrimary: !!bc.primary && bc.primary !== '0'
             });
-        @endforeach
-        renderBarcodes();
-    @endif
+        }
+    });
+    if (barcodes.length && !barcodes.some(function (b) { return b.isPrimary; })) barcodes[0].isPrimary = true;
+    renderBarcodes();
 });
 
-window.addEventListener('beforeunload', () => { if(html5QrCode) stopScanner(); });
+window.addEventListener('beforeunload', function () { if (html5QrCode) stopScanner(); });
 </script>
 @stop
