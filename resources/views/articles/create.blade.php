@@ -1085,6 +1085,34 @@ function onDecoded(text) {
     addBarcode(text, true);
 }
 
+
+
+async function stopScanner() {
+    scanActive = false;
+    if (html5QrCode) {
+        try { await html5QrCode.stop(); } catch (e) {}
+        try { html5QrCode.clear(); } catch (e) {}
+        html5QrCode = null;
+    }
+    var container = document.getElementById('scannerContainer');
+    if (container) container.innerHTML = '';
+    showScannerUI(false);
+}
+
+/* Cherche l'id de la caméra arrière (les labels ne sont lisibles qu'après autorisation) */
+async function findBackCameraId() {
+    try {
+        var cams = await Html5Qrcode.getCameras();
+        cameras = cams || [];
+        var back = cameras.filter(function (c) {
+            return /back|rear|arri[eè]re|environment|traseira|trasera/i.test(c.label || '');
+        });
+        if (back.length) return back[0].id;
+        if (cameras.length > 1) return cameras[cameras.length - 1].id; // souvent l'arrière
+    } catch (e) {}
+    return null;
+}
+
 async function startScanner(source) {
     if (scanActive) return;
 
@@ -1100,21 +1128,32 @@ async function startScanner(source) {
         return;
     }
 
-    var src = source || currentSource || { facingMode: 'environment' };
     setStatus('Démarrage de la caméra…');
     showScannerUI(true);
 
-    var started = false, lastErr = null;
-    for (var attempt = 0; attempt < 2 && !started; attempt++) {
-        var highRes = (attempt === 0) && (typeof src !== 'string');
+    // Liste des essais : on force l'arrière en priorité
+    var attempts = source
+        ? [source]
+        : [{ facingMode: { exact: 'environment' } }, { facingMode: 'environment' }, 'BACK_BY_ID'];
+
+    var started = false, lastErr = null, usedSrc = null;
+
+    for (var i = 0; i < attempts.length && !started; i++) {
+        var src = attempts[i];
         try {
+            if (src === 'BACK_BY_ID') {
+                src = await findBackCameraId();
+                if (!src) continue;
+            }
             document.getElementById('scannerContainer').innerHTML = '';
             html5QrCode = newScanner('scannerContainer');
-            await html5QrCode.start(src, scanConfig(highRes), onDecoded, function () {});
+            // PAS de videoConstraints ici : sinon la config écrase le choix de caméra
+            await html5QrCode.start(src, scanConfig(false), onDecoded, function () {});
             started = true;
+            usedSrc = src;
         } catch (e) {
             lastErr = e;
-            console.warn('[scan] échec tentative ' + (attempt + 1), e);
+            console.warn('[scan] échec tentative ' + (i + 1), e);
             try { await html5QrCode.stop(); } catch (x) {}
         }
     }
@@ -1129,22 +1168,16 @@ async function startScanner(source) {
     }
 
     scanActive = true;
-    currentSource = src;
+    currentSource = usedSrc;
     setStatus('Caméra active — tenez le code à 15–25 cm, bien éclairé et net.');
 
     try { cameras = await Html5Qrcode.getCameras(); } catch (e) { cameras = []; }
-}
 
-async function stopScanner() {
-    scanActive = false;
-    if (html5QrCode) {
-        try { await html5QrCode.stop(); } catch (e) {}
-        try { html5QrCode.clear(); } catch (e) {}
-        html5QrCode = null;
-    }
-    var container = document.getElementById('scannerContainer');
-    if (container) container.innerHTML = '';
-    showScannerUI(false);
+    // Mémorise l'index de la caméra réellement utilisée
+    try {
+        var id = html5QrCode.getRunningTrackSettings().deviceId;
+        camIndex = cameras.findIndex(function (c) { return c.id === id; });
+    } catch (e) { camIndex = -1; }
 }
 
 async function switchCamera() {
