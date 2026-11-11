@@ -83,4 +83,9 @@ class MarqueController extends Controller
 
         return redirect()->route('marques.index')->with('success', 'Marque supprimée avec succès');
     }
+    public function show(Marque $marque)
+{
+    $articles = $marque->articles()->orderBy('nom')->paginate(15);
+    return view('marques.show', compact('marque', 'articles'));
+}
 }

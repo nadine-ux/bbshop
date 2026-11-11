@@ -95,15 +95,19 @@
                     <td class="font-weight-bold text-muted">{{ $marque->id }}</td>
                     <td>
                         <div class="marque-name">
-                            <i class="fas fa-tag text-primary mr-2"></i>
-                            <strong>{{ $marque->nom }}</strong>
+                         <a href="{{ route('articles.index', ['marque_id' => $marque->id]) }}">
+    <i class="fas fa-tag text-primary mr-2"></i>
+    <strong>{{ $marque->nom }}</strong>
+</a>
                         </div>
                     </td>
                     <td>
-                        <span class="badge-count">
-                            <i class="fas fa-box"></i>
-                            {{ $marque->articles->count() }} article(s)
-                        </span>
+                       <a href="{{ route('articles.index', ['marque_id' => $marque->id]) }}" style="text-decoration:none;">
+    <span class="badge-count">
+        <i class="fas fa-box"></i>
+        {{ $marque->articles->count() }} article(s)
+    </span>
+</a>
                     </td>
                     <td class="text-center">
                         <div class="action-buttons">

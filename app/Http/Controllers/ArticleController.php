@@ -20,22 +20,24 @@ class ArticleController extends Controller
     /**
      * Liste des articles
      */
-   public function index(Request $request)
+public function index(Request $request)
 {
-    // Filters
+    // Filtres
     $nom           = $request->get('nom');
     $codeBarres    = $request->get('code_barres');
     $fournisseurId = $request->get('fournisseur_id');
-    $categorieId   = $request->get('categorie_id');   // parent category
-    $souscatId     = $request->get('souscategorie_id'); // child category
+    $marqueId      = $request->get('marque_id');
+    $categorieId   = $request->get('categorie_id');      // catégorie parente
+    $souscatId     = $request->get('souscategorie_id');  // sous-catégorie
+    $etatStock     = $request->get('etat_stock');
     $stockMin      = $request->get('stock_min');
     $stockMax      = $request->get('stock_max');
     $prixMin       = $request->get('prix_min');
     $prixMax       = $request->get('prix_max');
 
-    $query = Article::with(['fournisseur', 'category.parent']);
+    $query = Article::with(['fournisseur', 'category.parent', 'marque']);
 
-    // Text filters
+    // Filtres texte
     if ($nom) {
         $query->where('nom', 'like', "%{$nom}%");
     }
@@ -43,51 +45,60 @@ class ArticleController extends Controller
         $query->where('code_barres', 'like', "%{$codeBarres}%");
     }
 
-    // Relation filters
+    // Filtres relations
     if ($fournisseurId) {
         $query->where('fournisseur_id', $fournisseurId);
     }
+    if ($marqueId) {
+        $query->where('marque_id', $marqueId);
+    }
     if ($categorieId) {
-        // filter by parent category
         $query->whereHas('category.parent', function ($q) use ($categorieId) {
             $q->where('id', $categorieId);
         });
     }
     if ($souscatId) {
-        // filter by child category
         $query->whereHas('category', function ($q) use ($souscatId) {
             $q->where('id', $souscatId);
         });
     }
 
-    // Numeric ranges
-    if ($stockMin !== null && $stockMin !== '') {
-        $query->where('stock', '>=', (int)$stockMin);
-    }
-    if ($stockMax !== null && $stockMax !== '') {
-        $query->where('stock', '<=', (int)$stockMax);
-    }
-    if ($prixMin !== null && $prixMin !== '') {
-        $query->where('prix_achat', '>=', (float)$prixMin);
-    }
-    if ($prixMax !== null && $prixMax !== '') {
-        $query->where('prix_achat', '<=', (float)$prixMax);
+    // État du stock
+    if ($etatStock === 'rupture') {
+        $query->where('stock', 0);
+    } elseif ($etatStock === 'faible') {
+        $query->where('stock', '>', 0)->whereColumn('stock', '<=', 'quantite_minimale');
+    } elseif ($etatStock === 'normal') {
+        $query->whereColumn('stock', '>', 'quantite_minimale');
     }
 
-    // Order newest first and paginate
+    // Intervalles numériques
+    if ($stockMin !== null && $stockMin !== '') {
+        $query->where('stock', '>=', (int) $stockMin);
+    }
+    if ($stockMax !== null && $stockMax !== '') {
+        $query->where('stock', '<=', (int) $stockMax);
+    }
+    if ($prixMin !== null && $prixMin !== '') {
+        $query->where('prix_achat', '>=', (float) $prixMin);
+    }
+    if ($prixMax !== null && $prixMax !== '') {
+        $query->where('prix_achat', '<=', (float) $prixMax);
+    }
+
+    // Plus récents d'abord + pagination
     $articles = $query
         ->orderBy('created_at', 'desc')
         ->paginate(10)
         ->appends($request->query());
 
-    // For filter selects (optional)
-    $fournisseurs = \App\Models\Fournisseur::orderBy('nom')->get(['id','nom']);
-    $categories   = \App\Models\Category::whereNull('parent_id')->orderBy('nom')->get(['id','nom']);
-    $souscats     = \App\Models\Category::whereNotNull('parent_id')->orderBy('nom')->get(['id','nom','parent_id']);
+    // Données pour les filtres
+    $fournisseurs = Fournisseur::orderBy('nom')->get(['id', 'nom']);
+    $categories   = Category::whereNull('parent_id')->orderBy('nom')->get(['id', 'nom']);
+    $souscats     = Category::whereNotNull('parent_id')->orderBy('nom')->get(['id', 'nom', 'parent_id']);
+    $marques      = Marque::orderBy('nom')->get(['id', 'nom']);
 
-   $marques = \App\Models\Marque::orderBy('nom')->get(['id','nom']);
-
-return view('articles.index', compact('articles','fournisseurs','categories','souscats','marques'));
+    return view('articles.index', compact('articles', 'fournisseurs', 'categories', 'souscats', 'marques'));
 }
 
     /**

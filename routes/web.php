@@ -49,6 +49,7 @@ Route::middleware(['auth','role:Gestionnaire|Directeur'])->group(function () {
          Route::post('commandes/{commande}/valider', [CommandeController::class, 'valider'])
          ->name('commandes.valider');
 Route::resource('marques', MarqueController::class);
+Route::get('marques/{marque}', [MarqueController::class, 'show'])->name('marques.show');
 });
 
 // Routes d'inventaire
