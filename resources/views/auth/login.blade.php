@@ -226,24 +226,25 @@
         <form method="POST" action="{{ route('login') }}">
             @csrf
 
-            <!-- Email -->
-            <div class="form-group">
-                <label for="email" class="form-label">Adresse email</label>
-                <input 
-                    id="email" 
-                    class="form-input" 
-                    type="email" 
-                    name="email" 
-                    value="{{ old('email') }}" 
-                    required 
-                    autofocus 
-                    autocomplete="username"
-                    placeholder="votre@email.com"
-                />
-                @error('email')
-                    <span class="input-error">{{ $message }}</span>
-                @enderror
-            </div>
+            <!-- Nom d'utilisateur -->
+<div class="form-group">
+    <label for="username" class="form-label">Nom d'utilisateur</label>
+    <input
+        id="username"
+        class="form-input"
+        type="text"
+        name="username"
+        value="{{ old('username') }}"
+        required
+        autofocus
+        autocomplete="username"
+        autocapitalize="none"
+        placeholder="votre nom d'utilisateur"
+    />
+    @error('username')
+        <span class="input-error">{{ $message }}</span>
+    @enderror
+</div>
 
             <!-- Password -->
             <div class="form-group">
@@ -280,27 +281,7 @@
                 Se connecter
             </button>
 
-            <!-- Forgot Password -->
-            @if (Route::has('password.request'))
-                <div class="forgot-password">
-                    <a href="{{ route('password.request') }}">
-                        Mot de passe oublié ?
-                    </a>
-                </div>
-            @endif
+            
         </form>
-
-        <!-- Divider -->
-        <div class="divider">
-            <span>OU</span>
-        </div>
-
-        <!-- Register Link -->
-        @if (Route::has('register'))
-        <div class="register-link">
-            <span class="register-link-text">Vous n'avez pas de compte ?</span>
-            <a href="{{ route('register') }}">Créer un compte</a>
-        </div>
-        @endif
     </div>
 </x-guest-layout>

@@ -29,15 +29,15 @@ class EmployeeController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users',
+            'name'     => 'required|string|max:255',
+            'username' => 'required|string|max:50|alpha_dash|unique:users,username',
             'password' => 'required|min:8|confirmed',
-            'role' => 'required|exists:roles,name',
+            'role'     => 'required|exists:roles,name',
         ]);
 
         $user = User::create([
-            'name' => $validated['name'],
-            'email' => $validated['email'],
+            'name'     => $validated['name'],
+            'username' => $validated['username'],
             'password' => Hash::make($validated['password']),
         ]);
 
@@ -56,15 +56,15 @@ class EmployeeController extends Controller
     public function update(Request $request, User $employee)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email,' . $employee->id,
+            'name'     => 'required|string|max:255',
+            'username' => 'required|string|max:50|alpha_dash|unique:users,username,' . $employee->id,
             'password' => 'nullable|min:8|confirmed',
-            'role' => 'required|exists:roles,name',
+            'role'     => 'required|exists:roles,name',
         ]);
 
         $employee->update([
-            'name' => $validated['name'],
-            'email' => $validated['email'],
+            'name'     => $validated['name'],
+            'username' => $validated['username'],
         ]);
 
         if ($request->filled('password')) {

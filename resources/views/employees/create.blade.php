@@ -27,19 +27,7 @@
                     @enderror
                 </div>
 
-                <div class="form-group">
-                    <label for="email">Email <span class="text-danger">*</span></label>
-                    <input type="email" 
-                           name="email" 
-                           id="email" 
-                           class="form-control @error('email') is-invalid @enderror" 
-                           value="{{ old('email') }}"
-                           required>
-                    @error('email')
-                        <span class="invalid-feedback">{{ $message }}</span>
-                    @enderror
-                </div>
-
+            
                 <div class="form-group">
                     <label for="password">Mot de passe <span class="text-danger">*</span></label>
                     <input type="password" 
