@@ -48,29 +48,30 @@ public function index(Request $request)
 
     return view('entrees.index', compact('entrees', 'annees'));
 }
-   public function create()
-{
-    $fournisseurs = Fournisseur::all();
-    $articles = Article::with(['category', 'barcodes'])->get(); // ← charger barcodes
+public function create()
+    {
+        $fournisseurs = Fournisseur::all();
+        $articles = Article::with(['category', 'barcodes'])->get();
 
-    $articlesData = [];
-    foreach ($articles as $a) {
-        // Récupérer le code-barres primaire
-        $primaryBarcode = $a->barcodes->firstWhere('is_primary', true)
-                        ?? $a->barcodes->first();
+        $articlesData = [];
+        foreach ($articles as $a) {
+            $primaryBarcode = $a->barcodes->firstWhere('is_primary', true)
+                            ?? $a->barcodes->first();
 
-        $articlesData[] = [
-            'id'                => $a->id,
-            'nom'               => $a->nom,
-            'contenance_carton' => $a->contenance_carton,
-            'prix_achat'        => $a->prix_achat,
-            'code_barres'       => $primaryBarcode?->code_barres ?? $a->code_barres ?? '',
-            'reference'         => $a->reference ?? '',
-        ];
+            $articlesData[] = [
+                'id'                => $a->id,
+                'nom'               => $a->nom,
+                'contenance_carton' => $a->contenance_carton,
+                'prix_achat'        => $a->prix_achat,
+                'code_barres'       => $primaryBarcode?->code_barres ?? $a->code_barres ?? '',
+                // TOUS les codes-barres de l'article → le scan marche avec n'importe lequel
+                'barcodes'          => $a->barcodes->pluck('code_barres')->values()->all(),
+                'reference'         => $a->reference ?? '',
+            ];
+        }
+
+        return view('entrees.create', compact('fournisseurs', 'articles', 'articlesData'));
     }
-
-    return view('entrees.create', compact('fournisseurs', 'articles', 'articlesData'));
-}
 
     public function store(Request $request)
     {

@@ -71,7 +71,7 @@
                 <h3 class="card-title"><i class="fas fa-search"></i> Ajouter un article</h3>
             </div>
             <div class="card-body">
-                <div class="row align-items-center">
+                <div class="row align-items-start">
                     <div class="col-md-8" style="position:relative;">
                         <div class="input-group input-group-lg">
                             <div class="input-group-prepend">
@@ -81,7 +81,7 @@
                                    placeholder="Chercher par nom ou code-barres, ou scanner..."
                                    autocomplete="off">
                             <div class="input-group-append">
-                                <button type="button" class="btn btn-warning" id="btn-scan">
+                                <button type="button" class="btn btn-warning" id="btnCamera">
                                     <i class="fas fa-camera"></i> Caméra
                                 </button>
                             </div>
@@ -90,22 +90,8 @@
                         <div id="search-results" class="list-group shadow"
                              style="display:none; max-height:250px; overflow-y:auto; position:absolute; z-index:1000; left:7.5px; right:7.5px;"></div>
 
-                        <div id="scanBox" class="d-none mt-2"
-                             style="border-radius:12px;overflow:hidden;border:2px solid #27ae60;background:#000;">
-                            <div style="display:flex;justify-content:space-between;align-items:center;
-                                        padding:.55rem 1rem;background:#27ae60;color:white;font-weight:600;font-size:.88rem;">
-                                <span><i class="fas fa-camera"></i> Scanner en cours...</span>
-                                <button type="button" id="btnScanClose"
-                                        style="background:rgba(255,255,255,.2);color:white;border:none;border-radius:7px;padding:.25rem .65rem;cursor:pointer;">
-                                    <i class="fas fa-times"></i>
-                                </button>
-                            </div>
-                            <video id="scanVideo" autoplay playsinline muted
-                                   style="width:100%;max-height:200px;display:block;object-fit:cover;background:#000;"></video>
-                            <div id="scanStatus" style="padding:.4rem 1rem;background:#111;color:#aaa;font-size:.78rem;">
-                                Initialisation...
-                            </div>
-                        </div>
+                        {{-- Scanner caméra + photo (même principe que la page Articles) --}}
+                        @include('partials.barcode-scan')
                     </div>
 
                     <div class="col-md-4">
@@ -178,7 +164,7 @@
 @stop
 
 @section('js')
-<script src="{{ asset('js/zxing.min.js') }}"></script>
+@include('partials.barcode-scan-js')
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     let index = 0;
@@ -188,19 +174,25 @@ document.addEventListener('DOMContentLoaded', function () {
     const searchResults = document.getElementById('search-results');
     const remiseGlobale = document.getElementById('remise-globale');
 
-    const fmt = n => n.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    const fmt  = n => n.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const esc  = s => String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    const norm = s => String(s ?? '').trim().toLowerCase();
 
-    // ── Recherche ──
+    // Un article correspond à un code s'il l'a parmi TOUS ses codes-barres (ou sa référence)
+    const hasCode   = (a, c) => (a.barcodes || []).some(b => norm(b) === c) || norm(a.code_barres) === c || norm(a.reference) === c;
+    const matchCode = (a, code) => hasCode(a, norm(code));
+
+    // ── Recherche (nom, référence, n'importe quel code-barres) ──
     searchInput.addEventListener('input', function () {
-        const q = this.value.trim().toLowerCase();
+        const q = norm(this.value);
         searchResults.innerHTML = '';
         if (!q) { searchResults.style.display = 'none'; return; }
 
         const found = articles.filter(a =>
-            a.nom.toLowerCase().includes(q) ||
-            (a.code_barres && a.code_barres.toLowerCase().includes(q)) ||
-            (a.reference && a.reference.toLowerCase().includes(q))
+            norm(a.nom).includes(q) ||
+            norm(a.reference).includes(q) ||
+            norm(a.code_barres).includes(q) ||
+            (a.barcodes || []).some(b => norm(b).includes(q))
         );
 
         if (!found.length) {
@@ -217,7 +209,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 <span class="badge badge-secondary float-right">${esc(art.reference || art.code_barres)}</span>
                 <br><small class="text-muted">Carton : ${art.contenance_carton || '—'} pcs</small>`;
             b.addEventListener('click', () => {
-                ajouterLigne(art);
+                ajouterOuFocus(art);
                 searchInput.value = '';
                 searchResults.style.display = 'none';
             });
@@ -226,16 +218,13 @@ document.addEventListener('DOMContentLoaded', function () {
         searchResults.style.display = 'block';
     });
 
+    // Entrée = code exact (douchette USB ou saisie)
     searchInput.addEventListener('keydown', function (e) {
         if (e.key !== 'Enter') return;
         e.preventDefault();
-        const q = this.value.trim().toLowerCase();
-        const exact = articles.find(a =>
-            (a.code_barres && a.code_barres.toLowerCase() === q) ||
-            (a.reference && a.reference.toLowerCase() === q)
-        );
+        const exact = articles.find(a => matchCode(a, this.value));
         if (exact) {
-            ajouterLigne(exact);
+            ajouterOuFocus(exact);
             this.value = '';
             searchResults.style.display = 'none';
         }
@@ -246,6 +235,29 @@ document.addEventListener('DOMContentLoaded', function () {
             searchResults.style.display = 'none';
         }
     });
+
+    // ── Résultat du scanner (caméra ou photo) ──
+    BarcodeScan.onDetected = function (code) {
+        const art = articles.find(a => matchCode(a, code));
+        if (art) {
+            ajouterOuFocus(art);
+        } else {
+            // code inconnu : on le met dans la recherche pour voir s'il y a une correspondance partielle
+            searchInput.value = code;
+            searchInput.dispatchEvent(new Event('input'));
+        }
+    };
+
+    // Si l'article est déjà dans le tableau → on se place sur ses cartons, sinon on ajoute la ligne
+    function ajouterOuFocus(art) {
+        const existing = Array.from(tbody.querySelectorAll('tr')).find(tr =>
+            tr.querySelector('.input-article-id').value == art.id
+        );
+        const tr = existing || ajouterLigne(art);
+        const inp = tr.querySelector('.input-cartons');
+        inp.focus(); inp.select();
+        tr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
 
     // ── Ajouter une ligne ──
     function ajouterLigne(art = null) {
@@ -281,6 +293,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         index++;
         calculer();
+        return tr;
     }
 
     // ── Calculs ──
@@ -307,85 +320,14 @@ document.addEventListener('DOMContentLoaded', function () {
         const rg = parseFloat(remiseGlobale.value) || 0;
         const montantRemise = sousTotal * rg / 100;
 
-        document.getElementById('total-pieces').textContent  = totalPieces;
-        document.getElementById('sous-total').textContent    = fmt(sousTotal);
+        document.getElementById('total-pieces').textContent   = totalPieces;
+        document.getElementById('sous-total').textContent     = fmt(sousTotal);
         document.getElementById('montant-remise').textContent = fmt(montantRemise);
-        document.getElementById('total-final').textContent   = fmt(sousTotal - montantRemise);
+        document.getElementById('total-final').textContent    = fmt(sousTotal - montantRemise);
     }
 
     remiseGlobale.addEventListener('input', calculer);
     document.getElementById('btn-add-manual').addEventListener('click', () => ajouterLigne());
-
-    // ── Scanner ZXing (caméra arrière) ──
-    let zxReader = null, camStream = null;
-    const scanBox = document.getElementById('scanBox');
-    const scanStatus = document.getElementById('scanStatus');
-    const scanVideo = document.getElementById('scanVideo');
-
-    document.getElementById('btn-scan').addEventListener('click', startScan);
-    document.getElementById('btnScanClose').addEventListener('click', stopScan);
-
-    async function startScan() {
-        scanBox.classList.remove('d-none');
-        scanStatus.textContent = 'Accès à la caméra...';
-
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            scanStatus.textContent = '❌ Caméra non disponible (le site doit être en https).';
-            return;
-        }
-
-        try {
-            try {
-                camStream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: { exact: 'environment' } }, audio: false
-                });
-            } catch (e) {
-                camStream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: 'environment' }, audio: false
-                });
-            }
-
-            scanVideo.srcObject = camStream;
-            await scanVideo.play();
-            scanStatus.textContent = 'Pointez vers le code-barres...';
-
-            zxReader = new ZXing.BrowserMultiFormatReader();
-            let lastCode = null, votes = 0;
-
-            zxReader.decodeFromStream(camStream, scanVideo, (result) => {
-                if (!result) return;
-                const code = result.getText();
-                if (code === lastCode) votes++; else { lastCode = code; votes = 1; }
-                scanStatus.textContent = `Vérification (${votes}/2) — ${code}`;
-
-                if (votes >= 2) {
-                    stopScan();
-                    const exact = articles.find(a =>
-                        (a.code_barres && a.code_barres.toLowerCase() === code.toLowerCase()) ||
-                        (a.reference && a.reference.toLowerCase() === code.toLowerCase())
-                    );
-                    if (exact) {
-                        ajouterLigne(exact);
-                    } else {
-                        searchInput.value = code;
-                        searchInput.dispatchEvent(new Event('input'));
-                    }
-                }
-            });
-        } catch (err) {
-            console.error(err);
-            scanStatus.textContent = err.name === 'NotAllowedError'
-                ? '❌ Permission caméra refusée.'
-                : '❌ Erreur : ' + (err.message || err.name);
-        }
-    }
-
-    function stopScan() {
-        if (zxReader)  { try { zxReader.reset(); } catch (e) {} zxReader = null; }
-        if (camStream) { camStream.getTracks().forEach(t => t.stop()); camStream = null; }
-        scanVideo.srcObject = null;
-        scanBox.classList.add('d-none');
-    }
 
     // ── Validation avant envoi ──
     document.getElementById('entree-form').addEventListener('submit', function (e) {
