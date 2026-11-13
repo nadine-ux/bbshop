@@ -17,6 +17,10 @@
         </div>
     @endif
 
+    @if(session('error'))
+        <div class="alert alert-danger">{{ session('error') }}</div>
+    @endif
+
     <form action="{{ route('sorties.store') }}" method="POST" id="sortie-form">
         @csrf
 
@@ -30,6 +34,7 @@
                             <input type="text"
                                    name="destination"
                                    class="form-control"
+                                   value="{{ old('destination') }}"
                                    placeholder="Écrire la destination..."
                                    required>
                         </div>
@@ -40,6 +45,7 @@
                             <input type="text"
                                    name="motif"
                                    class="form-control"
+                                   value="{{ old('motif') }}"
                                    placeholder="Motif de la sortie..."
                                    required>
                         </div>
@@ -57,7 +63,7 @@
 
                 <div class="form-group">
                     <label>Commentaire</label>
-                    <textarea name="commentaire" class="form-control" rows="2"></textarea>
+                    <textarea name="commentaire" class="form-control" rows="2">{{ old('commentaire') }}</textarea>
                 </div>
             </div>
         </div>
@@ -66,12 +72,12 @@
         <div class="card">
             <div class="card-header bg-info text-white">
                 <h3 class="card-title">
-                    <i class="fas fa-search"></i> Barre de recherche — Ajouter un article
+                    <i class="fas fa-search"></i> Ajouter un article
                 </h3>
             </div>
             <div class="card-body">
-                <div class="row align-items-center">
-                    <div class="col-md-8">
+                <div class="row align-items-start">
+                    <div class="col-md-8" style="position:relative;">
                         <div class="input-group input-group-lg">
                             <div class="input-group-prepend">
                                 <span class="input-group-text bg-warning">
@@ -81,16 +87,23 @@
                             <input type="text"
                                    id="search-article"
                                    class="form-control form-control-lg"
-                                   placeholder="🔍 Chercher un article par Nom ou Code-barres — ou Scanner le code-barres..."
+                                   placeholder="Chercher par nom ou code-barres, ou scanner..."
                                    autocomplete="off">
+                            <div class="input-group-append">
+                                <button type="button" class="btn btn-warning" id="btnCamera">
+                                    <i class="fas fa-camera"></i> Caméra
+                                </button>
+                            </div>
                         </div>
-                        <small class="text-muted">
-                            <i class="fas fa-info-circle"></i>
-                            Tapez le nom, la référence ou scannez le code-barres pour ajouter un article directement dans le tableau.
-                        </small>
+
+                        <div id="search-results" class="list-group shadow"
+                             style="display:none; max-height:250px; overflow-y:auto; position:absolute; z-index:1000; left:7.5px; right:7.5px;"></div>
+
+                        {{-- Scanner caméra + photo (même principe que la page Articles) --}}
+                        @include('partials.barcode-scan')
                     </div>
-                    <div class="col-md-4" style="position:relative;">
-                        <div id="search-results" class="list-group shadow" style="display:none; max-height:250px; overflow-y:auto; position:absolute; z-index:1000; width:100%; top:0;"></div>
+
+                    <div class="col-md-4">
                         <button type="button" class="btn btn-success btn-lg w-100" id="btn-add-manual">
                             <i class="fas fa-plus-circle"></i> Ajouter une ligne vide
                         </button>
@@ -145,7 +158,6 @@
             <div class="card-body">
                 <div class="row align-items-stretch">
 
-                    {{-- Nombre d'articles --}}
                     <div class="col-md-4">
                         <div class="card border-warning h-100">
                             <div class="card-header bg-warning text-dark text-center">
@@ -159,7 +171,6 @@
                         </div>
                     </div>
 
-                    {{-- Total pièces --}}
                     <div class="col-md-4">
                         <div class="card border-info h-100">
                             <div class="card-header bg-info text-white text-center">
@@ -173,7 +184,6 @@
                         </div>
                     </div>
 
-                    {{-- Alerte stock --}}
                     <div class="col-md-4">
                         <div class="card bg-danger text-white h-100" id="card-stock-alert">
                             <div class="card-header bg-danger text-white text-center border-0">
@@ -203,41 +213,50 @@
 @stop
 
 @section('js')
+@include('partials.barcode-scan-js')
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     let index = 0;
-    const tbody = document.getElementById('tbody-articles');
-    const btnAddManual = document.getElementById('btn-add-manual');
-    const searchInput = document.getElementById('search-article');
+    const tbody         = document.getElementById('tbody-articles');
+    const btnAddManual  = document.getElementById('btn-add-manual');
+    const searchInput   = document.getElementById('search-article');
     const searchResults = document.getElementById('search-results');
 
-    // ── Articles data from PHP ──────────────────────────────────────────────
     const articles = @json($articlesData);
 
-    // ── Date/heure automatique ──────────────────────────────────────────────
+    const esc  = s => String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    const norm = s => String(s ?? '').trim().toLowerCase();
+
+    // Un article correspond à un code s'il l'a parmi TOUS ses codes-barres (ou sa référence)
+    const matchCode = (a, code) => {
+        const c = norm(code);
+        return (a.barcodes || []).some(b => norm(b) === c) || norm(a.code_barres) === c || norm(a.reference) === c;
+    };
+
+    // ── Date/heure automatique ──
     function updateClock() {
         const now = new Date();
-        const formatted = now.toLocaleDateString('fr-DZ', {
-            year: 'numeric', month: '2-digit', day: '2-digit'
-        }) + '  ' + now.toLocaleTimeString('fr-DZ');
-        document.getElementById('date-heure-display').value = formatted;
+        document.getElementById('date-heure-display').value =
+            now.toLocaleDateString('fr-DZ', { year: 'numeric', month: '2-digit', day: '2-digit' })
+            + '  ' + now.toLocaleTimeString('fr-DZ');
     }
     updateClock();
     setInterval(updateClock, 1000);
 
-    // ── Barre de recherche article ──────────────────────────────────────────
-    searchInput.addEventListener('input', function() {
-        const q = this.value.trim().toLowerCase();
+    // ── Recherche (nom, référence, n'importe quel code-barres) ──
+    searchInput.addEventListener('input', function () {
+        const q = norm(this.value);
         searchResults.innerHTML = '';
-        if (q.length < 1) { searchResults.style.display = 'none'; return; }
+        if (!q) { searchResults.style.display = 'none'; return; }
 
         const filtered = articles.filter(a =>
-            a.nom.toLowerCase().includes(q) ||
-            (a.code_barres && a.code_barres.toLowerCase().includes(q)) ||
-            (a.reference && a.reference.toLowerCase().includes(q))
+            norm(a.nom).includes(q) ||
+            norm(a.reference).includes(q) ||
+            norm(a.code_barres).includes(q) ||
+            (a.barcodes || []).some(b => norm(b).includes(q))
         );
 
-        if (filtered.length === 0) {
+        if (!filtered.length) {
             searchResults.innerHTML = '<div class="list-group-item text-muted">Aucun article trouvé</div>';
             searchResults.style.display = 'block';
             return;
@@ -248,12 +267,11 @@ document.addEventListener('DOMContentLoaded', function() {
             btn.type = 'button';
             btn.className = 'list-group-item list-group-item-action';
             btn.innerHTML = `
-                <strong>${art.nom}</strong>
-                <span class="badge badge-secondary float-right">${art.reference || art.code_barres || ''}</span>
-                <br><small class="text-muted">Stock: <strong class="${art.stock > 0 ? 'text-success' : 'text-danger'}">${art.stock} pcs</strong> — Carton: ${art.contenance_carton} pcs</small>
-            `;
-            btn.addEventListener('click', function() {
-                ajouterLigne(art);
+                <strong>${esc(art.nom)}</strong>
+                <span class="badge badge-secondary float-right">${esc(art.reference || art.code_barres)}</span>
+                <br><small class="text-muted">Stock: <strong class="${art.stock > 0 ? 'text-success' : 'text-danger'}">${art.stock} pcs</strong> — Carton: ${art.contenance_carton || '—'} pcs</small>`;
+            btn.addEventListener('click', function () {
+                ajouterOuFocus(art);
                 searchInput.value = '';
                 searchResults.style.display = 'none';
             });
@@ -262,31 +280,47 @@ document.addEventListener('DOMContentLoaded', function() {
         searchResults.style.display = 'block';
     });
 
-    // Fermer les résultats si on clique ailleurs
-    document.addEventListener('click', function(e) {
+    document.addEventListener('click', function (e) {
         if (!searchResults.contains(e.target) && e.target !== searchInput) {
             searchResults.style.display = 'none';
         }
     });
 
-    // Scanner : si la valeur est un code-barres exact et appuie Entrée
-    searchInput.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            const q = this.value.trim().toLowerCase();
-            const exact = articles.find(a =>
-                (a.code_barres && a.code_barres.toLowerCase() === q) ||
-                (a.reference && a.reference.toLowerCase() === q)
-            );
-            if (exact) {
-                ajouterLigne(exact);
-                this.value = '';
-                searchResults.style.display = 'none';
-            }
+    // Entrée = code exact (douchette USB ou saisie)
+    searchInput.addEventListener('keydown', function (e) {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        const exact = articles.find(a => matchCode(a, this.value));
+        if (exact) {
+            ajouterOuFocus(exact);
+            this.value = '';
+            searchResults.style.display = 'none';
         }
     });
 
-    // ── Ajouter une ligne ──────────────────────────────────────────────────
+    // ── Résultat du scanner (caméra ou photo) ──
+    BarcodeScan.onDetected = function (code) {
+        const art = articles.find(a => matchCode(a, code));
+        if (art) {
+            ajouterOuFocus(art);
+        } else {
+            searchInput.value = code;
+            searchInput.dispatchEvent(new Event('input'));
+        }
+    };
+
+    // Article déjà dans le tableau → on se place sur ses cartons, sinon on ajoute la ligne
+    function ajouterOuFocus(art) {
+        const existing = Array.from(tbody.querySelectorAll('tr')).find(tr =>
+            tr.querySelector('.input-article-id').value == art.id
+        );
+        const tr = existing || ajouterLigne(art);
+        const inp = tr.querySelector('.input-cartons');
+        inp.focus(); inp.select();
+        tr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    // ── Ajouter une ligne ──
     function ajouterLigne(art = null) {
         const tr = document.createElement('tr');
         tr.setAttribute('data-index', index);
@@ -294,15 +328,15 @@ document.addEventListener('DOMContentLoaded', function() {
         const artId     = art ? art.id : '';
         const artRef    = art ? (art.reference || art.code_barres || '') : '';
         const artNom    = art ? art.nom : '';
-        const artCarton = art ? art.contenance_carton : 0;
-        const artStock  = art ? art.stock : 0;
+        const artCarton = art ? (parseInt(art.contenance_carton) || 0) : 0;
+        const artStock  = art ? (parseInt(art.stock) || 0) : 0;
 
         tr.innerHTML = `
             <td>
                 <input type="hidden" name="articles[${index}][article_id]" class="input-article-id" value="${artId}">
                 <input type="text"
                        class="form-control form-control-sm text-center input-ref"
-                       value="${artRef}"
+                       value="${esc(artRef)}"
                        placeholder="Code/Réf."
                        data-contenance="${artCarton}"
                        data-stock="${artStock}"
@@ -311,34 +345,27 @@ document.addEventListener('DOMContentLoaded', function() {
             <td>
                 <input type="text"
                        class="form-control form-control-sm input-nom"
-                       value="${artNom}"
-                       placeholder="Nom d'article..."
+                       value="${esc(artNom)}"
+                       placeholder="Choisir via la recherche"
                        readonly style="background:#f8f9fa;">
             </td>
             <td class="text-center align-middle">
-                <span class="badge badge-${artStock > 0 ? 'success' : 'danger'} p-2 stock-badge">
-                    ${artStock} pcs
-                </span>
+                <span class="badge badge-${artStock > 0 ? 'success' : 'danger'} p-2 stock-badge">${artStock} pcs</span>
             </td>
             <td>
                 <input type="number" name="articles[${index}][quantite_cartons]"
-                       class="form-control form-control-sm text-center input-cartons"
-                       value="0" min="0">
+                       class="form-control form-control-sm text-center input-cartons" value="0" min="0">
             </td>
             <td>
                 <input type="number" name="articles[${index}][quantite_pieces]"
-                       class="form-control form-control-sm text-center input-pieces"
-                       value="0" min="0">
+                       class="form-control form-control-sm text-center input-pieces" value="0" min="0">
             </td>
             <td class="text-center align-middle">
                 <strong class="total-pieces text-primary">0</strong> <small>pcs</small>
             </td>
             <td class="text-center align-middle">
-                <button type="button" class="btn btn-danger btn-sm btn-supprimer">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </td>
-        `;
+                <button type="button" class="btn btn-danger btn-sm btn-supprimer"><i class="fas fa-trash"></i></button>
+            </td>`;
 
         tbody.appendChild(tr);
 
@@ -370,15 +397,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     stockBadge.classList.add('badge-success');
                 }
             }
-
             calculerTotaux();
         }
 
-        [inputCartons, inputPieces].forEach(inp => {
-            inp.addEventListener('input', calculer);
-        });
+        [inputCartons, inputPieces].forEach(inp => inp.addEventListener('input', calculer));
 
-        tr.querySelector('.btn-supprimer').addEventListener('click', function() {
+        tr.querySelector('.btn-supprimer').addEventListener('click', function () {
             if (confirm('Supprimer cet article ?')) {
                 tr.remove();
                 calculerTotaux();
@@ -387,37 +411,31 @@ document.addEventListener('DOMContentLoaded', function() {
 
         index++;
         calculerTotaux();
+        return tr;
     }
 
-    // ── Calcul des totaux récapitulatifs ───────────────────────────────────
+    // ── Totaux récapitulatifs ──
     function calculerTotaux() {
-        let totalPieces  = 0;
-        let totalCartons = 0;
-        let nbArticles   = 0;
-        let stockDepasse = false;
+        let totalPieces = 0, totalCartons = 0, nbArticles = 0, stockDepasse = false;
 
         tbody.querySelectorAll('tr').forEach(tr => {
-            const inputRef    = tr.querySelector('.input-ref');
-            const inputCartons= tr.querySelector('.input-cartons');
-            const inputPieces = tr.querySelector('.input-pieces');
-
+            const inputRef = tr.querySelector('.input-ref');
             const contenance = parseInt(inputRef?.dataset.contenance || 0);
             const stock      = parseInt(inputRef?.dataset.stock || 0);
-            const cartons    = parseInt(inputCartons?.value || 0);
-            const pieces     = parseInt(inputPieces?.value || 0);
+            const cartons    = parseInt(tr.querySelector('.input-cartons')?.value || 0) || 0;
+            const pieces     = parseInt(tr.querySelector('.input-pieces')?.value || 0) || 0;
             const total      = (cartons * contenance) + pieces;
 
             totalPieces  += total;
             totalCartons += cartons;
             nbArticles++;
-
             if (stock > 0 && total > stock) stockDepasse = true;
         });
 
-        document.getElementById('total-pieces-sorties').textContent  = totalPieces;
-        document.getElementById('total-cartons-sortis').textContent  = totalCartons;
-        document.getElementById('recap-total-pieces').textContent    = totalPieces;
-        document.getElementById('nb-articles').textContent           = nbArticles;
+        document.getElementById('total-pieces-sorties').textContent = totalPieces;
+        document.getElementById('total-cartons-sortis').textContent = totalCartons;
+        document.getElementById('recap-total-pieces').textContent   = totalPieces;
+        document.getElementById('nb-articles').textContent          = nbArticles;
 
         const cardAlert = document.getElementById('card-stock-alert');
         const alertMsg  = document.getElementById('stock-alert-msg');
@@ -432,8 +450,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     btnAddManual.addEventListener('click', () => ajouterLigne());
 
-    // ── Validation à la soumission ─────────────────────────────────────────
-    document.getElementById('sortie-form').addEventListener('submit', function(e) {
+    // ── Validation à la soumission ──
+    document.getElementById('sortie-form').addEventListener('submit', function (e) {
         if (tbody.children.length === 0) {
             e.preventDefault();
             alert('Vous devez ajouter au moins un article !');
@@ -455,15 +473,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
         let stockDepasse = false;
         tbody.querySelectorAll('tr').forEach(tr => {
-            const inputRef    = tr.querySelector('.input-ref');
-            const inputCartons= tr.querySelector('.input-cartons');
-            const inputPieces = tr.querySelector('.input-pieces');
-            const stock       = parseInt(inputRef?.dataset.stock || 0);
-            const contenance  = parseInt(inputRef?.dataset.contenance || 0);
-            const cartons     = parseInt(inputCartons?.value || 0);
-            const pieces      = parseInt(inputPieces?.value || 0);
-            const total       = (cartons * contenance) + pieces;
-            if (stock > 0 && total > stock) stockDepasse = true;
+            const inputRef   = tr.querySelector('.input-ref');
+            const stock      = parseInt(inputRef?.dataset.stock || 0);
+            const contenance = parseInt(inputRef?.dataset.contenance || 0);
+            const cartons    = parseInt(tr.querySelector('.input-cartons')?.value || 0) || 0;
+            const pieces     = parseInt(tr.querySelector('.input-pieces')?.value || 0) || 0;
+            if (stock > 0 && (cartons * contenance + pieces) > stock) stockDepasse = true;
         });
 
         if (stockDepasse) {
@@ -478,24 +493,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
 @section('css')
 <style>
-    .table td, .table th {
-        vertical-align: middle !important;
-    }
-    .is-invalid {
-        border-color: #dc3545 !important;
-    }
-    #search-results {
-        border-radius: 0 0 8px 8px;
-    }
-    .list-group-item:hover {
-        background-color: #e9f5ff;
-        cursor: pointer;
-    }
-    .card-header {
-        font-size: 1em;
-    }
-    .stock-badge {
-        font-size: 0.95em;
-    }
+    .table td, .table th { vertical-align: middle !important; }
+    .is-invalid { border-color: #dc3545 !important; }
+    .list-group-item:hover { background-color: #e9f5ff; cursor: pointer; }
+    .card-header { font-size: 1em; }
+    .stock-badge { font-size: 0.95em; }
 </style>
 @stop

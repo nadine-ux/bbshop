@@ -49,9 +49,9 @@ public function index(Request $request)
     return view('sorties.index', compact('sorties', 'annees'));
 }
 
-    public function create()
+     public function create()
     {
-        $articles = Article::with(['category', 'barcodes'])->where('stock', '>', 0)->get();
+        $articles = Article::with(['category', 'barcodes'])->get();
 
         $articlesData = [];
         foreach ($articles as $a) {
@@ -61,9 +61,11 @@ public function index(Request $request)
             $articlesData[] = [
                 'id'                => $a->id,
                 'nom'               => $a->nom,
-                'contenance_carton' => $a->contenance_carton,
                 'stock'             => $a->stock,
+                'contenance_carton' => $a->contenance_carton,
                 'code_barres'       => $primaryBarcode?->code_barres ?? $a->code_barres ?? '',
+                // TOUS les codes-barres de l'article → le scan marche avec n'importe lequel
+                'barcodes'          => $a->barcodes->pluck('code_barres')->values()->all(),
                 'reference'         => $a->reference ?? '',
             ];
         }
