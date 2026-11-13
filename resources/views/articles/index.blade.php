@@ -56,16 +56,28 @@
                     </a>
                 @endif
             </div>
+
             <div id="cameraBox" class="camera-box d-none">
                 <div class="camera-box__header">
                     <span><i class="fas fa-camera"></i> Scanner en cours...</span>
-                    <button type="button" id="btnCameraClose"><i class="fas fa-times"></i></button>
+                    <div class="camera-box__btns">
+                        <button type="button" id="btnCameraSwitch" title="Changer de caméra">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                        <button type="button" id="btnCameraClose" title="Fermer">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
                 </div>
-                <video id="cameraVideo" autoplay playsinline muted></video>
-                <div class="camera-line"></div>
-                <p class="camera-hint">Pointez vers le code-barres</p>
+                <div id="scannerContainer"></div>
                 <div id="cameraStatus">Initialisation...</div>
             </div>
+
+            <label class="btn-photo-scan">
+                <input type="file" accept="image/*" capture="environment" id="barcodeFileInput" style="display:none">
+                <i class="fas fa-image"></i> Photo du code (si le scan direct ne marche pas)
+            </label>
+            <div id="fileScanHolder" style="display:none"></div>
         </div>
 
         {{-- Filtres --}}
@@ -363,19 +375,21 @@
     background: rgba(255,255,255,.2); color: white; border: none;
     border-radius: 7px; padding: .25rem .65rem; cursor: pointer;
 }
-#cameraVideo { width: 100%; max-height: 200px; display: block; object-fit: cover; }
-.camera-line {
-    position: absolute; top: 40px; left: 50%; transform: translateX(-50%);
-    width: 65%; height: 3px; background: #2ecc71;
-    box-shadow: 0 0 8px #2ecc71; animation: scanLine 1.8s linear infinite; z-index: 10;
-}
-@keyframes scanLine { 0%{top:40px} 100%{top:200px} }
-.camera-hint {
-    position: absolute; bottom: 28px; left: 50%; transform: translateX(-50%);
-    color: white; font-size: .78rem; background: rgba(0,0,0,.5);
-    padding: .2rem .65rem; border-radius: 20px; white-space: nowrap; z-index: 10;
-}
+.camera-box__btns { display: flex; gap: .4rem; }
 #cameraStatus { padding: .4rem 1rem; background: #111; color: #aaa; font-size: .78rem; }
+
+#scannerContainer { border: none !important; padding: 0 !important; min-height: 0; background: #000; }
+#scannerContainer video { width: 100% !important; height: auto !important; display: block; }
+#scannerContainer img[src*="scanning"] { display: none !important; }
+#qr-shaded-region { border-color: rgba(0,0,0,.35) !important; }
+#qr-shaded-region > div { display: none !important; }
+
+.btn-photo-scan {
+    margin: 0; padding: .7rem; border: 2px dashed var(--border); border-radius: 12px;
+    display: flex; align-items: center; justify-content: center; gap: .5rem;
+    font-size: .82rem; font-weight: 600; color: var(--muted); cursor: pointer; transition: all .2s;
+}
+.btn-photo-scan:hover { border-color: var(--green); color: var(--green); }
 
 /* ── Filtres ── */
 .filters-row {
@@ -604,100 +618,223 @@
     .detail-grid { grid-template-columns: 1fr; }
 }
 @media(max-width:480px) {
-    .cards-grid { grid-template-columns: repeat(2,1fr); }  
+    .cards-grid { grid-template-columns: repeat(2,1fr); }
 }
 </style>
 @stop
 
 @section('js')
-<script src="{{ asset('js/zxing.min.js') }}"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
 
-    let zxReader  = null;
-let camStream = null;
+    var html5QrCode = null, scanActive = false, done = false;
+    var cameras = [], backCams = [], backIdx = 0;
+    var lastText = '', lastTime = 0;
 
-const btnCamera      = document.getElementById('btnCamera');
-const btnCameraClose = document.getElementById('btnCameraClose');
-const cameraBox      = document.getElementById('cameraBox');
-const cameraStatus   = document.getElementById('cameraStatus');
-const cameraVideo    = document.getElementById('cameraVideo');
+    var btnCamera       = document.getElementById('btnCamera');
+    var btnCameraClose  = document.getElementById('btnCameraClose');
+    var btnCameraSwitch = document.getElementById('btnCameraSwitch');
+    var cameraBox       = document.getElementById('cameraBox');
+    var cameraStatus    = document.getElementById('cameraStatus');
+    var container       = document.getElementById('scannerContainer');
+    var fileInput       = document.getElementById('barcodeFileInput');
 
-btnCamera.addEventListener('click', startCamera);
-btnCameraClose.addEventListener('click', stopCamera);
+    btnCamera.addEventListener('click', function () { startScanner(); });
+    btnCameraClose.addEventListener('click', stopScanner);
+    btnCameraSwitch.addEventListener('click', switchCamera);
+    fileInput.addEventListener('change', function () { scanFromFile(this); });
 
-async function startCamera() {
-    cameraBox.classList.remove('d-none');
-    cameraStatus.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Accès à la caméra...';
-
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        cameraStatus.textContent = '❌ Caméra non disponible sur ce navigateur.';
-        return;
+    function setStatus(msg, isErr) {
+        cameraStatus.textContent = msg || '';
+        cameraStatus.style.color = isErr ? '#ff6b6b' : '#aaa';
     }
 
-    try {
-        // 1. Obtenir le stream manuellement
-        camStream = await navigator.mediaDevices.getUserMedia({
-            video: {
-                facingMode: { ideal: 'environment' },
-                width:  { ideal: 1280 },
-                height: { ideal: 720 }
+    function newScanner(elId) {
+        var F = Html5QrcodeSupportedFormats;
+        return new Html5Qrcode(elId, {
+            formatsToSupport: [F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E, F.CODE_128, F.CODE_39, F.CODE_93, F.ITF, F.CODABAR, F.QR_CODE],
+            useBarCodeDetectorIfSupported: true,
+            verbose: false
+        });
+    }
+
+    function scanConfig() {
+        return {
+            fps: 10,
+            qrbox: function (w, h) {
+                return { width: Math.max(50, Math.floor(w * 0.72)), height: Math.max(50, Math.floor(h * 0.55)) };
             },
-            audio: false
-        });
-
-        // 2. Affecter à la vidéo
-        cameraVideo.srcObject = camStream;
-        await cameraVideo.play();
-
-        cameraStatus.innerHTML = '<i class="fas fa-camera"></i> Pointez vers le code-barres...';
-
-        // 3. ZXing avec système de vote (2 lectures identiques)
-        zxReader = new ZXing.BrowserMultiFormatReader();
-        let lastCode = null, votes = 0;
-
-        zxReader.decodeFromStream(camStream, cameraVideo, (result, err) => {
-            if (!result) return;
-            const code = result.getText();
-
-            if (code === lastCode) { votes++; } 
-            else { lastCode = code; votes = 1; }
-
-            cameraStatus.textContent = `Vérification... (${votes}/2) — ${code}`;
-
-            if (votes >= 2) {
-                document.getElementById('barcodeInput').value = code;
-                cameraStatus.textContent = '✅ Détecté : ' + code;
-                stopCamera();
-                setTimeout(() => document.getElementById('filterForm').submit(), 400);
-            }
-        });
-
-    } catch (err) {
-        console.error('Erreur caméra:', err);
-        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-            cameraStatus.textContent = '❌ Permission caméra refusée. Autorisez l\'accès dans les réglages.';
-        } else if (err.name === 'NotFoundError') {
-            cameraStatus.textContent = '❌ Aucune caméra détectée sur cet appareil.';
-        } else {
-            cameraStatus.textContent = '❌ Erreur : ' + (err.message || err.name);
-        }
+            disableFlip: false,
+            experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+        };
     }
-}
 
-function stopCamera() {
-    if (zxReader)   { try { zxReader.reset(); } catch(e) {} zxReader = null; }
-    if (camStream)  { camStream.getTracks().forEach(t => t.stop()); camStream = null; }
-    cameraVideo.srcObject = null;
-    cameraBox.classList.add('d-none');
-}
-    document.addEventListener('keydown', e => {
+    function camErrorMessage(e) {
+        var name = (e && e.name) ? e.name : '';
+        var msg  = (e && e.message) ? e.message : String(e);
+        if (!window.isSecureContext) return "La caméra exige une connexion sécurisée : ouvrez le site en https://";
+        if (name === 'NotAllowedError' || /permission/i.test(msg)) return "Accès à la caméra refusé. Autorisez-la dans les réglages du navigateur.";
+        if (name === 'NotFoundError' || /no camera|requested device not found/i.test(msg)) return "Aucune caméra détectée sur cet appareil.";
+        if (name === 'NotReadableError' || /could not start video/i.test(msg)) return "La caméra est utilisée par une autre application. Fermez-la puis réessayez.";
+        return "Impossible de démarrer la caméra : " + msg;
+    }
+
+    // Un code est lu : on le met dans le champ et on lance la recherche
+    function submitCode(code) {
+        if (done) return;
+        done = true;
+        document.getElementById('barcodeInput').value = code;
+        setStatus('✅ Détecté : ' + code);
+        if (navigator.vibrate) navigator.vibrate(120);
+        stopScanner();
+        setTimeout(function () { document.getElementById('filterForm').submit(); }, 350);
+    }
+
+    function onDecoded(text) {
+        var now = Date.now();
+        if (text === lastText && now - lastTime < 2000) return;
+        lastText = text; lastTime = now;
+        submitCode(text);
+    }
+
+    async function loadBackCams() {
+        var cams = [];
+        try { cams = await Html5Qrcode.getCameras(); } catch (e) {}
+        cameras = cams || [];
+        var back = cameras.filter(function (c) {
+            return /back|rear|arri[eè]re|environment|facing back/i.test(c.label || '');
+        });
+        backCams = back.length ? back : cameras;
+    }
+
+    function isVideoBlack() {
+        try {
+            var v = container.querySelector('video');
+            if (!v || !v.videoWidth) return true;
+            var c = document.createElement('canvas');
+            c.width = 32; c.height = 32;
+            var x = c.getContext('2d');
+            x.drawImage(v, 0, 0, 32, 32);
+            var d = x.getImageData(0, 0, 32, 32).data, sum = 0;
+            for (var i = 0; i < d.length; i += 4) sum += d[i] + d[i + 1] + d[i + 2];
+            return (sum / (d.length / 4 * 3)) < 8;
+        } catch (e) { return false; }
+    }
+
+    async function startWith(src) {
+        container.innerHTML = '';
+        html5QrCode = newScanner('scannerContainer');
+        await html5QrCode.start(src, scanConfig(), onDecoded, function () {});
+    }
+
+    async function startScanner(source) {
+        if (scanActive) return;
+        done = false;
+
+        cameraBox.classList.remove('d-none');
+
+        if (typeof Html5Qrcode === 'undefined') {
+            setStatus('Librairie scanner non chargée. Rechargez la page.', true);
+            return;
+        }
+        if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            setStatus('La caméra exige https://. Utilisez « Photo du code ».', true);
+            return;
+        }
+
+        setStatus('Démarrage de la caméra…');
+
+        if (!backCams.length) await loadBackCams();
+
+        var list = [];
+        if (source) list.push(source);
+        else {
+            for (var k = 0; k < backCams.length; k++) list.push(backCams[(backIdx + k) % backCams.length].id);
+            list.push({ facingMode: 'environment' });
+        }
+
+        var started = false, lastErr = null;
+        for (var i = 0; i < list.length && !started; i++) {
+            try {
+                await startWith(list[i]);
+                await new Promise(function (r) { setTimeout(r, 1200); });
+                if (isVideoBlack() && i < list.length - 1 && !source) {
+                    try { await html5QrCode.stop(); } catch (x) {}
+                    await new Promise(function (r) { setTimeout(r, 400); });
+                    continue;
+                }
+                started = true;
+                if (typeof list[i] === 'string') {
+                    backIdx = Math.max(0, backCams.findIndex(function (c) { return c.id === list[i]; }));
+                }
+            } catch (e) {
+                lastErr = e;
+                console.warn('[scan] échec', list[i], e);
+                try { await html5QrCode.stop(); } catch (x) {}
+                await new Promise(function (r) { setTimeout(r, 400); });
+            }
+        }
+
+        if (!started) {
+            setStatus(camErrorMessage(lastErr), true);
+            html5QrCode = null;
+            return;
+        }
+
+        scanActive = true;
+        setStatus('Caméra active — code à 15–25 cm, bien éclairé et net. Image noire ? Bouton ↻ pour changer de caméra.');
+    }
+
+    async function stopScanner() {
+        scanActive = false;
+        if (html5QrCode) {
+            try { await html5QrCode.stop(); } catch (e) {}
+            try { html5QrCode.clear(); } catch (e) {}
+            html5QrCode = null;
+        }
+        container.innerHTML = '';
+        cameraBox.classList.add('d-none');
+    }
+
+    async function switchCamera() {
+        if (!backCams.length) await loadBackCams();
+        if (backCams.length <= 1) { setStatus('Une seule caméra disponible.', true); return; }
+        backIdx = (backIdx + 1) % backCams.length;
+        var next = backCams[backIdx].id;
+        await stopScanner();
+        await new Promise(function (r) { setTimeout(r, 500); });
+        cameraBox.classList.remove('d-none');
+        await startScanner(next);
+    }
+
+    // Lecture via photo (marche aussi sans https)
+    async function scanFromFile(input) {
+        var file = input.files && input.files[0];
+        if (!file) return;
+        if (typeof Html5Qrcode === 'undefined') { alert('Librairie scanner non chargée.'); return; }
+        var h = newScanner('fileScanHolder');
+        try {
+            var text = await h.scanFile(file, false);
+            done = false;
+            submitCode(text);
+        } catch (e) {
+            console.warn('[scan] photo non lue', e);
+            alert('Code non lu sur la photo. Rapprochez-vous, bonne lumière, code bien net et à plat.');
+        }
+        try { h.clear(); } catch (e) {}
+        input.value = '';
+    }
+
+    document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape') {
             closePopup('popupDetail');
             closePopup('popupHistory');
-            stopCamera();
+            stopScanner();
         }
     });
+
+    window.addEventListener('beforeunload', function () { if (html5QrCode) stopScanner(); });
 
 }); // fin DOMContentLoaded
 

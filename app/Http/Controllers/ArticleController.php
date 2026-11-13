@@ -41,8 +41,15 @@ public function index(Request $request)
     if ($nom) {
         $query->where('nom', 'like', "%{$nom}%");
     }
+
+    // Code-barres : cherche dans le code principal ET dans tous les codes de l'article
     if ($codeBarres) {
-        $query->where('code_barres', 'like', "%{$codeBarres}%");
+        $query->where(function ($q) use ($codeBarres) {
+            $q->where('code_barres', 'like', "%{$codeBarres}%")
+              ->orWhereHas('barcodes', function ($b) use ($codeBarres) {
+                  $b->where('code_barres', 'like', "%{$codeBarres}%");
+              });
+        });
     }
 
     // Filtres relations
