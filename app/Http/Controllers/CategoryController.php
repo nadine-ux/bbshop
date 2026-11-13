@@ -36,13 +36,10 @@ public function index(Request $request)
 }
 
     // Formulaire de création
-    public function create()
-    {
-        // On récupère toutes les catégories pour proposer un parent
-        $categories = Category::all();
-        return view('categories.create', compact('categories'));
-    }
-
+ public function create()
+{
+    return view('categories.create');
+}
     // Enregistrer une nouvelle catégorie
     public function store(Request $request)
 {
@@ -62,6 +59,25 @@ public function index(Request $request)
 
     return redirect()->route('categories.index')
         ->with('success', 'Catégorie créée avec succès');
+}
+// Recherche de catégories (autocomplétion)
+public function search(Request $request)
+{
+    $term      = $request->get('q', '');
+    $excludeId = $request->get('exclude'); // utile pour l'édition
+
+    $categories = Category::where('nom', 'like', "%{$term}%")
+        ->when($excludeId, fn ($q) => $q->where('id', '!=', $excludeId))
+        ->orderBy('nom')
+        ->limit(20)
+        ->get(['id', 'nom']);
+
+    return response()->json([
+        'results' => $categories->map(fn ($c) => [
+            'id'   => $c->id,
+            'text' => $c->nom,
+        ]),
+    ]);
 }
 public function show(Category $category, Request $request)
 {
@@ -141,14 +157,11 @@ public function show(Category $category, Request $request)
 
     return view('articles.cards', compact('category', 'articles', 'marques'));
 }
- // 🔹 Editer une catégorie
-    public function edit(Category $category)
-    {
-        // Charger toutes les catégories pour le select parent
-        $categories = Category::where('id', '!=', $category->id)->get();
-
-        return view('categories.edit', compact('category', 'categories'));
-    }
+ public function edit(Category $category)
+{
+    $category->load('parent');
+    return view('categories.edit', compact('category'));
+}
 
     // 🔹 Mettre à jour la catégorie
     public function update(Request $request, Category $category)

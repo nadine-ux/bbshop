@@ -5,6 +5,7 @@
 
 return [
 
+
     'title' => 'Gestion de Stock',
 
     'logo' => '<b>BB Shopping</b>',

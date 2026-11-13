@@ -15,13 +15,27 @@ class SubcategoryController extends Controller
         return view('subcategories.index', compact('subcategories'));
     }
 
-    // Formulaire de création
-    public function create()
-    {
-        $categories = Category::all();
-        return view('subcategories.create', compact('categories'));
-    }
+   public function create()
+{
+    return view('subcategories.create');
+}
+// Recherche de catégories (autocomplétion)
+public function searchCategories(Request $request)
+{
+    $term = $request->get('q', '');
 
+    $categories = Category::where('nom', 'like', "%{$term}%")
+        ->orderBy('nom')
+        ->limit(20)
+        ->get(['id', 'nom']);
+
+    return response()->json([
+        'results' => $categories->map(fn ($c) => [
+            'id'   => $c->id,
+            'text' => $c->nom,
+        ]),
+    ]);
+}
     // Enregistrer une nouvelle sous-catégorie
     public function store(Request $request)
     {

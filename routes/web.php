@@ -107,8 +107,14 @@ Route::middleware(['auth'])->group(function () {
 
         Route::middleware(['auth','permission:manage stock'])->group(function () {
             Route::get('mouvements', [MouvementController::class,'index'])->name('mouvements.index');
+
+            Route::get('categories/search', [SubcategoryController::class, 'searchCategories'])
+    ->name('categories.search');
+    Route::get('categories/search', [CategoryController::class, 'search'])
+    ->name('categories.search');
             Route::resource('categories', CategoryController::class);
             Route::resource('subcategories', SubcategoryController::class);
+            
             Route::get('articles/{article}/details', [ArticleController::class, 'getDetails'])->name('articles.details');
         });
     });
