@@ -35,10 +35,13 @@ public function index(Request $request)
     ]);
 }
 
-    // Formulaire de création
- public function create()
+public function create(Request $request)
 {
-    return view('categories.create');
+    $parent = $request->filled('parent_id')
+        ? Category::findOrFail($request->parent_id)
+        : null;
+
+    return view('categories.create', compact('parent'));
 }
     // Enregistrer une nouvelle catégorie
     public function store(Request $request)
@@ -55,10 +58,11 @@ public function index(Request $request)
         $data['photo'] = $request->file('photo')->store('categories', 'public');
     }
 
-    Category::create($data);
+ $category = Category::create($data);
 
-    return redirect()->route('categories.index')
-        ->with('success', 'Catégorie créée avec succès');
+return $category->parent_id
+    ? redirect()->route('categories.show', $category->parent_id)->with('success', 'Sous-catégorie créée avec succès')
+    : redirect()->route('categories.index')->with('success', 'Catégorie créée avec succès');
 }
 // Recherche de catégories (autocomplétion)
 public function search(Request $request)
@@ -88,7 +92,8 @@ public function show(Category $category, Request $request)
     if ($category->children->count() > 0) {
         return view('categories.cards', [
             'title' => $category->nom,
-            'categories' => $category->children
+            'categories' => $category->children,
+            'parent'     => $category, 
         ]);
     }
 

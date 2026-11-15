@@ -2,6 +2,8 @@
 
 @section('title', 'Articles')
 
+@section('plugins.Select2', true)
+
 @section('content_header')
 <div class="page-header">
     <div class="page-header__left">
@@ -69,34 +71,30 @@
             </div>
         </div>
 
-        {{-- ③ FILTRES : MARQUE / FOURNISSEUR / ÉTAT STOCK --}}
+        {{-- ③ FILTRES : MARQUE / FOURNISSEUR (autocomplete) / ÉTAT STOCK --}}
         <div class="filters-row">
 
             <div class="filter-item">
                 <label><i class="fas fa-certificate"></i> Marque</label>
-                <select name="marque_id">
-                    <option value="">Toutes les marques</option>
-                    @isset($marques)
-                        @foreach($marques as $m)
-                            <option value="{{ $m->id }}" {{ request('marque_id')==$m->id ? 'selected' : '' }}>
-                                {{ $m->nom }}
-                            </option>
-                        @endforeach
-                    @endisset
+                <select name="marque_id" class="js-autocomplete" data-placeholder="Toutes les marques">
+                    <option></option>
+                    @foreach($marques ?? [] as $m)
+                        <option value="{{ $m->id }}" {{ request('marque_id') == $m->id ? 'selected' : '' }}>
+                            {{ $m->nom }}
+                        </option>
+                    @endforeach
                 </select>
             </div>
 
             <div class="filter-item">
                 <label><i class="fas fa-truck"></i> Fournisseur</label>
-                <select name="fournisseur_id">
-                    <option value="">Tous les fournisseurs</option>
-                    @isset($fournisseurs)
-                        @foreach($fournisseurs as $f)
-                            <option value="{{ $f->id }}" {{ request('fournisseur_id')==$f->id ? 'selected' : '' }}>
-                                {{ $f->nom }}
-                            </option>
-                        @endforeach
-                    @endisset
+                <select name="fournisseur_id" class="js-autocomplete" data-placeholder="Tous les fournisseurs">
+                    <option></option>
+                    @foreach($fournisseurs ?? [] as $f)
+                        <option value="{{ $f->id }}" {{ request('fournisseur_id') == $f->id ? 'selected' : '' }}>
+                            {{ $f->nom }}
+                        </option>
+                    @endforeach
                 </select>
             </div>
 
@@ -403,7 +401,6 @@
 }
 
 /* ③ Filtres */
-/* ③ Filtres */
 .filters-row {
     display: flex; flex-wrap: nowrap; gap: .5rem; align-items: flex-end;
     padding-top: 1rem; border-top: 2px solid var(--border);
@@ -438,6 +435,23 @@
     transition: all .3s;
 }
 .btn-reset:hover { background: #5a6268; color: white; text-decoration: none; }
+
+/* Select2 aux couleurs des filtres */
+.filter-item .select2-container--bootstrap4 .select2-selection--single {
+    height: 38px;
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    font-size: .82rem;
+}
+.filter-item .select2-container--bootstrap4 .select2-selection--single .select2-selection__rendered {
+    line-height: 34px;
+    color: var(--text);
+}
+.filter-item .select2-container--bootstrap4.select2-container--focus .select2-selection,
+.filter-item .select2-container--bootstrap4.select2-container--open .select2-selection {
+    border-color: var(--orange);
+    box-shadow: none;
+}
 
 /* Compteur */
 .results-info {
@@ -657,10 +671,9 @@
 @media(max-width:768px) {
     .cards-grid { grid-template-columns: repeat(2,1fr); }
     .detail-grid { grid-template-columns: 1fr; }
-    
 }
 @media(max-width:480px) {
-    .cards-grid { grid-template-columns: repeat(2,1fr) !important; }  
+    .cards-grid { grid-template-columns: repeat(2,1fr) !important; }
 }
 </style>
 @stop
@@ -852,5 +865,24 @@ function switchTab(btn, filter) {
     btn.classList.add('active');
     renderHistory(filter);
 }
+
+
+// ═══════════════════════
+//  FILTRES AUTOCOMPLETE
+// ═══════════════════════
+$(function () {
+    $('.js-autocomplete').each(function () {
+        $(this).select2({
+            theme: 'bootstrap4',
+            width: '180px',
+            placeholder: $(this).data('placeholder'),
+            allowClear: true,
+            language: {
+                noResults: () => 'Aucun résultat',
+                searching: () => 'Recherche en cours...'
+            }
+        });
+    });
+});
 </script>
 @stop

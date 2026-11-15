@@ -5,12 +5,26 @@
 @section('plugins.Select2', true)
 
 @section('content_header')
-    <h1>Créer une nouvelle catégorie</h1>
+    <h1>{{ ($parent ?? null) ? 'Nouvelle sous-catégorie' : 'Créer une nouvelle catégorie' }}</h1>
 @stop
 
 @section('content')
+@php
+    $parent = $parent ?? null;
+    $selectedId = old('parent_id', $parent?->id);
+    $selectedNom = $selectedId ? \App\Models\Category::find($selectedId)?->nom : null;
+    $cancelUrl = $parent ? route('categories.show', $parent->id) : route('categories.index');
+@endphp
+
 <form action="{{ route('categories.store') }}" method="POST" enctype="multipart/form-data">
     @csrf
+
+    @if($parent)
+        <div class="alert alert-info">
+            <i class="fas fa-layer-group mr-1"></i>
+            Sous-catégorie de : <strong>{{ $parent->nom }}</strong>
+        </div>
+    @endif
 
     <div class="form-group">
         <label for="nom">Nom de la catégorie</label>
@@ -25,10 +39,8 @@
     <div class="form-group">
         <label for="parent_id">Catégorie parente (optionnel)</label>
         <select name="parent_id" id="parent_id" class="form-control" style="width: 100%;">
-            @if(old('parent_id'))
-                <option value="{{ old('parent_id') }}" selected>
-                    {{ \App\Models\Category::find(old('parent_id'))?->nom }}
-                </option>
+            @if($selectedId)
+                <option value="{{ $selectedId }}" selected>{{ $selectedNom }}</option>
             @endif
         </select>
         @error('parent_id')
@@ -37,7 +49,7 @@
     </div>
 
     <button type="submit" class="btn btn-success">Enregistrer</button>
-    <a href="{{ route('categories.index') }}" class="btn btn-secondary">Annuler</a>
+    <a href="{{ $cancelUrl }}" class="btn btn-secondary">Annuler</a>
 </form>
 @stop
 

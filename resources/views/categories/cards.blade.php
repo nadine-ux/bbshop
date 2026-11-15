@@ -11,10 +11,12 @@
         </h1>
         <small class="text-muted">Gestion des catégories de produits</small>
     </div>
-    <a href="{{ route('categories.create') }}" 
-       style="display:inline-flex;align-items:center;gap:6px;background:#E60000;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:500;text-decoration:none;">
-        <i class="fas fa-plus" style="font-size:11px;"></i> Nouvelle catégorie
-    </a>
+ @php $parent = $parent ?? null; @endphp
+<a href="{{ route('categories.create', $parent ? ['parent_id' => $parent->id] : []) }}"
+   style="display:inline-flex;align-items:center;gap:6px;background:#E60000;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:500;text-decoration:none;">
+    <i class="fas fa-plus" style="font-size:11px;"></i>
+    {{ $parent ? 'Nouvelle sous-catégorie' : 'Nouvelle catégorie' }}
+</a>
 </div>
 @stop
 
