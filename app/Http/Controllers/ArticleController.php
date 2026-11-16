@@ -1,7 +1,7 @@
 <?php
 
 namespace App\Http\Controllers;
-
+use Illuminate\Support\Facades\Storage;
 use App\Models\Article;
 use App\Models\Fournisseur;
 use App\Models\Category;
@@ -221,11 +221,83 @@ public function getDetails($id)
     /**
      * Formulaire d’édition
      */
-    public function edit(Article $article)
-    {
-        $fournisseurs = Fournisseur::all();
-        return view('articles.edit', compact('article','fournisseurs'));
+public function edit(Article $article)
+{
+    $fournisseurs = Fournisseur::all();
+    $article->load('barcodes');
+    return view('articles.edit', compact('article', 'fournisseurs'));
+}
+
+public function update(Request $request, Article $article)
+{
+    // Calcul du code principal à partir du radio "primary_index"
+    $barcodes = collect($request->input('barcodes', []))
+        ->map(function ($b, $k) use ($request) {
+            $b['primary'] = ((string) $request->input('primary_index') === (string) $k) ? 1 : 0;
+            return $b;
+        })
+        ->values()
+        ->all();
+    $request->merge(['barcodes' => $barcodes]);
+
+    $request->validate([
+        'nom'               => 'required|string|max:255',
+        'quantite_minimale' => 'required|integer|min:0',
+        'photo'             => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+        'barcodes'          => 'required|array|min:1',
+        'barcodes.*.id'     => 'nullable|exists:article_barcodes,id',
+        'barcodes.*.code'   => [
+            'required', 'string',
+            \Illuminate\Validation\Rule::unique('article_barcodes', 'code_barres')
+                ->ignore($article->id, 'article_id')
+                ->whereNull('deleted_at'),
+        ],
+        'barcodes.*.label'   => 'nullable|string|max:100',
+        'barcodes.*.primary' => 'nullable',
+    ]);
+
+    $data = $request->except(['barcodes', 'photo', 'primary_index', '_token', '_method']);
+
+    if ($request->hasFile('photo')) {
+        if ($article->photo) {
+            Storage::disk('public')->delete($article->photo);
+        }
+        $data['photo'] = $request->file('photo')->store('articles', 'public');
     }
+
+    \DB::transaction(function () use ($data, $barcodes, $article) {
+        $submitted    = collect($barcodes);
+        $submittedIds = $submitted->pluck('id')->filter()->all();
+
+        $hasPrimary = $submitted->contains(fn ($b) => !empty($b['primary']));
+
+        // Garder la colonne code_barres de l'article synchronisée
+        $primary = $submitted->first(fn ($b) => !empty($b['primary'])) ?? $submitted->first();
+        $data['code_barres'] = trim($primary['code']);
+
+        $article->update($data);
+
+        // Supprimer les codes retirés
+        $article->barcodes()->whereNotIn('id', $submittedIds)->delete();
+
+        foreach ($submitted as $i => $b) {
+            $isPrimary = !empty($b['primary']) || (!$hasPrimary && $i === 0);
+            $payload = [
+                'code_barres' => trim($b['code']),
+                'label'       => $b['label'] ?? null,
+                'is_primary'  => $isPrimary,
+            ];
+
+            if (!empty($b['id'])) {
+                $article->barcodes()->where('id', $b['id'])->update($payload);
+            } else {
+                $article->barcodes()->create($payload);
+            }
+        }
+    });
+
+    return redirect()->route('articles.index')->with('success', 'Article mis à jour');
+}
 
     /**
      * Mettre à jour un article
@@ -319,58 +391,7 @@ public function store(Request $request)
     }
 }
  
-// ─── update() ────────────────────────────────────────────────────
-public function update(Request $request, \App\Models\Article $article)
-{
-    $request->validate([
-        'nom'               => 'required|string|max:255',
-        'quantite_minimale' => 'required|integer|min:0',
-        'barcodes'          => 'required|array|min:1',
-        'barcodes.*.id'     => 'nullable|exists:article_barcodes,id',
-        'barcodes.*.code'   => [
-            'required', 'string',
-            \Illuminate\Validation\Rule::unique('article_barcodes', 'code_barres')
-                ->ignore($article->id, 'article_id')   // ignore les codes de cet article
-                ->whereNull('deleted_at'),
-        ],
-        'barcodes.*.label'   => 'nullable|string|max:100',
-        'barcodes.*.primary' => 'nullable|boolean',
-    ]);
- 
-    \DB::transaction(function () use ($request, $article) {
-        $article->update($request->except(['barcodes']));
- 
-        $submitted  = collect($request->input('barcodes', []));
-        $submittedIds = $submitted->pluck('id')->filter()->all();
- 
-        // Supprimer les codes retirés
-        $article->barcodes()->whereNotIn('id', $submittedIds)->delete();
- 
-        $hasPrimary = $submitted->contains(fn($b) => !empty($b['primary']));
- 
-        foreach ($submitted as $i => $b) {
-            $isPrimary = !empty($b['primary']) || (!$hasPrimary && $i === 0);
- 
-            if (!empty($b['id'])) {
-                // Mise à jour
-                $article->barcodes()->where('id', $b['id'])->update([
-                    'code_barres' => $b['code'],
-                    'label'       => $b['label'] ?? null,
-                    'is_primary'  => $isPrimary,
-                ]);
-            } else {
-                // Nouveau code-barres ajouté
-                $article->barcodes()->create([
-                    'code_barres' => $b['code'],
-                    'label'       => $b['label'] ?? null,
-                    'is_primary'  => $isPrimary,
-                ]);
-            }
-        }
-    });
- 
-    return redirect()->route('articles.index')->with('success', 'Article mis à jour');
-}
+
     /**
      * Supprimer un article
      */
