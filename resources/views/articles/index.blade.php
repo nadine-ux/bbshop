@@ -501,7 +501,35 @@
 .card-btn--edit:hover { background: #fff8e1; color: var(--yellow); text-decoration: none; }
 .card-btn--delete { color: var(--red); }
 .card-btn--delete:hover { background: #fdecea; }
-
+@media (max-width: 768px) {
+    .filters-row {
+        flex-wrap: wrap;
+        overflow-x: visible;
+        gap: .75rem;
+    }
+    .filter-item {
+        flex: 1 1 calc(50% - .4rem);
+        min-width: 0;
+    }
+    .filter-item select {
+        max-width: 100%;
+        width: 100%;
+    }
+    .filter-item .select2-container {
+        width: 100% !important;
+    }
+    .filter-actions {
+        flex: 1 1 100%;
+    }
+    .filter-actions .btn-filter,
+    .filter-actions .btn-reset {
+        flex: 1;
+        justify-content: center;
+    }
+}
+@media (max-width: 480px) {
+    .filter-item { flex: 1 1 100%; }
+}
 /* Empty */
 .empty-state {
     grid-column: 1/-1; text-align: center; padding: 3.5rem 2rem;

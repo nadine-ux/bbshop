@@ -55,7 +55,7 @@
         </div>
 
         {{-- Trier par --}}
-        <div style="display:flex;align-items:center;gap:6px;">
+        <div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;">
             <span style="font-size:12px;color:#6c757d;white-space:nowrap;">
                 <i class="fas fa-sort fa-xs mr-1"></i>Trier par
             </span>
