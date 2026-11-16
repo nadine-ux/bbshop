@@ -185,26 +185,58 @@ public function show(Category $category, Request $request)
 }
 
     // 🔹 Mettre à jour la catégorie
-    public function update(Request $request, Category $category)
-    {
-        $request->validate([
-            'nom' => 'required|string|max:255',
-            'parent_id' => 'nullable|exists:categories,id',
-            'photo' => 'nullable|image|max:2048' // si tu veux permettre la photo
+   // 🔹 Mettre à jour la catégorie
+public function update(Request $request, Category $category)
+{
+    // 1. Détecter un upload rejeté par PHP (fichier trop gros, etc.)
+    if ($request->hasFile('photo') && !$request->file('photo')->isValid()) {
+        return back()->withInput()->withErrors([
+            'photo' => 'Upload échoué : ' . $request->file('photo')->getErrorMessage(),
         ]);
+    }
 
-        $data = $request->only('nom','parent_id');
+    $request->validate([
+        'nom'       => 'required|string|max:255',
+        'parent_id' => [
+            'nullable',
+            'exists:categories,id',
+            'not_in:' . $category->id,   // une catégorie ne peut pas être son propre parent
+        ],
+        'photo'     => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
+    ]);
 
-        // 🔹 Gestion photo si upload
-        if ($request->hasFile('photo')) {
-            $path = $request->file('photo')->store('categories','public');
-            $data['photo'] = $path;
+    $data = $request->only('nom', 'parent_id');
+
+    // 2. Nouvelle photo
+    if ($request->hasFile('photo')) {
+        $path = $request->file('photo')->store('categories', 'public');
+
+        if (!$path) {
+            return back()->withInput()->withErrors([
+                'photo' => "Impossible d'enregistrer l'image (vérifie les permissions de storage/).",
+            ]);
         }
 
-        $category->update($data);
+        // Supprimer l'ancienne image
+        if ($category->photo) {
+            Storage::disk('public')->delete($category->photo);
+        }
 
-        return redirect()->route('categories.index')->with('success','Catégorie modifiée avec succès');
+        $data['photo'] = $path;
     }
+    // 3. Suppression de la photo actuelle (case à cocher)
+    elseif ($request->boolean('remove_photo') && $category->photo) {
+        Storage::disk('public')->delete($category->photo);
+        $data['photo'] = null;
+    }
+
+    $category->update($data);
+
+    // Retour vers la catégorie parente si elle en a une
+    return $category->parent_id
+        ? redirect()->route('categories.show', $category->parent_id)->with('success', 'Catégorie modifiée avec succès')
+        : redirect()->route('categories.index')->with('success', 'Catégorie modifiée avec succès');
+}
 
     // 🔹 Supprimer une catégorie
     public function destroy(Category $category)
