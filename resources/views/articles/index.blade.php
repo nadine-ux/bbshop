@@ -652,11 +652,29 @@
 .history-empty { text-align: center; color: var(--muted); padding: 2rem; }
 
 @media(max-width:768px) {
-    .cards-grid { grid-template-columns: repeat(2,1fr); }
+    .cards-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: .5rem;
+    }
     .detail-grid { grid-template-columns: 1fr; }
+
+    /* Cards compactes pour que 3 tiennent sur la ligne */
+    .article-card { border-radius: 12px; }
+    .card-img-wrap { height: 100px; }
+    .card-img-placeholder { font-size: 2rem; }
+    .stock-badge { font-size: .58rem; padding: .15rem .4rem; top: 5px; left: 5px; }
+    .card-img-hover { display: none; }
+
+    .card-info { padding: .5rem .5rem .3rem; }
+    .card-info h3 { font-size: .72rem; margin-bottom: .25rem; }
+    .card-meta { font-size: .62rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .card-price { font-size: .75rem; margin-top: .25rem; }
+
+    .card-btn { padding: .5rem 0; font-size: .8rem; }
 }
 @media(max-width:480px) {
-    .cards-grid { grid-template-columns: repeat(2,1fr); }
+    .cards-grid { grid-template-columns: repeat(3, 1fr); }
+    .page-header { flex-direction: column; align-items: flex-start; gap: .75rem; }
 }
 </style>
 @stop
