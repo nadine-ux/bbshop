@@ -44,25 +44,41 @@ public function create(Request $request)
     return view('categories.create', compact('parent'));
 }
     // Enregistrer une nouvelle catégorie
-    public function store(Request $request)
+   public function store(Request $request)
 {
+    // 1. Détecter un upload rejeté par PHP (fichier trop gros, etc.)
+    if ($request->hasFile('photo') && !$request->file('photo')->isValid()) {
+        return back()->withInput()->withErrors([
+            'photo' => 'Upload échoué : ' . $request->file('photo')->getErrorMessage(),
+        ]);
+    }
+
     $request->validate([
-        'nom' => 'required|string|max:255',
+        'nom'       => 'required|string|max:255',
         'parent_id' => 'nullable|exists:categories,id',
-        'photo' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
+        'photo'     => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
     ]);
 
     $data = $request->only('nom', 'parent_id');
 
+    // 2. Enregistrer la photo
     if ($request->hasFile('photo')) {
-        $data['photo'] = $request->file('photo')->store('categories', 'public');
+        $path = $request->file('photo')->store('categories', 'public');
+
+        if (!$path) {
+            return back()->withInput()->withErrors([
+                'photo' => "Impossible d'enregistrer l'image (vérifie les permissions de storage/).",
+            ]);
+        }
+
+        $data['photo'] = $path;
     }
 
- $category = Category::create($data);
+    $category = Category::create($data);
 
-return $category->parent_id
-    ? redirect()->route('categories.show', $category->parent_id)->with('success', 'Sous-catégorie créée avec succès')
-    : redirect()->route('categories.index')->with('success', 'Catégorie créée avec succès');
+    return $category->parent_id
+        ? redirect()->route('categories.show', $category->parent_id)->with('success', 'Sous-catégorie créée avec succès')
+        : redirect()->route('categories.index')->with('success', 'Catégorie créée avec succès');
 }
 // Recherche de catégories (autocomplétion)
 public function search(Request $request)

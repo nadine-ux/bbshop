@@ -18,7 +18,9 @@
 
 <form action="{{ route('categories.store') }}" method="POST" enctype="multipart/form-data">
     @csrf
-
+@error('photo')
+    <span class="text-danger">{{ $message }}</span>
+@enderror
     @if($parent)
         <div class="alert alert-info">
             <i class="fas fa-layer-group mr-1"></i>
