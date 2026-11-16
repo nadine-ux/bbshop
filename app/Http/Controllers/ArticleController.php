@@ -246,12 +246,11 @@ public function update(Request $request, Article $article)
         'photo'             => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
         'barcodes'          => 'required|array|min:1',
         'barcodes.*.id'     => 'nullable|exists:article_barcodes,id',
-        'barcodes.*.code'   => [
-            'required', 'string',
-            \Illuminate\Validation\Rule::unique('article_barcodes', 'code_barres')
-                ->ignore($article->id, 'article_id')
-                ->whereNull('deleted_at'),
-        ],
+      'barcodes.*.code'   => [
+    'required', 'string',
+    \Illuminate\Validation\Rule::unique('article_barcodes', 'code_barres')
+        ->ignore($article->id, 'article_id'),
+],
         'barcodes.*.label'   => 'nullable|string|max:100',
         'barcodes.*.primary' => 'nullable',
     ]);
