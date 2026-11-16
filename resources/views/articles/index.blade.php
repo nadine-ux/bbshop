@@ -1,7 +1,7 @@
 @extends('adminlte::page')
 
 @section('title', 'Articles')
-
+@section('plugins.Select2', true)
 @section('content_header')
 <div class="page-header">
     <div class="page-header__left">
@@ -84,46 +84,40 @@
         <div class="filters-row">
 
             <div class="filter-item">
-                <label><i class="fas fa-tags"></i> Catégorie</label>
-                <select name="categorie_id">
-                    <option value="">Toutes</option>
-                    @isset($categories)
-                        @foreach($categories as $c)
-                            <option value="{{ $c->id }}" {{ request('categorie_id')==$c->id ? 'selected' : '' }}>
-                                {{ $c->nom }}
-                            </option>
-                        @endforeach
-                    @endisset
-                </select>
-            </div>
+    <label><i class="fas fa-tags"></i> Catégorie</label>
+    <select name="categorie_id" class="js-autocomplete" data-placeholder="Toutes">
+        <option></option>
+        @foreach($categories ?? [] as $c)
+            <option value="{{ $c->id }}" {{ request('categorie_id') == $c->id ? 'selected' : '' }}>
+                {{ $c->nom }}
+            </option>
+        @endforeach
+    </select>
+</div>
 
-            <div class="filter-item">
-                <label><i class="fas fa-certificate"></i> Marque</label>
-                <select name="marque_id">
-                    <option value="">Toutes</option>
-                    @isset($marques)
-                        @foreach($marques as $m)
-                            <option value="{{ $m->id }}" {{ request('marque_id')==$m->id ? 'selected' : '' }}>
-                                {{ $m->nom }}
-                            </option>
-                        @endforeach
-                    @endisset
-                </select>
-            </div>
+<div class="filter-item">
+    <label><i class="fas fa-certificate"></i> Marque</label>
+    <select name="marque_id" class="js-autocomplete" data-placeholder="Toutes">
+        <option></option>
+        @foreach($marques ?? [] as $m)
+            <option value="{{ $m->id }}" {{ request('marque_id') == $m->id ? 'selected' : '' }}>
+                {{ $m->nom }}
+            </option>
+        @endforeach
+    </select>
+</div>
 
-            <div class="filter-item">
-                <label><i class="fas fa-truck"></i> Fournisseur</label>
-                <select name="fournisseur_id">
-                    <option value="">Tous</option>
-                    @isset($fournisseurs)
-                        @foreach($fournisseurs as $f)
-                            <option value="{{ $f->id }}" {{ request('fournisseur_id')==$f->id ? 'selected' : '' }}>
-                                {{ $f->nom }}
-                            </option>
-                        @endforeach
-                    @endisset
-                </select>
-            </div>
+<div class="filter-item">
+    <label><i class="fas fa-truck"></i> Fournisseur</label>
+    <select name="fournisseur_id" class="js-autocomplete" data-placeholder="Tous">
+        <option></option>
+        @foreach($fournisseurs ?? [] as $f)
+            <option value="{{ $f->id }}" {{ request('fournisseur_id') == $f->id ? 'selected' : '' }}>
+                {{ $f->nom }}
+            </option>
+        @endforeach
+    </select>
+</div>
 
             <div class="filter-item">
                 <label><i class="fas fa-warehouse"></i> État stock</label>
@@ -501,6 +495,22 @@
 .card-btn--edit:hover { background: #fff8e1; color: var(--yellow); text-decoration: none; }
 .card-btn--delete { color: var(--red); }
 .card-btn--delete:hover { background: #fdecea; }
+/* Select2 aux couleurs des filtres */
+.filter-item .select2-container--bootstrap4 .select2-selection--single {
+    height: 38px;
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    font-size: .82rem;
+}
+.filter-item .select2-container--bootstrap4 .select2-selection--single .select2-selection__rendered {
+    line-height: 34px;
+    color: var(--text);
+}
+.filter-item .select2-container--bootstrap4.select2-container--focus .select2-selection,
+.filter-item .select2-container--bootstrap4.select2-container--open .select2-selection {
+    border-color: var(--orange);
+    box-shadow: none;
+}
 @media (max-width: 768px) {
     .filters-row {
         flex-wrap: wrap;
@@ -1005,5 +1015,20 @@ function switchTab(btn, filter) {
     btn.classList.add('active');
     renderHistory(filter);
 }
+// ── Filtres autocomplete ──────────────────────────────────
+$(function () {
+    $('.js-autocomplete').each(function () {
+        $(this).select2({
+            theme: 'bootstrap4',
+            width: '100%',
+            placeholder: $(this).data('placeholder'),
+            allowClear: true,
+            language: {
+                noResults: () => 'Aucun résultat',
+                searching: () => 'Recherche en cours...'
+            }
+        });
+    });
+});
 </script>
 @stop
