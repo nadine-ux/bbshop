@@ -33,12 +33,7 @@ Route::middleware('auth')->group(function () {
 Route::get('/admin/reports', fn() => 'Rapports - Directeur')
     ->middleware('role:Directeur')->name('admin.reports');
 
-// Employé : accès limité à ses propres demandes
-Route::middleware(['auth','role:Employé'])->group(function () {
-    Route::get('my-requests', [DemandeController::class, 'index'])->name('employe.demandes.index');
-    Route::get('my-requests/create', [DemandeController::class, 'create'])->name('employe.demandes.create');
-    Route::post('my-requests', [DemandeController::class, 'store'])->name('employe.demandes.store');
-});
+
 
 // Gestionnaire & Directeur : accès complet aux commandes
 Route::middleware(['auth','role:Gestionnaire|Directeur'])->group(function () {
@@ -73,12 +68,31 @@ Route::middleware(['auth', 'permission:manage users'])->group(function () {
 Route::middleware(['auth', 'permission:manage roles'])->group(function () {
     Route::resource('roles', RoleController::class)->only(['index', 'edit', 'update']);
 });
-// Gestionnaire : accès complet aux demandes
-Route::middleware(['auth','role:Gestionnaire'])->group(function () {
-    Route::resource('demandes', DemandeController::class);
-    Route::get('requests', [DemandeController::class, 'all'])->name('demandes.all'); // liste toutes les demandes
-    Route::post('requests/{demande}/valider', [DemandeController::class, 'valider'])->name('demandes.valider');
-    Route::post('requests/{demande}/refuser', [DemandeController::class, 'refuser'])->name('demandes.refuser');
+Route::middleware('auth')->group(function () {
+
+    // Employé
+    Route::get('/demandes', [DemandeController::class, 'index'])
+        ->middleware('permission:view own requests')->name('demandes.index');
+    Route::get('/demandes/create', [DemandeController::class, 'create'])
+        ->middleware('permission:create request')->name('demandes.create');
+    Route::post('/demandes', [DemandeController::class, 'store'])
+        ->middleware('permission:create request')->name('demandes.store');
+    Route::post('/demandes/{demande}/recevoir', [DemandeController::class, 'recevoir'])
+        ->middleware('permission:create request')->name('demandes.recevoir');
+
+    // Gestionnaire
+    Route::get('/demandes/gestion', [DemandeController::class, 'all'])
+        ->middleware('permission:manage requests')->name('demandes.all');
+    Route::post('/demandes/{demande}/valider', [DemandeController::class, 'valider'])
+        ->middleware('permission:manage requests')->name('demandes.valider');
+    Route::post('/demandes/{demande}/refuser', [DemandeController::class, 'refuser'])
+        ->middleware('permission:manage requests')->name('demandes.refuser');
+
+    // Commun
+    Route::get('/demandes/{demande}', [DemandeController::class, 'show'])
+        ->whereNumber('demande')->name('demandes.show');
+    Route::get('/notifications/{id}/lire', [DemandeController::class, 'lireNotification'])
+        ->name('notifications.lire');
 });
 
 // Notifications

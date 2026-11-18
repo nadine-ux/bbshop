@@ -1,85 +1,61 @@
-@extends('adminlte::page')
+<x-app-layout>
+    <x-slot name="header">
+        <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">Demandes reçues</h2>
+    </x-slot>
 
-@section('title','Demandes à traiter')
+    <div class="py-12">
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+            <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg p-6 text-gray-900 dark:text-gray-100">
 
-@section('content_header')
-    <h1>Demandes des employés</h1>
-@stop
+                <x-flash />
 
-@section('content')
-@if(session('success'))
-    <div class="alert alert-success">{{ session('success') }}</div>
-@endif
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
+                        <thead class="bg-gray-50 dark:bg-gray-900">
+                            <tr>
+                                <th class="px-3 py-2 text-left">#</th>
+                                <th class="px-3 py-2 text-left">Date</th>
+                                <th class="px-3 py-2 text-left">Employé</th>
+                                <th class="px-3 py-2 text-left">Articles</th>
+                                <th class="px-3 py-2 text-left">Statut</th>
+                                <th class="px-3 py-2"></th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                            @forelse ($demandes as $d)
+                                <tr>
+                                    <td class="px-3 py-2">{{ $d->id }}</td>
+                                    <td class="px-3 py-2">{{ $d->date }}</td>
+                                    <td class="px-3 py-2">{{ $d->employe->name }}</td>
+                                    <td class="px-3 py-2">{{ $d->lignes->count() }}</td>
+                                    <td class="px-3 py-2"><x-statut-badge :statut="$d->statut" /></td>
+                                    <td class="px-3 py-2 text-right whitespace-nowrap">
+                                        <a href="{{ route('demandes.show', $d) }}"
+                                           class="px-3 py-1 border border-gray-300 rounded-md text-xs hover:bg-gray-100 dark:hover:bg-gray-700">
+                                            Détail
+                                        </a>
+                                        @if ($d->statut === 'en_attente')
+                                            <form method="POST" action="{{ route('demandes.valider', $d) }}" class="inline"
+                                                  onsubmit="return confirm('Valider la demande et décrémenter le stock ?')">
+                                                @csrf
+                                                <button class="px-3 py-1 bg-green-600 text-white rounded-md text-xs hover:bg-green-700">
+                                                    Valider
+                                                </button>
+                                            </form>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="6" class="px-3 py-6 text-center text-gray-500">Aucune demande.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
 
-<table class="table table-bordered table-striped">
-    <thead class="thead-dark">
-        <tr>
-            <th>Employé</th>
-            <th>Article</th>
-            <th>Image</th>
-            <th>Quantité</th>
-            <th>Statut</th>
-            <th>Remarque</th>
-            <th>Actions</th>
-        </tr>
-    </thead>
-    <tbody>
-        @forelse($demandes as $demande)
-            <tr>
-                <td>{{ $demande->employe->name }}</td>
-                <td>{{ $demande->article->nom }}</td>
-                <td>
-                    @if($demande->article->photo)
-                        <img src="{{ $demande->article->photo }}" alt="{{ $demande->article->nom }}" width="60">
-                    @else
-                        —
-                    @endif
-                </td>
-                <td>
-    {{ $demande->quantite_cartons }} carton(s) +
-    {{ $demande->quantite_pieces }} pièce(s)
-    = <strong>{{ $demande->quantite_total }}</strong> pièces
-</td>
-
-                <td>
-                    @if($demande->statut == 'en_attente')
-                        <span class="badge badge-warning">En attente</span>
-                    @elseif($demande->statut == 'validee')
-                        <span class="badge badge-success">Validée</span>
-                    @else
-                        <span class="badge badge-danger">Refusée</span>
-                    @endif
-                </td>
-                <td>{{ $demande->remarque ?? '—' }}</td>
-                <td>
-                    @if($demande->statut == 'en_attente')
-                        <form action="{{ route('demandes.valider',$demande) }}" method="POST" class="d-inline">
-                            @csrf
-                            <button type="submit" class="btn btn-success btn-sm">
-                                <i class="fas fa-check"></i> Valider
-                            </button>
-                        </form>
-                        <form action="{{ route('demandes.refuser',$demande) }}" method="POST" class="d-inline">
-                            @csrf
-                            <input type="text" name="remarque" placeholder="Motif du refus" class="form-control mb-1">
-                            <button type="submit" class="btn btn-danger btn-sm">
-                                <i class="fas fa-times"></i> Refuser
-                            </button>
-                        </form>
-                    @else
-                        —
-                    @endif
-                </td>
-            </tr>
-        @empty
-            <tr>
-                <td colspan="7" class="text-center">Aucune demande</td>
-            </tr>
-        @endforelse
-    </tbody>
-</table>
-
-<div class="d-flex justify-content-center">
-    {{ $demandes->links() }}
-</div>
-@stop
+                <div class="mt-4">{{ $demandes->links() }}</div>
+            </div>
+        </div>
+    </div>
+</x-app-layout>

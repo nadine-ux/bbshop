@@ -371,41 +371,44 @@
     <ul class="navbar-nav ml-auto">
         
         {{-- Notifications de demandes --}}
-        @if(Auth::check())
-        <li class="nav-item dropdown">
-            <a class="nav-link" data-toggle="dropdown" href="#" title="Demandes">
-                <i class="far fa-bell"></i>
-                @if(Auth::user()->unreadNotifications->where('type', App\Notifications\NouvelleDemandeNotification::class)->count() > 0)
-                    <span class="badge badge-warning navbar-badge">
-                        {{ Auth::user()->unreadNotifications->where('type', App\Notifications\NouvelleDemandeNotification::class)->count() }}
-                    </span>
-                @endif
-            </a>
-            <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">
-                <span class="dropdown-header">
-                    <i class="fas fa-bell"></i>Nouvelles Demandes
-                </span>
-                @forelse(Auth::user()->unreadNotifications->where('type', App\Notifications\NouvelleDemandeNotification::class) as $notification)
-                    <a href="{{ route('demandes.show', $notification->data['demande_id']) }}" class="dropdown-item notif-demande">
-                        <i class="fas fa-user-circle"></i>
-                        <div>
-                            Demande de <strong>{{ $notification->data['employe'] }}</strong>
-                            <br>
-                            <small>{{ $notification->data['article'] }} ({{ $notification->data['quantite'] }} pièces)</small>
-                            <span class="text-muted">
-                                {{ $notification->created_at->diffForHumans() }}
-                            </span>
-                        </div>
-                    </a>
-                @empty
-                    <span class="dropdown-item dropdown-item-empty">
-                        <i class="far fa-bell-slash"></i>
-                        Aucune notification de demande
-                    </span>
-                @endforelse
-            </div>
-        </li>
+
+@if(Auth::check())
+@php
+    $notifsDemandes = Auth::user()->unreadNotifications->filter(fn ($n) => in_array($n->type, [
+        \App\Notifications\NouvelleDemandeNotification::class,
+        \App\Notifications\DemandeStatutNotification::class,
+    ]))->take(10);
+@endphp
+<li class="nav-item dropdown">
+    <a class="nav-link" data-toggle="dropdown" href="#" title="Demandes">
+        <i class="far fa-bell"></i>
+        @if($notifsDemandes->count() > 0)
+            <span class="badge badge-warning navbar-badge">{{ $notifsDemandes->count() }}</span>
         @endif
+    </a>
+    <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">
+        <span class="dropdown-header">
+            <i class="fas fa-bell"></i>Demandes
+        </span>
+        @forelse($notifsDemandes as $notification)
+            <a href="{{ route('notifications.lire', $notification->id) }}" class="dropdown-item notif-demande">
+                <i class="fas fa-clipboard-list"></i>
+                <div>
+                    {{ $notification->data['message'] ?? 'Notification' }}
+                    <span class="text-muted">
+                        {{ $notification->created_at->diffForHumans() }}
+                    </span>
+                </div>
+            </a>
+        @empty
+            <span class="dropdown-item dropdown-item-empty">
+                <i class="far fa-bell-slash"></i>
+                Aucune notification de demande
+            </span>
+        @endforelse
+    </div>
+</li>
+@endif
 
         {{-- Notifications de stock minimal --}}
         @if(Auth::check())

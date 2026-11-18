@@ -17,20 +17,30 @@
                     </x-nav-link>
                 </div>
             </div>
-<div class="dropdown-menu dropdown-menu-right mt-2" aria-labelledby="notifDropdown">
-    @forelse(Auth::user()->unreadNotifications as $notification)
-
-        @if(isset($notification->data['demande_id']))
-            <a href="{{ route('demandes.show', $notification->data['demande_id']) }}" class="dropdown-item">
-                Demande de {{ $notification->data['employe'] ?? '—' }}
-                pour {{ $notification->data['article'] ?? '—' }}
-                ({{ $notification->data['quantite'] ?? 0 }} pièces)
-            </a>
+@php $notifs = auth()->user()->unreadNotifications()->latest()->take(10)->get(); @endphp
+<div class="relative me-3" x-data="{ open: false }" @click.away="open = false">
+    <button @click="open = !open" type="button"
+            class="relative p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+        🔔
+        @if ($notifs->count())
+            <span class="absolute -top-1 -right-1 bg-red-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                {{ $notifs->count() }}
+            </span>
         @endif
+    </button>
 
-    @empty
-        <span class="dropdown-item">Aucune notification</span>
-    @endforelse
+    <div x-show="open" x-cloak
+         class="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-md shadow-lg ring-1 ring-black/5 z-50">
+        @forelse ($notifs as $n)
+            <a href="{{ route('notifications.lire', $n->id) }}"
+               class="block px-4 py-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 border-b border-gray-100 dark:border-gray-700">
+                {{ $n->data['message'] ?? 'Notification' }}
+                <span class="block text-xs text-gray-400">{{ $n->created_at->diffForHumans() }}</span>
+            </a>
+        @empty
+            <div class="px-4 py-3 text-sm text-gray-500">Aucune notification</div>
+        @endforelse
+    </div>
 </div>
 
 
