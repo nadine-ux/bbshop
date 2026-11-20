@@ -12,9 +12,13 @@
 
                 <!-- Navigation Links -->
                 <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
-                    <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
-                        {{ __('Dashboard') }}
-                    </x-nav-link>
+                <x-nav-link :href="route('demandes.index')" :active="request()->routeIs('demandes.*')">
+    Demandes
+    @php $nbDemandes = \App\Models\Demande::where('statut', 'en_attente')->count(); @endphp
+    @if($nbDemandes)
+        <span class="ms-1 bg-red-600 text-white text-xs rounded-full px-2 py-0.5">{{ $nbDemandes }}</span>
+    @endif
+</x-nav-link>
                 </div>
             </div>
 @php $notifs = auth()->user()->unreadNotifications()->latest()->take(10)->get(); @endphp
@@ -93,9 +97,9 @@
     <!-- Responsive Navigation Menu -->
     <div :class="{'block': open, 'hidden': ! open}" class="hidden sm:hidden">
         <div class="pt-2 pb-3 space-y-1">
-            <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
-                {{ __('Dashboard') }}
-            </x-responsive-nav-link>
+            <x-responsive-nav-link :href="route('demandes.index')" :active="request()->routeIs('demandes.*')">
+    Demandes
+</x-responsive-nav-link>
         </div>
 
         <!-- Responsive Settings Options -->
