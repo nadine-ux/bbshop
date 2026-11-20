@@ -84,20 +84,13 @@ return [
         'icon' => 'fas fa-exchange-alt',
         'can'  => 'manage stock',
     ],
+['header' => 'DEMANDES INTERNES'],
 
-    // Demandes internes
-    ['header' => 'DEMANDES INTERNES'],
-    [
-        'text' => 'Mes demandes',
-        'url'  => 'my-requests',
-        'icon' => 'fas fa-envelope-open-text',
-        'can'  => 'view own requests',
-    ],
-    [
+[
     'text' => 'Demandes à traiter',
-    'url'  => 'requests',
+    'url'  => 'demandes',
     'icon' => 'fas fa-tasks',
-    'can'  => 'manage requests', 
+    'can'  => 'manage requests',
 ],
 ['header' => 'COMMANDES'],
 [
