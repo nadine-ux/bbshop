@@ -54,21 +54,31 @@ window.BarcodeScan = (function () {
     }
 
     // Un code est lu : on arrête la caméra et on passe le code à la page
-    function submitCode(code) {
-        if (done) return;
-        done = true;
-        setStatus('✅ Détecté : ' + code);
-        if (navigator.vibrate) navigator.vibrate(120);
-        stopScanner();
-        if (typeof api.onDetected === 'function') api.onDetected(String(code).trim());
-    }
 
-    function onDecoded(text) {
-        var now = Date.now();
-        if (text === lastText && now - lastTime < 2000) return;
-        lastText = text; lastTime = now;
-        submitCode(text);
-    }
+// Un code est lu : on le nettoie, on arrête la caméra et on passe le code à la page
+function submitCode(code, format) {
+    if (done) return;
+    done = true;
+
+    var raw = String(code).trim();
+    // Certains lecteurs ajoutent des zéros devant : on les enlève
+    var clean = raw.replace(/^0+/, '') || raw;
+
+    console.log('[scan] brut :', raw, '| format :', format, '| nettoyé :', clean);
+
+    setStatus('✅ Détecté : ' + clean);
+    if (navigator.vibrate) navigator.vibrate(120);
+    stopScanner();
+    if (typeof api.onDetected === 'function') api.onDetected(clean);
+}
+
+function onDecoded(text, result) {
+    var now = Date.now();
+    if (text === lastText && now - lastTime < 2000) return;
+    lastText = text; lastTime = now;
+    var fmt = (result && result.result && result.result.format && result.result.format.formatName) || '?';
+    submitCode(text, fmt);
+}
 
     async function loadBackCams() {
         var cams = [];

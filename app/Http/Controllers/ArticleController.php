@@ -43,14 +43,22 @@ public function index(Request $request)
     }
 
     // Code-barres : cherche dans le code principal ET dans tous les codes de l'article
-    if ($codeBarres) {
-        $query->where(function ($q) use ($codeBarres) {
-            $q->where('code_barres', 'like', "%{$codeBarres}%")
-              ->orWhereHas('barcodes', function ($b) use ($codeBarres) {
-                  $b->where('code_barres', 'like', "%{$codeBarres}%");
-              });
-        });
-    }
+ // Code-barres : cherche dans le code principal ET dans tous les codes de l'article
+// Insensible aux zéros en début de code (88654354 == 0088654354)
+if ($codeBarres) {
+    $raw   = trim($codeBarres);
+    $clean = ltrim($raw, '0');
+    if ($clean === '') { $clean = $raw; }
+
+    $query->where(function ($q) use ($raw, $clean) {
+        $q->where('code_barres', 'like', "%{$raw}%")
+          ->orWhere('code_barres', 'like', "%{$clean}%")
+          ->orWhereHas('barcodes', function ($b) use ($raw, $clean) {
+              $b->where('code_barres', 'like', "%{$raw}%")
+                ->orWhere('code_barres', 'like', "%{$clean}%");
+          });
+    });
+}
 
     // Filtres relations
     if ($fournisseurId) {
